@@ -23,8 +23,9 @@ body {
   padding: 0 16px;
   display: grid;
   gap: 24px;
-  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  grid-template-columns: 1fr;
   align-items: start;
+  justify-items: center;
 }
 
 .sheet {
@@ -32,6 +33,7 @@ body {
   border: 2px solid var(--accent);
   padding: 20px 24px 24px;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  width: min(100%, 1200px);
 }
 
 .sheet-header {
