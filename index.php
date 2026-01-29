@@ -368,44 +368,6 @@ function checked(string $name, string $value, array $formData): string
         </div>
       </form>
     </section>
-
-    <section class="sheet list">
-      <h2>Recent Intake Items</h2>
-      <?php if (!$recent): ?>
-        <p>No items yet.</p>
-      <?php else: ?>
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>ID</th>
-                <th>SKU</th>
-                <th>What</th>
-                <th>Status</th>
-                <th>Date Received</th>
-                <th>Condition</th>
-                <th>Where</th>
-                <th>Created</th>
-              </tr>
-            </thead>
-            <tbody>
-              <?php foreach ($recent as $row): ?>
-                <tr>
-                  <td><?php echo h((string)$row['id']); ?></td>
-                  <td><?php echo h($row['sku']); ?></td>
-                  <td><?php echo h($row['what_is_it']); ?></td>
-                  <td><?php echo h($row['status']); ?></td>
-                  <td><?php echo h($row['date_received']); ?></td>
-                  <td><?php echo h($row['condition']); ?></td>
-                  <td><?php echo h($row['where_it_goes']); ?></td>
-                  <td><?php echo h($row['created_at']); ?></td>
-                </tr>
-              <?php endforeach; ?>
-            </tbody>
-          </table>
-        </div>
-      <?php endif; ?>
-    </section>
   </main>
 </body>
 </html>
