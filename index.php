@@ -402,7 +402,32 @@ function checked(string $name, string $value, array $formData): string
         return;
       }
 
+      var sheetEl = document.querySelector('.sheet');
+      var fitSheetToViewport = function () {
+        if (!sheetEl) {
+          return;
+        }
+        if (window.matchMedia && window.matchMedia('print').matches) {
+          return;
+        }
+        var ratio = 17 / 22;
+        var viewportWidth = window.innerWidth;
+        var viewportHeight = window.innerHeight;
+        if (!viewportWidth || !viewportHeight) {
+          return;
+        }
+        var width = viewportWidth;
+        var height = viewportWidth / ratio;
+        if (height > viewportHeight) {
+          height = viewportHeight;
+          width = viewportHeight * ratio;
+        }
+        sheetEl.style.width = Math.floor(width) + 'px';
+        sheetEl.style.height = Math.floor(height) + 'px';
+      };
+
       var scaleToFit = function () {
+        fitSheetToViewport();
         content.style.transform = 'scale(1)';
         content.style.marginLeft = '0px';
         content.style.marginTop = '0px';

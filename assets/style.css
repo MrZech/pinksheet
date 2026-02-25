@@ -18,14 +18,13 @@ body {
 }
 
 .page {
-  max-width: none;
-  margin: 24px auto 48px;
-  padding: 0 16px;
-  display: grid;
-  gap: 24px;
-  grid-template-columns: 1fr;
-  align-items: start;
-  justify-items: center;
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+  width: 100vw;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .sheet {
@@ -33,8 +32,6 @@ body {
   border: 2px solid var(--accent);
   padding: 20px 24px 24px;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
-  width: 11in;
-  height: 8.5in;
   overflow: hidden;
 }
 
@@ -312,7 +309,7 @@ th, td {
 
 @media print {
   @page {
-    size: letter landscape;
+    size: letter portrait;
     margin: 0.3in;
   }
 
@@ -332,8 +329,8 @@ th, td {
   }
 
   .sheet {
-    width: 11in;
-    height: 8.5in;
+    width: 8.5in;
+    height: 11in;
     padding: 8px 10px 10px;
     border: 1px solid var(--line);
     box-shadow: none;
