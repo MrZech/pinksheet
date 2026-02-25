@@ -48,21 +48,39 @@ CREATE TABLE IF NOT EXISTS intake_items (
 );
 SQL);
 
+$columns = $pdo->query("PRAGMA table_info(intake_items)")->fetchAll(PDO::FETCH_ASSOC);
+$columnNames = array_map(static fn(array $column): string => (string)$column['name'], $columns);
+if (!in_array('sku_normalized', $columnNames, true)) {
+    $pdo->exec('ALTER TABLE intake_items ADD COLUMN sku_normalized TEXT');
+}
+$pdo->exec("CREATE INDEX IF NOT EXISTS idx_intake_items_sku_normalized ON intake_items (sku_normalized)");
+$pdo->exec("UPDATE intake_items SET sku_normalized = UPPER(TRIM(COALESCE(sku, ''))) WHERE sku_normalized IS NULL OR sku_normalized = ''");
+
+function normalizeSku(string $sku): string
+{
+    return strtoupper(trim($sku));
+}
+
 $saved = isset($_GET['saved']);
+$saveMode = trim($_GET['save_mode'] ?? '');
+$errors = [];
 $lookupSku = trim($_GET['sku'] ?? '');
+$lookupSkuNormalized = normalizeSku($lookupSku);
 $currentItem = null;
 
-if ($lookupSku !== '') {
-    $stmt = $pdo->prepare('SELECT * FROM intake_items WHERE sku = :sku ORDER BY id DESC LIMIT 1');
-    $stmt->execute(['sku' => $lookupSku]);
+if ($lookupSkuNormalized !== '') {
+    $stmt = $pdo->prepare('SELECT * FROM intake_items WHERE sku_normalized = :sku_normalized ORDER BY id DESC LIMIT 1');
+    $stmt->execute(['sku_normalized' => $lookupSkuNormalized]);
     $currentItem = $stmt->fetch(PDO::FETCH_ASSOC) ?: null;
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $id = isset($_POST['id']) ? (int)$_POST['id'] : null;
+    $sku = trim($_POST['sku'] ?? '');
     $data = [
         'id' => $id,
-        'sku' => trim($_POST['sku'] ?? ''),
+        'sku' => $sku,
+        'sku_normalized' => normalizeSku($sku),
         'status' => trim($_POST['status'] ?? ''),
         'what_is_it' => trim($_POST['what_is_it'] ?? ''),
         'date_received' => trim($_POST['date_received'] ?? ''),
@@ -91,10 +109,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         'notes' => trim($_POST['notes'] ?? ''),
     ];
 
-    if ($id) {
-        $stmt = $pdo->prepare(<<<'SQL'
+    if ($data['sku_normalized'] === '') {
+        $errors[] = 'SKU is required to save this intake item.';
+    }
+
+    if (!$errors) {
+        $updateStmt = $pdo->prepare(<<<'SQL'
 UPDATE intake_items SET
     sku = :sku,
+    sku_normalized = :sku_normalized,
     status = :status,
     what_is_it = :what_is_it,
     date_received = :date_received,
@@ -124,11 +147,20 @@ UPDATE intake_items SET
     updated_at = datetime('now')
 WHERE id = :id;
 SQL);
-        $stmt->execute($data);
-    } else {
-        $stmt = $pdo->prepare(<<<'SQL'
+        $saveMode = 'updated';
+        if ($id) {
+            $updateStmt->execute($data);
+        } else {
+            $existingStmt = $pdo->prepare('SELECT id FROM intake_items WHERE sku_normalized = :sku_normalized ORDER BY id DESC LIMIT 1');
+            $existingStmt->execute(['sku_normalized' => $data['sku_normalized']]);
+            $existingId = (int)($existingStmt->fetchColumn() ?: 0);
+            if ($existingId > 0) {
+                $data['id'] = $existingId;
+                $updateStmt->execute($data);
+            } else {
+                $stmt = $pdo->prepare(<<<'SQL'
 INSERT INTO intake_items (
-    sku, status, what_is_it, date_received, source,
+    sku, sku_normalized, status, what_is_it, date_received, source,
     functional, condition, is_square, care_if_square,
     cords_adapters, keep_items_together, picture_taken,
     power_on, brand_model, ram, ssd_gb, cpu, battery_health,
@@ -136,7 +168,7 @@ INSERT INTO intake_items (
     ebay_status, ebay_price, dispotech_price, in_ebay_room,
     what_box, notes, updated_at
 ) VALUES (
-    :sku, :status, :what_is_it, :date_received, :source,
+    :sku, :sku_normalized, :status, :what_is_it, :date_received, :source,
     :functional, :condition, :is_square, :care_if_square,
     :cords_adapters, :keep_items_together, :picture_taken,
     :power_on, :brand_model, :ram, :ssd_gb, :cpu, :battery_health,
@@ -145,17 +177,20 @@ INSERT INTO intake_items (
     :what_box, :notes, datetime('now')
 );
 SQL);
-        $insertData = $data;
-        unset($insertData['id']);
-        $stmt->execute($insertData);
-    }
+                $insertData = $data;
+                unset($insertData['id']);
+                $stmt->execute($insertData);
+                $saveMode = 'created';
+            }
+        }
 
-    $redirect = $_SERVER['PHP_SELF'] . '?saved=1';
-    if ($data['sku'] !== '') {
-        $redirect .= '&sku=' . urlencode($data['sku']);
+        $redirect = $_SERVER['PHP_SELF'] . '?saved=1&save_mode=' . urlencode($saveMode);
+        if ($data['sku'] !== '') {
+            $redirect .= '&sku=' . urlencode($data['sku']);
+        }
+        header('Location: ' . $redirect);
+        exit;
     }
-    header('Location: ' . $redirect);
-    exit;
 }
 
 $recent = $pdo->query('SELECT * FROM intake_items ORDER BY id DESC LIMIT 25')->fetchAll(PDO::FETCH_ASSOC);
@@ -213,7 +248,21 @@ function checked(string $name, string $value, array $formData): string
       <h1>Dispo.Tech Tracker Intake Sheet</h1>
 
       <?php if ($saved): ?>
-        <p class="success">Saved intake item.</p>
+        <p class="success">
+          <?php if ($saveMode === 'created'): ?>
+            Saved as new SKU record.
+          <?php else: ?>
+            Saved and synced to this SKU.
+          <?php endif; ?>
+        </p>
+      <?php endif; ?>
+
+      <?php if ($errors): ?>
+        <div class="error-box">
+          <?php foreach ($errors as $error): ?>
+            <p class="error"><?php echo h($error); ?></p>
+          <?php endforeach; ?>
+        </div>
       <?php endif; ?>
 
       <form id="intake-form" method="post" class="form-grid">
@@ -375,6 +424,38 @@ function checked(string $name, string $value, array $formData): string
           <button type="submit">Save Intake Item</button>
         </div>
       </form>
+
+      <section class="section recent-items">
+        <h2>Recent SKUs</h2>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>SKU</th>
+                <th>Status</th>
+                <th>Updated</th>
+                <th>Open</th>
+              </tr>
+            </thead>
+            <tbody>
+              <?php if (!$recent): ?>
+                <tr>
+                  <td colspan="4">No intake items saved yet.</td>
+                </tr>
+              <?php else: ?>
+                <?php foreach ($recent as $item): ?>
+                  <tr>
+                    <td><?php echo h($item['sku'] ?? ''); ?></td>
+                    <td><?php echo h($item['status'] ?? ''); ?></td>
+                    <td><?php echo h($item['updated_at'] ?? ''); ?></td>
+                    <td><a href="index.php?sku=<?php echo urlencode((string)($item['sku'] ?? '')); ?>">Open</a></td>
+                  </tr>
+                <?php endforeach; ?>
+              <?php endif; ?>
+            </tbody>
+          </table>
+        </div>
+      </section>
         </div>
       </div>
     </section>
