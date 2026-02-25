@@ -113,6 +113,13 @@ a:hover {
   position: relative;
 }
 
+.app-menu {
+  position: fixed;
+  top: 16px;
+  left: 16px;
+  z-index: 80;
+}
+
 .menu-toggle {
   display: inline-flex;
   align-items: center;
@@ -152,21 +159,31 @@ a:hover {
 }
 
 .menu-panel {
-  position: absolute;
-  top: calc(100% + 8px);
-  right: 0;
-  width: min(310px, calc(100vw - 32px));
+  position: fixed;
+  top: 66px;
+  left: 16px;
+  width: min(320px, calc(100vw - 32px));
   padding: 12px;
   border: 1px solid var(--line);
   border-radius: var(--radius-md);
   background: rgba(255, 252, 254, 0.98);
   box-shadow: 0 16px 28px rgba(66, 11, 32, 0.18);
-  z-index: 40;
+  z-index: 79;
+  transform: translateX(-18px);
+  opacity: 0;
+  pointer-events: none;
+  transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+.menu-panel.is-open {
+  transform: translateX(0);
+  opacity: 1;
+  pointer-events: auto;
 }
 
 .menu-links {
   list-style: none;
-  margin: 0 0 12px;
+  margin: 0;
   padding: 0;
   display: grid;
   gap: 6px;
@@ -183,15 +200,6 @@ a:hover {
 .menu-links a:hover {
   background: #fff6f9;
   text-decoration: none;
-}
-
-.menu-lookup {
-  display: grid;
-  gap: 8px;
-}
-
-.menu-lookup button {
-  width: 100%;
 }
 
 .sheet-header .status label {
@@ -426,6 +434,15 @@ button:active,
   color: var(--ok-ink);
 }
 
+.warning {
+  border-radius: var(--radius-sm);
+  padding: 8px 11px;
+  margin: 0;
+  background: #fff5e4;
+  border: 1px solid #f2d5a1;
+  color: #805a17;
+}
+
 .error-box {
   display: grid;
   gap: 8px;
@@ -435,6 +452,15 @@ button:active,
   background: var(--err-bg);
   border: 1px solid #f0bfd0;
   color: var(--err-ink);
+}
+
+.client-error[hidden] {
+  display: none;
+}
+
+.required-missing {
+  border-color: #c02b57 !important;
+  box-shadow: 0 0 0 3px rgba(192, 43, 87, 0.15) !important;
 }
 
 .table-wrap {
@@ -472,6 +498,17 @@ th {
 }
 
 @media (max-width: 760px) {
+  .app-menu {
+    top: 10px;
+    left: 10px;
+  }
+
+  .menu-panel {
+    top: 58px;
+    left: 10px;
+    width: min(340px, calc(100vw - 20px));
+  }
+
   .sheet.intake {
     width: 100%;
     height: auto;
@@ -662,8 +699,10 @@ th {
 
   .recent-items,
   .actions,
-  .menu-wrap,
+  .app-menu,
   .success,
+  .warning,
+  .client-error,
   .error-box,
   .print-toggle {
     display: none;

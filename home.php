@@ -8,28 +8,22 @@
 </head>
 <body class="home">
   <main class="page">
+    <div class="app-menu">
+      <button type="button" class="menu-toggle" aria-expanded="false" aria-controls="global-menu" id="menu-toggle">
+        <span class="hamburger" aria-hidden="true"></span>
+        <span>Menu</span>
+      </button>
+      <nav class="menu-panel" id="global-menu" aria-hidden="true">
+        <ul class="menu-links">
+          <li><a href="home.php">Home</a></li>
+          <li><a href="home.php#sku-lookup">SKU Lookup</a></li>
+          <li><a href="index.php">New Intake</a></li>
+        </ul>
+      </nav>
+    </div>
     <section class="sheet home-sheet">
       <header class="sheet-header">
         <div class="updated">Dispo.Tech Intake</div>
-        <div class="menu-wrap">
-          <button type="button" class="menu-toggle" aria-expanded="false" aria-controls="global-menu" id="menu-toggle">
-            <span class="hamburger" aria-hidden="true"></span>
-            <span>Menu</span>
-          </button>
-          <nav class="menu-panel" id="global-menu" hidden>
-            <ul class="menu-links">
-              <li><a href="home.php">Home</a></li>
-              <li><a href="home.php#sku-lookup">SKU Lookup</a></li>
-              <li><a href="index.php">New Intake</a></li>
-            </ul>
-            <form class="menu-lookup" method="get" action="index.php">
-              <label>Open SKU
-                <input type="text" name="sku" placeholder="Enter SKU">
-              </label>
-              <button type="submit">Go</button>
-            </form>
-          </nav>
-        </div>
       </header>
       <h1>Dispo.Tech Intake Lookup</h1>
       <p>Paste or type a SKU to open the intake sheet for review or editing.</p>
@@ -55,18 +49,20 @@
       }
 
       var closeMenu = function () {
-        menuPanel.hidden = true;
+        menuPanel.classList.remove('is-open');
+        menuPanel.setAttribute('aria-hidden', 'true');
         menuToggle.setAttribute('aria-expanded', 'false');
       };
 
       menuToggle.addEventListener('click', function () {
-        var opening = menuPanel.hidden;
-        menuPanel.hidden = !opening;
+        var opening = !menuPanel.classList.contains('is-open');
+        menuPanel.classList.toggle('is-open', opening);
+        menuPanel.setAttribute('aria-hidden', opening ? 'false' : 'true');
         menuToggle.setAttribute('aria-expanded', opening ? 'true' : 'false');
       });
 
       document.addEventListener('click', function (event) {
-        if (menuPanel.hidden) {
+        if (!menuPanel.classList.contains('is-open')) {
           return;
         }
         if (!menuPanel.contains(event.target) && !menuToggle.contains(event.target)) {

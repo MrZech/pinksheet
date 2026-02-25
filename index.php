@@ -67,11 +67,15 @@ $errors = [];
 $lookupSku = trim($_GET['sku'] ?? '');
 $lookupSkuNormalized = normalizeSku($lookupSku);
 $currentItem = null;
+$duplicateCount = 0;
 
 if ($lookupSkuNormalized !== '') {
     $stmt = $pdo->prepare('SELECT * FROM intake_items WHERE sku_normalized = :sku_normalized ORDER BY id DESC LIMIT 1');
     $stmt->execute(['sku_normalized' => $lookupSkuNormalized]);
     $currentItem = $stmt->fetch(PDO::FETCH_ASSOC) ?: null;
+    $countStmt = $pdo->prepare('SELECT COUNT(*) FROM intake_items WHERE sku_normalized = :sku_normalized');
+    $countStmt->execute(['sku_normalized' => $lookupSkuNormalized]);
+    $duplicateCount = (int)$countStmt->fetchColumn();
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -222,30 +226,24 @@ function checked(string $name, string $value, array $formData): string
 </head>
 <body>
   <main class="page">
+    <div class="app-menu">
+      <button type="button" class="menu-toggle" aria-expanded="false" aria-controls="global-menu" id="menu-toggle">
+        <span class="hamburger" aria-hidden="true"></span>
+        <span>Menu</span>
+      </button>
+      <nav class="menu-panel" id="global-menu" aria-hidden="true">
+        <ul class="menu-links">
+          <li><a href="home.php">Home</a></li>
+          <li><a href="home.php#sku-lookup">SKU Lookup</a></li>
+          <li><a href="index.php">New Intake</a></li>
+        </ul>
+      </nav>
+    </div>
     <section class="sheet intake">
       <div class="sheet-scale" id="sheet-scale">
         <div class="sheet-content" id="sheet-content">
           <header class="sheet-header">
         <div class="updated">Last updated: <span><?php echo date('Y-m-d'); ?></span></div>
-        <div class="menu-wrap">
-          <button type="button" class="menu-toggle" aria-expanded="false" aria-controls="global-menu" id="menu-toggle">
-            <span class="hamburger" aria-hidden="true"></span>
-            <span>Menu</span>
-          </button>
-          <nav class="menu-panel" id="global-menu" hidden>
-            <ul class="menu-links">
-              <li><a href="home.php">Home</a></li>
-              <li><a href="home.php#sku-lookup">SKU Lookup</a></li>
-              <li><a href="index.php">New Intake</a></li>
-            </ul>
-            <form class="menu-lookup" method="get" action="index.php">
-              <label>Open SKU
-                <input type="text" name="sku" placeholder="Enter SKU">
-              </label>
-              <button type="submit">Go</button>
-            </form>
-          </nav>
-        </div>
         <label class="print-toggle">
           <input type="checkbox" id="print-pink">
           <span>Print pink</span>
@@ -253,7 +251,7 @@ function checked(string $name, string $value, array $formData): string
         <div class="status">
           <label>
             <span>Status:</span>
-            <select name="status" form="intake-form">
+            <select name="status" form="intake-form" required>
               <option value="">Select</option>
               <?php foreach (['Intake','Description','Tested','Listed','SOLD'] as $opt): ?>
                 <option value="<?php echo $opt; ?>" <?php echo (($formData['status'] ?? '') === $opt) ? 'selected' : ''; ?>><?php echo $opt; ?></option>
@@ -283,15 +281,24 @@ function checked(string $name, string $value, array $formData): string
         </div>
       <?php endif; ?>
 
+      <?php if ($lookupSkuNormalized !== '' && $duplicateCount > 1): ?>
+        <p class="warning">This SKU has <?php echo $duplicateCount; ?> records in history. Saving updates the newest one.</p>
+      <?php endif; ?>
+
+      <p class="error client-error" id="client-error" hidden>Please fill in SKU, Status, and What is it? before saving.</p>
+
       <form id="intake-form" method="post" class="form-grid">
+        <input type="hidden" id="draft-dismiss" value="<?php echo $saved ? '1' : '0'; ?>">
+        <input type="hidden" id="has-server-record" value="<?php echo $currentItem ? '1' : '0'; ?>">
+        <input type="hidden" id="has-lookup-sku" value="<?php echo $lookupSkuNormalized !== '' ? '1' : '0'; ?>">
         <input type="hidden" name="id" value="<?php echo h(isset($formData['id']) ? (string)$formData['id'] : ''); ?>">
         <div class="form-columns">
           <div class="row">
             <label>SKU
-              <input type="text" name="sku" value="<?php echo h($formData['sku'] ?? ''); ?>">
+              <input type="text" name="sku" value="<?php echo h($formData['sku'] ?? ''); ?>" required>
             </label>
             <label>What is it?
-              <input type="text" name="what_is_it" value="<?php echo h($formData['what_is_it'] ?? ''); ?>">
+              <input type="text" name="what_is_it" value="<?php echo h($formData['what_is_it'] ?? ''); ?>" required>
             </label>
           </div>
 
@@ -484,16 +491,18 @@ function checked(string $name, string $value, array $formData): string
       var menuPanel = document.getElementById('global-menu');
       if (menuToggle && menuPanel) {
         var closeMenu = function () {
-          menuPanel.hidden = true;
+          menuPanel.classList.remove('is-open');
+          menuPanel.setAttribute('aria-hidden', 'true');
           menuToggle.setAttribute('aria-expanded', 'false');
         };
         menuToggle.addEventListener('click', function () {
-          var opening = menuPanel.hidden;
-          menuPanel.hidden = !opening;
+          var opening = !menuPanel.classList.contains('is-open');
+          menuPanel.classList.toggle('is-open', opening);
+          menuPanel.setAttribute('aria-hidden', opening ? 'false' : 'true');
           menuToggle.setAttribute('aria-expanded', opening ? 'true' : 'false');
         });
         document.addEventListener('click', function (event) {
-          if (menuPanel.hidden) {
+          if (!menuPanel.classList.contains('is-open')) {
             return;
           }
           if (!menuPanel.contains(event.target) && !menuToggle.contains(event.target)) {
@@ -504,6 +513,106 @@ function checked(string $name, string $value, array $formData): string
           if (event.key === 'Escape') {
             closeMenu();
           }
+        });
+      }
+
+      var form = document.getElementById('intake-form');
+      if (form) {
+        var draftKey = 'intakeDraftV1';
+        var errorEl = document.getElementById('client-error');
+        var dismissDraft = document.getElementById('draft-dismiss');
+        var hasRecord = document.getElementById('has-server-record');
+        var hasLookup = document.getElementById('has-lookup-sku');
+        var shouldRestore = dismissDraft && dismissDraft.value !== '1'
+          && hasRecord && hasRecord.value !== '1'
+          && hasLookup && hasLookup.value !== '1';
+
+        var applyRequiredState = function (name, missing) {
+          var el = form.querySelector('[name="' + name + '"]');
+          if (el) {
+            el.classList.toggle('required-missing', missing);
+          }
+        };
+
+        if (shouldRestore) {
+          try {
+            var raw = localStorage.getItem(draftKey);
+            if (raw) {
+              var draft = JSON.parse(raw);
+              Object.keys(draft).forEach(function (name) {
+                var value = draft[name];
+                var fields = form.querySelectorAll('[name="' + name + '"]');
+                fields.forEach(function (field) {
+                  if (field.type === 'radio') {
+                    field.checked = (field.value === value);
+                    return;
+                  }
+                  if (field.type === 'checkbox') {
+                    field.checked = !!value;
+                    return;
+                  }
+                  field.value = value;
+                });
+              });
+            }
+          } catch (e) {}
+        }
+
+        var saveTimer = null;
+        var saveDraft = function () {
+          var payload = {};
+          var fields = form.querySelectorAll('input[name], select[name], textarea[name]');
+          fields.forEach(function (field) {
+            if (field.type === 'radio') {
+              if (field.checked) {
+                payload[field.name] = field.value;
+              }
+              return;
+            }
+            if (field.type === 'checkbox') {
+              payload[field.name] = field.checked;
+              return;
+            }
+            payload[field.name] = field.value;
+          });
+          localStorage.setItem(draftKey, JSON.stringify(payload));
+        };
+        var queueDraftSave = function () {
+          clearTimeout(saveTimer);
+          saveTimer = setTimeout(saveDraft, 250);
+        };
+
+        form.addEventListener('input', function (event) {
+          queueDraftSave();
+          if (!event.target || !event.target.name) {
+            return;
+          }
+          if (event.target.name === 'sku' || event.target.name === 'status' || event.target.name === 'what_is_it') {
+            applyRequiredState(event.target.name, false);
+            if (errorEl) {
+              errorEl.hidden = true;
+            }
+          }
+        });
+        form.addEventListener('change', queueDraftSave);
+        form.addEventListener('submit', function (event) {
+          var sku = ((form.querySelector('[name="sku"]') || {}).value || '').trim();
+          var status = ((form.querySelector('[name="status"]') || {}).value || '').trim();
+          var whatIsIt = ((form.querySelector('[name="what_is_it"]') || {}).value || '').trim();
+          var missingSku = sku === '';
+          var missingStatus = status === '';
+          var missingWhat = whatIsIt === '';
+          applyRequiredState('sku', missingSku);
+          applyRequiredState('status', missingStatus);
+          applyRequiredState('what_is_it', missingWhat);
+          if (missingSku || missingStatus || missingWhat) {
+            event.preventDefault();
+            if (errorEl) {
+              errorEl.hidden = false;
+            }
+            return;
+          }
+          localStorage.removeItem(draftKey);
         });
       }
 
