@@ -18,7 +18,7 @@ body {
 }
 
 .page {
-  max-width: 1600px;
+  max-width: none;
   margin: 24px auto 48px;
   padding: 0 16px;
   display: grid;
@@ -33,7 +33,8 @@ body {
   border: 2px solid var(--accent);
   padding: 20px 24px 24px;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
-  width: min(100%, 1120px);
+  width: min(100%, 11in);
+  min-height: 8.5in;
 }
 
 .sheet-header {
