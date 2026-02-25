@@ -282,3 +282,109 @@ th, td {
     border-bottom: none;
   }
 }
+
+@media print {
+  @page {
+    size: letter portrait;
+    margin: 0.5in;
+  }
+
+  body {
+    background: #ffffff;
+    color: #000000;
+    font-size: 11pt;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .page {
+    margin: 0;
+    padding: 0;
+    max-width: none;
+  }
+
+  .sheet {
+    width: 100%;
+    max-width: none;
+    padding: 12px 14px 16px;
+    border: 1px solid var(--line);
+    box-shadow: none;
+  }
+
+  .sheet-header {
+    font-size: 9pt;
+    margin-bottom: 4px;
+  }
+
+  .sheet h1 {
+    font-size: 14pt;
+    margin-bottom: 6px;
+  }
+
+  .section {
+    padding: 8px 10px 10px;
+    margin-top: 8px;
+    border-width: 1px;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .section h2 {
+    font-size: 9pt;
+    margin-bottom: 6px;
+  }
+
+  .form-grid {
+    gap: 8px;
+  }
+
+  .row {
+    gap: 8px;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  }
+
+  label {
+    gap: 4px;
+    font-size: 9.5pt;
+  }
+
+  input[type="text"],
+  input[type="date"],
+  input[type="number"],
+  select,
+  textarea {
+    padding: 4px 6px;
+    font-size: 9.5pt;
+  }
+
+  textarea {
+    min-height: 60px;
+  }
+
+  fieldset {
+    padding: 6px 8px 8px;
+    min-height: 0;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  legend {
+    font-size: 8pt;
+  }
+
+  .conjoined {
+    border-width: 1px;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .conjoined .segment {
+    padding: 6px 8px;
+  }
+
+  .actions,
+  .home-link,
+  .success {
+    display: none;
+  }
+}
