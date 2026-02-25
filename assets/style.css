@@ -46,6 +46,18 @@ body {
   margin-bottom: 8px;
 }
 
+.print-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.85rem;
+  color: var(--accent);
+}
+
+.print-toggle input {
+  margin: 0;
+}
+
 .home-link {
   color: var(--accent);
   text-decoration: none;
@@ -286,13 +298,14 @@ th, td {
 @media print {
   @page {
     size: letter portrait;
-    margin: 0.5in;
+    margin: 0.35in;
   }
 
   body {
     background: #ffffff;
     color: #000000;
-    font-size: 11pt;
+    font-size: 10pt;
+    line-height: 1.15;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
@@ -306,46 +319,55 @@ th, td {
   .sheet {
     width: 100%;
     max-width: none;
-    padding: 12px 14px 16px;
+    padding: 8px 10px 12px;
     border: 1px solid var(--line);
     box-shadow: none;
+    background: #ffffff;
+  }
+
+  body.print-pink .sheet {
+    background: var(--paper);
   }
 
   .sheet-header {
-    font-size: 9pt;
-    margin-bottom: 4px;
+    font-size: 8pt;
+    margin-bottom: 2px;
   }
 
   .sheet h1 {
-    font-size: 14pt;
-    margin-bottom: 6px;
+    font-size: 12pt;
+    margin-bottom: 4px;
   }
 
   .section {
-    padding: 8px 10px 10px;
-    margin-top: 8px;
+    padding: 6px 8px 8px;
+    margin-top: 6px;
     border-width: 1px;
     break-inside: avoid;
     page-break-inside: avoid;
   }
 
   .section h2 {
-    font-size: 9pt;
-    margin-bottom: 6px;
+    font-size: 8pt;
+    margin-bottom: 4px;
   }
 
   .form-grid {
-    gap: 8px;
+    gap: 6px;
+  }
+
+  .sheet.intake .form-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .row {
-    gap: 8px;
-    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 6px;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
   }
 
   label {
-    gap: 4px;
-    font-size: 9.5pt;
+    gap: 3px;
+    font-size: 8.5pt;
   }
 
   input[type="text"],
@@ -353,23 +375,29 @@ th, td {
   input[type="number"],
   select,
   textarea {
-    padding: 4px 6px;
-    font-size: 9.5pt;
+    padding: 3px 5px;
+    font-size: 8.5pt;
   }
 
   textarea {
-    min-height: 60px;
+    min-height: 42px;
   }
 
   fieldset {
-    padding: 6px 8px 8px;
+    padding: 4px 6px 6px;
     min-height: 0;
     break-inside: avoid;
     page-break-inside: avoid;
   }
 
+  fieldset label {
+    flex-direction: row;
+    align-items: center;
+    gap: 6px;
+  }
+
   legend {
-    font-size: 8pt;
+    font-size: 7pt;
   }
 
   .conjoined {
@@ -379,12 +407,13 @@ th, td {
   }
 
   .conjoined .segment {
-    padding: 6px 8px;
+    padding: 4px 6px;
   }
 
   .actions,
   .home-link,
-  .success {
+  .success,
+  .print-toggle {
     display: none;
   }
 }

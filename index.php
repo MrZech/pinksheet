@@ -191,6 +191,10 @@ function checked(string $name, string $value, array $formData): string
       <header class="sheet-header">
         <div class="updated">Last updated: <span><?php echo date('Y-m-d'); ?></span></div>
         <a class="home-link" href="home.php">Home</a>
+        <label class="print-toggle">
+          <input type="checkbox" id="print-pink">
+          <span>Print pink</span>
+        </label>
         <div class="status">
           <label>
             <span>Status:</span>
@@ -369,5 +373,25 @@ function checked(string $name, string $value, array $formData): string
       </form>
     </section>
   </main>
+  <script>
+    (function () {
+      var checkbox = document.getElementById('print-pink');
+      if (!checkbox) {
+        return;
+      }
+      var storageKey = 'printPink';
+      var apply = function (enabled) {
+        document.body.classList.toggle('print-pink', enabled);
+      };
+      if (localStorage.getItem(storageKey) === '1') {
+        checkbox.checked = true;
+        apply(true);
+      }
+      checkbox.addEventListener('change', function () {
+        apply(checkbox.checked);
+        localStorage.setItem(storageKey, checkbox.checked ? '1' : '0');
+      });
+    })();
+  </script>
 </body>
 </html>
