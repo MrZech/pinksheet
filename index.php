@@ -426,6 +426,14 @@ function checked(string $name, string $value, array $formData): string
         sheetEl.style.height = Math.floor(height) + 'px';
       };
 
+      var clearSheetSize = function () {
+        if (!sheetEl) {
+          return;
+        }
+        sheetEl.style.width = '';
+        sheetEl.style.height = '';
+      };
+
       var scaleToFit = function () {
         fitSheetToViewport();
         content.style.transform = 'scale(1)';
@@ -458,7 +466,12 @@ function checked(string $name, string $value, array $formData): string
 
       scheduleScale();
       window.addEventListener('resize', scheduleScale);
-      window.addEventListener('beforeprint', scheduleScale);
+      window.addEventListener('beforeprint', function () {
+        clearSheetSize();
+        content.style.transform = 'scale(1)';
+        content.style.marginLeft = '0px';
+        content.style.marginTop = '0px';
+      });
       window.addEventListener('afterprint', scheduleScale);
     })();
   </script>

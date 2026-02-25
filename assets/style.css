@@ -310,7 +310,12 @@ th, td {
 @media print {
   @page {
     size: letter portrait;
-    margin: 0.3in;
+    margin: 0.25in;
+  }
+
+  html, body {
+    width: 100%;
+    height: 100%;
   }
 
   body {
@@ -326,11 +331,13 @@ th, td {
     margin: 0;
     padding: 0;
     max-width: none;
+    width: 100%;
+    height: 100%;
   }
 
   .sheet {
-    width: 8.5in;
-    height: 11in;
+    width: 100% !important;
+    height: 100% !important;
     padding: 8px 10px 10px;
     border: 1px solid var(--line);
     box-shadow: none;
@@ -340,6 +347,17 @@ th, td {
 
   body.print-pink .sheet {
     background: var(--paper);
+  }
+
+  .sheet-scale,
+  .sheet-content {
+    width: 100%;
+    height: 100%;
+  }
+
+  .sheet-content {
+    transform: none !important;
+    margin: 0 !important;
   }
 
   .sheet-header {
