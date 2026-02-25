@@ -227,7 +227,25 @@ function checked(string $name, string $value, array $formData): string
         <div class="sheet-content" id="sheet-content">
           <header class="sheet-header">
         <div class="updated">Last updated: <span><?php echo date('Y-m-d'); ?></span></div>
-        <a class="home-link" href="home.php">Home</a>
+        <div class="menu-wrap">
+          <button type="button" class="menu-toggle" aria-expanded="false" aria-controls="global-menu" id="menu-toggle">
+            <span class="hamburger" aria-hidden="true"></span>
+            <span>Menu</span>
+          </button>
+          <nav class="menu-panel" id="global-menu" hidden>
+            <ul class="menu-links">
+              <li><a href="home.php">Home</a></li>
+              <li><a href="home.php#sku-lookup">SKU Lookup</a></li>
+              <li><a href="index.php">New Intake</a></li>
+            </ul>
+            <form class="menu-lookup" method="get" action="index.php">
+              <label>Open SKU
+                <input type="text" name="sku" placeholder="Enter SKU">
+              </label>
+              <button type="submit">Go</button>
+            </form>
+          </nav>
+        </div>
         <label class="print-toggle">
           <input type="checkbox" id="print-pink">
           <span>Print pink</span>
@@ -448,7 +466,7 @@ function checked(string $name, string $value, array $formData): string
                     <td><?php echo h($item['sku'] ?? ''); ?></td>
                     <td><?php echo h($item['status'] ?? ''); ?></td>
                     <td><?php echo h($item['updated_at'] ?? ''); ?></td>
-                    <td><a href="index.php?sku=<?php echo urlencode((string)($item['sku'] ?? '')); ?>">Open</a></td>
+                    <td><a class="open-link" href="index.php?sku=<?php echo urlencode((string)($item['sku'] ?? '')); ?>">Open</a></td>
                   </tr>
                 <?php endforeach; ?>
               <?php endif; ?>
@@ -462,22 +480,48 @@ function checked(string $name, string $value, array $formData): string
   </main>
   <script>
     (function () {
+      var menuToggle = document.getElementById('menu-toggle');
+      var menuPanel = document.getElementById('global-menu');
+      if (menuToggle && menuPanel) {
+        var closeMenu = function () {
+          menuPanel.hidden = true;
+          menuToggle.setAttribute('aria-expanded', 'false');
+        };
+        menuToggle.addEventListener('click', function () {
+          var opening = menuPanel.hidden;
+          menuPanel.hidden = !opening;
+          menuToggle.setAttribute('aria-expanded', opening ? 'true' : 'false');
+        });
+        document.addEventListener('click', function (event) {
+          if (menuPanel.hidden) {
+            return;
+          }
+          if (!menuPanel.contains(event.target) && !menuToggle.contains(event.target)) {
+            closeMenu();
+          }
+        });
+        document.addEventListener('keydown', function (event) {
+          if (event.key === 'Escape') {
+            closeMenu();
+          }
+        });
+      }
+
       var checkbox = document.getElementById('print-pink');
-      if (!checkbox) {
-        return;
+      if (checkbox) {
+        var storageKey = 'printPink';
+        var apply = function (enabled) {
+          document.body.classList.toggle('print-pink', enabled);
+        };
+        if (localStorage.getItem(storageKey) === '1') {
+          checkbox.checked = true;
+          apply(true);
+        }
+        checkbox.addEventListener('change', function () {
+          apply(checkbox.checked);
+          localStorage.setItem(storageKey, checkbox.checked ? '1' : '0');
+        });
       }
-      var storageKey = 'printPink';
-      var apply = function (enabled) {
-        document.body.classList.toggle('print-pink', enabled);
-      };
-      if (localStorage.getItem(storageKey) === '1') {
-        checkbox.checked = true;
-        apply(true);
-      }
-      checkbox.addEventListener('change', function () {
-        apply(checkbox.checked);
-        localStorage.setItem(storageKey, checkbox.checked ? '1' : '0');
-      });
 
       // Keep screen view at full readable size; print layout is handled by CSS.
     })();

@@ -80,6 +80,7 @@ body {
   display: flex;
   flex-wrap: wrap;
   justify-content: space-between;
+  align-items: center;
   gap: 12px;
   font-size: 0.85rem;
   color: var(--muted);
@@ -98,16 +99,99 @@ body {
   margin: 0;
 }
 
-.home-link,
 a {
   color: var(--accent-strong);
   text-decoration: none;
   font-weight: 600;
 }
 
-.home-link:hover,
 a:hover {
   text-decoration: underline;
+}
+
+.menu-wrap {
+  position: relative;
+}
+
+.menu-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 102px;
+}
+
+.menu-toggle[aria-expanded="true"] {
+  filter: brightness(1.08);
+}
+
+.hamburger,
+.hamburger::before,
+.hamburger::after {
+  display: block;
+  width: 16px;
+  height: 2px;
+  border-radius: 2px;
+  background: #fff;
+  content: "";
+}
+
+.hamburger {
+  position: relative;
+}
+
+.hamburger::before {
+  position: absolute;
+  top: -5px;
+  left: 0;
+}
+
+.hamburger::after {
+  position: absolute;
+  top: 5px;
+  left: 0;
+}
+
+.menu-panel {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: min(310px, calc(100vw - 32px));
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: rgba(255, 252, 254, 0.98);
+  box-shadow: 0 16px 28px rgba(66, 11, 32, 0.18);
+  z-index: 40;
+}
+
+.menu-links {
+  list-style: none;
+  margin: 0 0 12px;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.menu-links a {
+  display: block;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: #fff;
+}
+
+.menu-links a:hover {
+  background: #fff6f9;
+  text-decoration: none;
+}
+
+.menu-lookup {
+  display: grid;
+  gap: 8px;
+}
+
+.menu-lookup button {
+  width: 100%;
 }
 
 .sheet-header .status label {
@@ -298,6 +382,24 @@ button,
   text-decoration: none;
   display: inline-block;
   transition: transform 0.14s ease, filter 0.14s ease;
+}
+
+.open-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 74px;
+  border-radius: 999px;
+  padding: 7px 14px;
+  background: linear-gradient(180deg, #cc4f7a 0%, #9d315a 100%);
+  color: #fff;
+  box-shadow: 0 6px 12px rgba(157, 49, 90, 0.25);
+}
+
+.open-link:hover {
+  color: #fff;
+  text-decoration: none;
+  filter: brightness(1.05);
 }
 
 button:hover,
@@ -560,7 +662,7 @@ th {
 
   .recent-items,
   .actions,
-  .home-link,
+  .menu-wrap,
   .success,
   .error-box,
   .print-toggle {
