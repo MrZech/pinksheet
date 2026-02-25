@@ -34,7 +34,9 @@ body {
   padding: 20px 24px 24px;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
   width: min(100%, 11in);
-  min-height: 8.5in;
+  aspect-ratio: 11 / 8.5;
+  height: auto;
+  overflow: auto;
 }
 
 .sheet-header {
@@ -324,6 +326,9 @@ th, td {
     border: 1px solid var(--line);
     box-shadow: none;
     background: #ffffff;
+    aspect-ratio: auto;
+    height: auto;
+    overflow: visible;
   }
 
   body.print-pink .sheet {
