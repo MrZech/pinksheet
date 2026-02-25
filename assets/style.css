@@ -310,7 +310,7 @@ th, td {
 @media print {
   @page {
     size: letter portrait;
-    margin: 0.25in;
+    margin: 0.15in;
   }
 
   html, body {
@@ -321,8 +321,8 @@ th, td {
   body {
     background: #ffffff;
     color: #000000;
-    font-size: 10pt;
-    line-height: 1.15;
+    font-size: 11pt;
+    line-height: 1.2;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
@@ -361,30 +361,30 @@ th, td {
   }
 
   .sheet-header {
-    font-size: 8pt;
-    margin-bottom: 2px;
+    font-size: 9pt;
+    margin-bottom: 4px;
   }
 
   .sheet h1 {
-    font-size: 12pt;
-    margin-bottom: 3px;
+    font-size: 13pt;
+    margin-bottom: 4px;
   }
 
   .section {
-    padding: 5px 7px 7px;
-    margin-top: 5px;
+    padding: 6px 8px 8px;
+    margin-top: 6px;
     border-width: 1px;
     break-inside: avoid;
     page-break-inside: avoid;
   }
 
   .section h2 {
-    font-size: 8pt;
-    margin-bottom: 3px;
+    font-size: 9pt;
+    margin-bottom: 4px;
   }
 
   .form-grid {
-    gap: 5px;
+    gap: 6px;
   }
 
   .sheet.intake .form-grid {
@@ -392,13 +392,13 @@ th, td {
   }
 
   .row {
-    gap: 5px;
-    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 6px;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   }
 
   label {
-    gap: 3px;
-    font-size: 8pt;
+    gap: 4px;
+    font-size: 9pt;
   }
 
   input[type="text"],
@@ -406,16 +406,16 @@ th, td {
   input[type="number"],
   select,
   textarea {
-    padding: 3px 5px;
-    font-size: 8.5pt;
+    padding: 4px 6px;
+    font-size: 9.5pt;
   }
 
   textarea {
-    min-height: 36px;
+    min-height: 46px;
   }
 
   fieldset {
-    padding: 4px 6px 6px;
+    padding: 5px 7px 7px;
     min-height: 0;
     break-inside: avoid;
     page-break-inside: avoid;
@@ -428,7 +428,7 @@ th, td {
   }
 
   legend {
-    font-size: 7pt;
+    font-size: 8pt;
   }
 
   .conjoined {
@@ -438,7 +438,7 @@ th, td {
   }
 
   .conjoined .segment {
-    padding: 4px 6px;
+    padding: 5px 7px;
   }
 
   .actions,
