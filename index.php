@@ -188,7 +188,9 @@ function checked(string $name, string $value, array $formData): string
 <body>
   <main class="page">
     <section class="sheet intake">
-      <header class="sheet-header">
+      <div class="sheet-scale" id="sheet-scale">
+        <div class="sheet-content" id="sheet-content">
+          <header class="sheet-header">
         <div class="updated">Last updated: <span><?php echo date('Y-m-d'); ?></span></div>
         <a class="home-link" href="home.php">Home</a>
         <label class="print-toggle">
@@ -371,6 +373,8 @@ function checked(string $name, string $value, array $formData): string
           <button type="submit">Save Intake Item</button>
         </div>
       </form>
+        </div>
+      </div>
     </section>
   </main>
   <script>
@@ -391,6 +395,38 @@ function checked(string $name, string $value, array $formData): string
         apply(checkbox.checked);
         localStorage.setItem(storageKey, checkbox.checked ? '1' : '0');
       });
+
+      var sheet = document.getElementById('sheet-scale');
+      var content = document.getElementById('sheet-content');
+      if (!sheet || !content) {
+        return;
+      }
+
+      var scaleToFit = function () {
+        content.style.transform = 'scale(1)';
+        var availableWidth = sheet.clientWidth;
+        var availableHeight = sheet.clientHeight;
+        var contentWidth = content.scrollWidth;
+        var contentHeight = content.scrollHeight;
+        if (!availableWidth || !availableHeight || !contentWidth || !contentHeight) {
+          return;
+        }
+        var scale = Math.min(
+          1,
+          availableWidth / contentWidth,
+          availableHeight / contentHeight
+        );
+        content.style.transform = 'scale(' + scale.toFixed(4) + ')';
+      };
+
+      var scheduleScale = function () {
+        window.requestAnimationFrame(scaleToFit);
+      };
+
+      scheduleScale();
+      window.addEventListener('resize', scheduleScale);
+      window.addEventListener('beforeprint', scheduleScale);
+      window.addEventListener('afterprint', scheduleScale);
     })();
   </script>
 </body>
