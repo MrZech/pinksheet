@@ -218,149 +218,151 @@ function checked(string $name, string $value, array $formData): string
 
       <form id="intake-form" method="post" class="form-grid">
         <input type="hidden" name="id" value="<?php echo h(isset($formData['id']) ? (string)$formData['id'] : ''); ?>">
-        <div class="row">
-          <label>SKU
-            <input type="text" name="sku" value="<?php echo h($formData['sku'] ?? ''); ?>">
-          </label>
-          <label>What is it?
-            <input type="text" name="what_is_it" value="<?php echo h($formData['what_is_it'] ?? ''); ?>">
-          </label>
-        </div>
-
-        <div class="row">
-          <label>Date Received
-            <input type="date" name="date_received" value="<?php echo h($formData['date_received'] ?? ''); ?>">
-          </label>
-          <label>Where did it come from?
-            <input type="text" name="source" value="<?php echo h($formData['source'] ?? ''); ?>">
-          </label>
-        </div>
-
-        <div class="section">
-          <h2>(D1) Intake Tasks</h2>
+        <div class="form-columns">
           <div class="row">
-            <fieldset>
-              <legend>Functional</legend>
-              <label><input type="radio" name="functional" value="Yes" <?php echo checked('functional','Yes', $formData); ?>> Yes</label>
-              <label><input type="radio" name="functional" value="No" <?php echo checked('functional','No', $formData); ?>> No</label>
-              <label><input type="radio" name="functional" value="Unknown" <?php echo checked('functional','Unknown', $formData); ?>> Unknown</label>
-            </fieldset>
-            <label>Condition
-              <select name="condition">
-                <option value="">Select</option>
-                <?php foreach (['Good','Great','Excellent','Unicorn'] as $opt): ?>
-                  <option value="<?php echo $opt; ?>" <?php echo (($formData['condition'] ?? '') === $opt) ? 'selected' : ''; ?>><?php echo $opt; ?></option>
-                <?php endforeach; ?>
-              </select>
+            <label>SKU
+              <input type="text" name="sku" value="<?php echo h($formData['sku'] ?? ''); ?>">
+            </label>
+            <label>What is it?
+              <input type="text" name="what_is_it" value="<?php echo h($formData['what_is_it'] ?? ''); ?>">
             </label>
           </div>
 
           <div class="row">
-            <div class="conjoined">
-              <label class="segment">
-                <input type="checkbox" name="is_square" <?php echo !empty($formData['is_square']) ? 'checked' : ''; ?>>
-                <span>Is it square?</span>
+            <label>Date Received
+              <input type="date" name="date_received" value="<?php echo h($formData['date_received'] ?? ''); ?>">
+            </label>
+            <label>Where did it come from?
+              <input type="text" name="source" value="<?php echo h($formData['source'] ?? ''); ?>">
+            </label>
+          </div>
+
+          <div class="section">
+            <h2>(D1) Intake Tasks</h2>
+            <div class="row">
+              <fieldset>
+                <legend>Functional</legend>
+                <label><input type="radio" name="functional" value="Yes" <?php echo checked('functional','Yes', $formData); ?>> Yes</label>
+                <label><input type="radio" name="functional" value="No" <?php echo checked('functional','No', $formData); ?>> No</label>
+                <label><input type="radio" name="functional" value="Unknown" <?php echo checked('functional','Unknown', $formData); ?>> Unknown</label>
+              </fieldset>
+              <label>Condition
+                <select name="condition">
+                  <option value="">Select</option>
+                  <?php foreach (['Good','Great','Excellent','Unicorn'] as $opt): ?>
+                    <option value="<?php echo $opt; ?>" <?php echo (($formData['condition'] ?? '') === $opt) ? 'selected' : ''; ?>><?php echo $opt; ?></option>
+                  <?php endforeach; ?>
+                </select>
               </label>
-              <label class="segment">
-                <input type="checkbox" name="care_if_square" <?php echo !empty($formData['care_if_square']) ? 'checked' : ''; ?>>
-                <span>Do we care?</span>
+            </div>
+
+            <div class="row">
+              <div class="conjoined">
+                <label class="segment">
+                  <input type="checkbox" name="is_square" <?php echo !empty($formData['is_square']) ? 'checked' : ''; ?>>
+                  <span>Is it square?</span>
+                </label>
+                <label class="segment">
+                  <input type="checkbox" name="care_if_square" <?php echo !empty($formData['care_if_square']) ? 'checked' : ''; ?>>
+                  <span>Do we care?</span>
+                </label>
+              </div>
+            </div>
+
+            <div class="row">
+              <fieldset>
+                <legend>Cords / adapters included?</legend>
+                <label><input type="radio" name="cords_adapters" value="Yes" <?php echo checked('cords_adapters','Yes', $formData); ?>> Yes</label>
+                <label><input type="radio" name="cords_adapters" value="No" <?php echo checked('cords_adapters','No', $formData); ?>> No</label>
+              </fieldset>
+              <fieldset>
+                <legend>Keep items together?</legend>
+                <label><input type="radio" name="keep_items_together" value="Yes" <?php echo checked('keep_items_together','Yes', $formData); ?>> Yes</label>
+                <label><input type="radio" name="keep_items_together" value="No" <?php echo checked('keep_items_together','No', $formData); ?>> No</label>
+              </fieldset>
+              <fieldset>
+                <legend>Picture</legend>
+                <label><input type="radio" name="picture_taken" value="Yes" <?php echo checked('picture_taken','Yes', $formData); ?>> Yes</label>
+                <label><input type="radio" name="picture_taken" value="No" <?php echo checked('picture_taken','No', $formData); ?>> No</label>
+              </fieldset>
+            </div>
+          </div>
+
+          <div class="section">
+            <h2>(D2) Description Tasks</h2>
+            <div class="row">
+              <fieldset>
+                <legend>Does it power on and stay on?</legend>
+                <label><input type="radio" name="power_on" value="Yes" <?php echo checked('power_on','Yes', $formData); ?>> Yes</label>
+                <label><input type="radio" name="power_on" value="No" <?php echo checked('power_on','No', $formData); ?>> No</label>
+              </fieldset>
+              <label>Brand & Model Number
+                <input type="text" name="brand_model" value="<?php echo h($formData['brand_model'] ?? ''); ?>">
+              </label>
+            </div>
+
+            <div class="row">
+              <label>RAM
+                <input type="text" name="ram" value="<?php echo h($formData['ram'] ?? ''); ?>">
+              </label>
+              <label>SSD GB
+                <input type="text" name="ssd_gb" value="<?php echo h($formData['ssd_gb'] ?? ''); ?>">
+              </label>
+              <label>CPU
+                <input type="text" name="cpu" value="<?php echo h($formData['cpu'] ?? ''); ?>">
+              </label>
+            </div>
+
+            <div class="row">
+              <label>Battery Health
+                <input type="text" name="battery_health" value="<?php echo h($formData['battery_health'] ?? ''); ?>">
+              </label>
+              <label>Graphics Card
+                <input type="text" name="graphics_card" value="<?php echo h($formData['graphics_card'] ?? ''); ?>">
+              </label>
+              <label>Screen Resolution
+                <input type="text" name="screen_resolution" value="<?php echo h($formData['screen_resolution'] ?? ''); ?>">
               </label>
             </div>
           </div>
 
-          <div class="row">
-            <fieldset>
-              <legend>Cords / adapters included?</legend>
-              <label><input type="radio" name="cords_adapters" value="Yes" <?php echo checked('cords_adapters','Yes', $formData); ?>> Yes</label>
-              <label><input type="radio" name="cords_adapters" value="No" <?php echo checked('cords_adapters','No', $formData); ?>> No</label>
-            </fieldset>
-            <fieldset>
-              <legend>Keep items together?</legend>
-              <label><input type="radio" name="keep_items_together" value="Yes" <?php echo checked('keep_items_together','Yes', $formData); ?>> Yes</label>
-              <label><input type="radio" name="keep_items_together" value="No" <?php echo checked('keep_items_together','No', $formData); ?>> No</label>
-            </fieldset>
-            <fieldset>
-              <legend>Picture</legend>
-              <label><input type="radio" name="picture_taken" value="Yes" <?php echo checked('picture_taken','Yes', $formData); ?>> Yes</label>
-              <label><input type="radio" name="picture_taken" value="No" <?php echo checked('picture_taken','No', $formData); ?>> No</label>
-            </fieldset>
-          </div>
-        </div>
-
-        <div class="section">
-          <h2>(D2) Description Tasks</h2>
-          <div class="row">
-            <fieldset>
-              <legend>Does it power on and stay on?</legend>
-              <label><input type="radio" name="power_on" value="Yes" <?php echo checked('power_on','Yes', $formData); ?>> Yes</label>
-              <label><input type="radio" name="power_on" value="No" <?php echo checked('power_on','No', $formData); ?>> No</label>
-            </fieldset>
-            <label>Brand & Model Number
-              <input type="text" name="brand_model" value="<?php echo h($formData['brand_model'] ?? ''); ?>">
-            </label>
+          <div class="section">
+            <h2>Where did it go?</h2>
+            <div class="row">
+              <label>
+                <select name="where_it_goes">
+                  <option value="">Select</option>
+                  <?php foreach (['D2 - Description','Scrap Room'] as $opt): ?>
+                    <option value="<?php echo $opt; ?>" <?php echo (($formData['where_it_goes'] ?? '') === $opt) ? 'selected' : ''; ?>><?php echo $opt; ?></option>
+                  <?php endforeach; ?>
+                </select>
+              </label>
+            </div>
           </div>
 
-          <div class="row">
-            <label>RAM
-              <input type="text" name="ram" value="<?php echo h($formData['ram'] ?? ''); ?>">
-            </label>
-            <label>SSD GB
-              <input type="text" name="ssd_gb" value="<?php echo h($formData['ssd_gb'] ?? ''); ?>">
-            </label>
-            <label>CPU
-              <input type="text" name="cpu" value="<?php echo h($formData['cpu'] ?? ''); ?>">
-            </label>
-          </div>
-
-          <div class="row">
-            <label>Battery Health
-              <input type="text" name="battery_health" value="<?php echo h($formData['battery_health'] ?? ''); ?>">
-            </label>
-            <label>Graphics Card
-              <input type="text" name="graphics_card" value="<?php echo h($formData['graphics_card'] ?? ''); ?>">
-            </label>
-            <label>Screen Resolution
-              <input type="text" name="screen_resolution" value="<?php echo h($formData['screen_resolution'] ?? ''); ?>">
-            </label>
-          </div>
-        </div>
-
-        <div class="section">
-          <h2>Where did it go?</h2>
-          <div class="row">
-            <label>
-              <select name="where_it_goes">
-                <option value="">Select</option>
-                <?php foreach (['D2 - Description','Scrap Room'] as $opt): ?>
-                  <option value="<?php echo $opt; ?>" <?php echo (($formData['where_it_goes'] ?? '') === $opt) ? 'selected' : ''; ?>><?php echo $opt; ?></option>
-                <?php endforeach; ?>
-              </select>
-            </label>
-          </div>
-        </div>
-
-        <div class="section">
-          <h2>E-Bay Status</h2>
-          <div class="row">
-            <label>Ebay Status
-              <input type="text" name="ebay_status" value="<?php echo h($formData['ebay_status'] ?? ''); ?>">
-            </label>
-            <label>Ebay Price
-              <input type="number" step="0.01" name="ebay_price" value="<?php echo h(isset($formData['ebay_price']) ? (string)$formData['ebay_price'] : ''); ?>">
-            </label>
-            <label>DispoTech Price
-              <input type="number" step="0.01" name="dispotech_price" value="<?php echo h(isset($formData['dispotech_price']) ? (string)$formData['dispotech_price'] : ''); ?>">
-            </label>
-          </div>
-          <div class="row">
-            <fieldset>
-              <legend>Is it in the EBay Room?</legend>
-              <label><input type="radio" name="in_ebay_room" value="Yes" <?php echo checked('in_ebay_room','Yes', $formData); ?>> Yes</label>
-              <label><input type="radio" name="in_ebay_room" value="No" <?php echo checked('in_ebay_room','No', $formData); ?>> No</label>
-            </fieldset>
-            <label>What Box?
-              <input type="text" name="what_box" value="<?php echo h($formData['what_box'] ?? ''); ?>">
-            </label>
+          <div class="section">
+            <h2>E-Bay Status</h2>
+            <div class="row">
+              <label>Ebay Status
+                <input type="text" name="ebay_status" value="<?php echo h($formData['ebay_status'] ?? ''); ?>">
+              </label>
+              <label>Ebay Price
+                <input type="number" step="0.01" name="ebay_price" value="<?php echo h(isset($formData['ebay_price']) ? (string)$formData['ebay_price'] : ''); ?>">
+              </label>
+              <label>DispoTech Price
+                <input type="number" step="0.01" name="dispotech_price" value="<?php echo h(isset($formData['dispotech_price']) ? (string)$formData['dispotech_price'] : ''); ?>">
+              </label>
+            </div>
+            <div class="row">
+              <fieldset>
+                <legend>Is it in the EBay Room?</legend>
+                <label><input type="radio" name="in_ebay_room" value="Yes" <?php echo checked('in_ebay_room','Yes', $formData); ?>> Yes</label>
+                <label><input type="radio" name="in_ebay_room" value="No" <?php echo checked('in_ebay_room','No', $formData); ?>> No</label>
+              </fieldset>
+              <label>What Box?
+                <input type="text" name="what_box" value="<?php echo h($formData['what_box'] ?? ''); ?>">
+              </label>
+            </div>
           </div>
         </div>
 
