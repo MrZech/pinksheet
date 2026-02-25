@@ -18,7 +18,7 @@ body {
 }
 
 .page {
-  max-width: 1400px;
+  max-width: 1600px;
   margin: 24px auto 48px;
   padding: 0 16px;
   display: grid;
@@ -33,7 +33,7 @@ body {
   border: 2px solid var(--accent);
   padding: 20px 24px 24px;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
-  width: min(100%, 960px);
+  width: min(100%, 1120px);
 }
 
 .sheet-header {
@@ -297,8 +297,8 @@ th, td {
 
 @media print {
   @page {
-    size: letter portrait;
-    margin: 0.35in;
+    size: letter landscape;
+    margin: 0.3in;
   }
 
   body {
@@ -319,7 +319,7 @@ th, td {
   .sheet {
     width: 100%;
     max-width: none;
-    padding: 8px 10px 12px;
+    padding: 8px 10px 10px;
     border: 1px solid var(--line);
     box-shadow: none;
     background: #ffffff;
@@ -336,12 +336,12 @@ th, td {
 
   .sheet h1 {
     font-size: 12pt;
-    margin-bottom: 4px;
+    margin-bottom: 3px;
   }
 
   .section {
-    padding: 6px 8px 8px;
-    margin-top: 6px;
+    padding: 5px 7px 7px;
+    margin-top: 5px;
     border-width: 1px;
     break-inside: avoid;
     page-break-inside: avoid;
@@ -349,11 +349,11 @@ th, td {
 
   .section h2 {
     font-size: 8pt;
-    margin-bottom: 4px;
+    margin-bottom: 3px;
   }
 
   .form-grid {
-    gap: 6px;
+    gap: 5px;
   }
 
   .sheet.intake .form-grid {
@@ -361,13 +361,13 @@ th, td {
   }
 
   .row {
-    gap: 6px;
+    gap: 5px;
     grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
   }
 
   label {
     gap: 3px;
-    font-size: 8.5pt;
+    font-size: 8pt;
   }
 
   input[type="text"],
@@ -380,7 +380,7 @@ th, td {
   }
 
   textarea {
-    min-height: 42px;
+    min-height: 36px;
   }
 
   fieldset {
