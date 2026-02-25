@@ -404,6 +404,8 @@ function checked(string $name, string $value, array $formData): string
 
       var scaleToFit = function () {
         content.style.transform = 'scale(1)';
+        content.style.marginLeft = '0px';
+        content.style.marginTop = '0px';
         var availableWidth = sheet.clientWidth;
         var availableHeight = sheet.clientHeight;
         var contentWidth = content.scrollWidth;
@@ -417,6 +419,12 @@ function checked(string $name, string $value, array $formData): string
           availableHeight / contentHeight
         );
         content.style.transform = 'scale(' + scale.toFixed(4) + ')';
+        var scaledWidth = contentWidth * scale;
+        var scaledHeight = contentHeight * scale;
+        var offsetX = Math.max(0, (availableWidth - scaledWidth) / 2);
+        var offsetY = Math.max(0, (availableHeight - scaledHeight) / 2);
+        content.style.marginLeft = offsetX.toFixed(2) + 'px';
+        content.style.marginTop = offsetY.toFixed(2) + 'px';
       };
 
       var scheduleScale = function () {
