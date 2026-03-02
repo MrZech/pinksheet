@@ -312,7 +312,7 @@ function checked(string $name, string $value, array $formData): string
         <ul class="menu-links">
           <li><a class="menu-link <?php echo $currentPage === 'home' ? 'is-active' : ''; ?>" href="home.php">Home</a></li>
           <li><a class="menu-link <?php echo $currentPage === 'lookup' ? 'is-active' : ''; ?>" href="home.php#sku-lookup">SKU Lookup</a></li>
-          <li><a class="menu-link new-intake-link <?php echo $currentPage === 'intake' ? 'is-active' : ''; ?>" href="index.php?clear_draft=1">New Intake</a></li>
+          <li><a class="menu-link <?php echo $currentPage === 'intake' ? 'is-active' : ''; ?>" href="index.php?clear_draft=1">New Intake</a></li>
         </ul>
       </nav>
     </div>
@@ -656,21 +656,6 @@ function checked(string $name, string $value, array $formData): string
         printButton.addEventListener('click', function () {
           window.print();
         });
-      }
-      var newIntakeLinks = document.querySelectorAll('.new-intake-link');
-      var navigateNewIntake = function (event) {
-        if (!event) {
-          return;
-        }
-        event.preventDefault();
-        try {
-          localStorage.removeItem('intakeDraftV1');
-        } catch (e) {}
-        var target = (event.currentTarget && event.currentTarget.getAttribute('href')) || 'index.php?clear_draft=1';
-        window.location.href = target;
-      };
-      for (var ni = 0; ni < newIntakeLinks.length; ni++) {
-        newIntakeLinks[ni].addEventListener('click', navigateNewIntake);
       }
       var menuToggle = document.getElementById('menu-toggle');
       var menuPanel = document.getElementById('global-menu');
