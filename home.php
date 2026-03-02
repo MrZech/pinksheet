@@ -1,3 +1,6 @@
+<?php
+$statusOptions = ['Intake', 'Description', 'Tested', 'Listed', 'SOLD'];
+?>
 <!doctype html>
 <html lang="en">
 <head>
@@ -26,13 +29,22 @@
         <div class="updated">Dispo.Tech Intake</div>
       </header>
       <h1>Dispo.Tech Intake Lookup</h1>
-      <p>Paste or type a SKU to open the intake sheet for review or editing.</p>
+      <p>Look up by SKU or by current status to find items quickly.</p>
       <form class="form-grid" method="get" action="index.php" id="sku-lookup">
         <div class="row">
           <label>SKU
-            <input type="text" name="sku" required autofocus>
+            <input type="text" name="sku" autofocus>
+          </label>
+          <label>Current Status
+            <select name="status">
+              <option value="">Any status</option>
+              <?php foreach ($statusOptions as $opt): ?>
+                <option value="<?php echo htmlspecialchars($opt, ENT_QUOTES, 'UTF-8'); ?>"><?php echo htmlspecialchars($opt, ENT_QUOTES, 'UTF-8'); ?></option>
+              <?php endforeach; ?>
+            </select>
           </label>
         </div>
+        <p class="error client-error" id="lookup-error" hidden>Enter a SKU or pick a status to search.</p>
         <div class="actions">
           <button type="submit">Continue</button>
           <a class="button-link" href="index.php">New Intake</a>
@@ -75,6 +87,25 @@
           closeMenu();
         }
       });
+
+      var lookupForm = document.getElementById('sku-lookup');
+      if (lookupForm) {
+        var errorEl = document.getElementById('lookup-error');
+        lookupForm.addEventListener('submit', function (event) {
+          var sku = ((lookupForm.querySelector('[name="sku"]') || {}).value || '').trim();
+          var status = ((lookupForm.querySelector('[name="status"]') || {}).value || '').trim();
+          if (sku === '' && status === '') {
+            event.preventDefault();
+            if (errorEl) {
+              errorEl.hidden = false;
+            }
+            return;
+          }
+          if (errorEl) {
+            errorEl.hidden = true;
+          }
+        });
+      }
     })();
   </script>
 </body>

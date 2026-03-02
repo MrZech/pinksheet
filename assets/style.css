@@ -44,8 +44,10 @@ body {
   min-height: 100vh;
   width: 100%;
   display: flex;
-  align-items: flex-start;
-  justify-content: center;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 12px;
 }
 
 .sheet {
@@ -114,9 +116,10 @@ a:hover {
 }
 
 .app-menu {
-  position: fixed;
-  top: 16px;
-  left: 16px;
+  position: relative;
+  width: min(1680px, 98vw);
+  display: flex;
+  justify-content: flex-start;
   z-index: 80;
 }
 
@@ -159,9 +162,9 @@ a:hover {
 }
 
 .menu-panel {
-  position: fixed;
-  top: 66px;
-  left: 16px;
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
   width: min(320px, calc(100vw - 32px));
   padding: 12px;
   border: 1px solid var(--line);
@@ -217,6 +220,10 @@ a:hover {
 
 .home .page {
   max-width: 760px;
+}
+
+.home .app-menu {
+  width: min(720px, 100%);
 }
 
 .home-sheet {
@@ -498,14 +505,9 @@ th {
 }
 
 @media (max-width: 760px) {
-  .app-menu {
-    top: 10px;
-    left: 10px;
-  }
-
   .menu-panel {
-    top: 58px;
-    left: 10px;
+    top: calc(100% + 8px);
+    left: 0;
     width: min(340px, calc(100vw - 20px));
   }
 

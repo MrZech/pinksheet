@@ -61,11 +61,21 @@ function normalizeSku(string $sku): string
     return strtoupper(trim($sku));
 }
 
+function statusOptions(): array
+{
+    return ['Intake', 'Description', 'Tested', 'Listed', 'SOLD'];
+}
+
 $saved = isset($_GET['saved']);
 $saveMode = trim($_GET['save_mode'] ?? '');
 $errors = [];
+$statusOptions = statusOptions();
 $lookupSku = trim($_GET['sku'] ?? '');
 $lookupSkuNormalized = normalizeSku($lookupSku);
+$lookupStatus = trim($_GET['status'] ?? '');
+if ($lookupStatus !== '' && !in_array($lookupStatus, $statusOptions, true)) {
+    $lookupStatus = '';
+}
 $currentItem = null;
 $duplicateCount = 0;
 
@@ -197,7 +207,14 @@ SQL);
     }
 }
 
-$recent = $pdo->query('SELECT * FROM intake_items ORDER BY id DESC LIMIT 25')->fetchAll(PDO::FETCH_ASSOC);
+$recent = [];
+if ($lookupStatus !== '') {
+    $recentStmt = $pdo->prepare('SELECT * FROM intake_items WHERE status = :status ORDER BY updated_at DESC, id DESC LIMIT 100');
+    $recentStmt->execute(['status' => $lookupStatus]);
+    $recent = $recentStmt->fetchAll(PDO::FETCH_ASSOC);
+} else {
+    $recent = $pdo->query('SELECT * FROM intake_items ORDER BY id DESC LIMIT 25')->fetchAll(PDO::FETCH_ASSOC);
+}
 $formData = $_POST;
 if (!$formData && $currentItem) {
     $formData = $currentItem;
@@ -253,7 +270,7 @@ function checked(string $name, string $value, array $formData): string
             <span>Status:</span>
             <select name="status" form="intake-form" required>
               <option value="">Select</option>
-              <?php foreach (['Intake','Description','Tested','Listed','SOLD'] as $opt): ?>
+              <?php foreach ($statusOptions as $opt): ?>
                 <option value="<?php echo $opt; ?>" <?php echo (($formData['status'] ?? '') === $opt) ? 'selected' : ''; ?>><?php echo $opt; ?></option>
               <?php endforeach; ?>
             </select>
@@ -451,13 +468,33 @@ function checked(string $name, string $value, array $formData): string
       </form>
 
       <section class="section recent-items">
-        <h2>Recent SKUs</h2>
+        <h2><?php echo $lookupStatus !== '' ? 'Status Results' : 'Recent SKUs'; ?></h2>
+        <form class="form-grid" method="get" action="index.php">
+          <div class="row">
+            <label>SKU
+              <input type="text" name="sku" value="<?php echo h($lookupSku); ?>">
+            </label>
+            <label>Status
+              <select name="status">
+                <option value="">Any status</option>
+                <?php foreach ($statusOptions as $opt): ?>
+                  <option value="<?php echo $opt; ?>" <?php echo $lookupStatus === $opt ? 'selected' : ''; ?>><?php echo $opt; ?></option>
+                <?php endforeach; ?>
+              </select>
+            </label>
+          </div>
+          <div class="actions">
+            <button type="submit">Search</button>
+            <a class="button-link" href="index.php">Clear</a>
+          </div>
+        </form>
         <div class="table-wrap">
           <table>
             <thead>
               <tr>
                 <th>SKU</th>
                 <th>Status</th>
+                <th>What is it?</th>
                 <th>Updated</th>
                 <th>Open</th>
               </tr>
@@ -465,13 +502,14 @@ function checked(string $name, string $value, array $formData): string
             <tbody>
               <?php if (!$recent): ?>
                 <tr>
-                  <td colspan="4">No intake items saved yet.</td>
+                  <td colspan="5">No items found for this lookup.</td>
                 </tr>
               <?php else: ?>
                 <?php foreach ($recent as $item): ?>
                   <tr>
                     <td><?php echo h($item['sku'] ?? ''); ?></td>
                     <td><?php echo h($item['status'] ?? ''); ?></td>
+                    <td><?php echo h($item['what_is_it'] ?? ''); ?></td>
                     <td><?php echo h($item['updated_at'] ?? ''); ?></td>
                     <td><a class="open-link" href="index.php?sku=<?php echo urlencode((string)($item['sku'] ?? '')); ?>">Open</a></td>
                   </tr>
