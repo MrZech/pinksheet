@@ -1,5 +1,26 @@
 <?php
+const HOME_DB_PATH = __DIR__ . '/data/intake.sqlite';
 $statusOptions = ['Intake', 'Description', 'Tested', 'Listed', 'SOLD'];
+$lookupSuggestions = [];
+if (is_readable(HOME_DB_PATH)) {
+    try {
+        $pdo = new PDO('sqlite:' . HOME_DB_PATH, null, null, [
+            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+        ]);
+        $stmt = $pdo->query("
+            SELECT sku
+            FROM intake_items
+            WHERE sku IS NOT NULL
+              AND TRIM(sku) <> ''
+            ORDER BY updated_at DESC, id DESC
+            LIMIT 60
+        ");
+        $values = array_unique(array_map('trim', $stmt->fetchAll(PDO::FETCH_COLUMN)));
+        $lookupSuggestions = array_values(array_filter($values, static fn ($value): bool => $value !== ''));
+    } catch (Exception $e) {
+        // suggestions optional
+    }
+}
 ?>
 <!doctype html>
 <html lang="en">
@@ -33,8 +54,15 @@ $statusOptions = ['Intake', 'Description', 'Tested', 'Listed', 'SOLD'];
       <form class="form-grid" method="get" action="index.php" id="sku-lookup">
         <div class="row">
           <label>SKU
-            <input type="text" name="sku" autofocus>
+            <input type="text" name="sku" list="suggested-skus" autofocus>
           </label>
+          <?php if ($lookupSuggestions): ?>
+            <datalist id="suggested-skus">
+              <?php foreach ($lookupSuggestions as $option): ?>
+                <option value="<?php echo htmlspecialchars($option, ENT_QUOTES, 'UTF-8'); ?>">
+              <?php endforeach; ?>
+            </datalist>
+          <?php endif; ?>
           <label>Current Status
             <select name="status">
               <option value="">Any status</option>
