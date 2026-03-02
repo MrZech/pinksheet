@@ -78,11 +78,33 @@ if (is_readable(HOME_DB_PATH)) {
           </label>
         </div>
         <p class="error client-error" id="lookup-error" hidden>Enter a SKU or pick a status to search.</p>
+        <p class="hint" id="lookup-inline-hint">Type at least two characters for live matches; suggestions include SKU plus “What is it?” text.</p>
         <div class="actions">
           <button type="submit">Continue</button>
           <a class="button-link" href="index.php">New Intake</a>
         </div>
       </form>
+    </section>
+    <section class="section lookup-preview" aria-live="polite">
+      <h2>Preview matches</h2>
+      <p class="hint" id="lookup-preview-message">Type two characters or select a status to see recent entries.</p>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>SKU</th>
+              <th>Status</th>
+              <th>What is it?</th>
+              <th>Updated</th>
+            </tr>
+          </thead>
+          <tbody id="lookup-preview-body">
+            <tr>
+              <td colspan="4">No lookup terms yet.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
     </section>
   </main>
   <script>
@@ -126,6 +148,9 @@ if (is_readable(HOME_DB_PATH)) {
         var errorEl = document.getElementById('lookup-error');
         var skuInput = lookupForm.querySelector('[name="sku"]');
         var suggestionList = document.getElementById('suggested-skus');
+        var previewBody = document.getElementById('lookup-preview-body');
+        var previewMessage = document.getElementById('lookup-preview-message');
+        var statusSelect = lookupForm.querySelector('[name="status"]');
         if (skuInput && suggestionList && window.fetch && typeof AbortController !== 'undefined') {
           var suggestionTimer = null;
           var suggestionController = null;
@@ -157,10 +182,10 @@ if (is_readable(HOME_DB_PATH)) {
                   if (entry.label && entry.label !== entry.value) {
                     option.textContent = entry.label;
                   }
-                  suggestionList.appendChild(option);
-                });
-              })
-              .catch(function () {});
+                    suggestionList.appendChild(option);
+                  });
+                })
+                .catch(function () {});
           };
           skuInput.addEventListener('input', function () {
             clearTimeout(suggestionTimer);
@@ -169,8 +194,114 @@ if (is_readable(HOME_DB_PATH)) {
                 fetchSuggestions();
               }
             }, 220);
+            schedulePreview();
           });
         }
+        var previewTimer = null;
+        var previewController = null;
+        var resetPreview = function () {
+          if (!previewBody || !previewMessage) {
+            return;
+          }
+          previewBody.innerHTML = '<tr><td colspan="4">No lookup terms yet.</td></tr>';
+          previewMessage.textContent = 'Type two characters or select a status to see recent entries.';
+          previewMessage.classList.remove('hint-warning');
+        };
+        var createCell = function (value) {
+          var td = document.createElement('td');
+          td.textContent = value || ' - ';
+          return td;
+        };
+        var renderPreviewRows = function (items) {
+          if (!previewBody) {
+            return;
+          }
+          previewBody.innerHTML = '';
+          items.forEach(function (entry) {
+            var row = document.createElement('tr');
+            row.appendChild(createCell(entry.sku));
+            row.appendChild(createCell(entry.status));
+            row.appendChild(createCell(entry.what_is_it));
+            row.appendChild(createCell(entry.updated_at));
+            previewBody.appendChild(row);
+          });
+          previewMessage.textContent = 'Showing the most recent matches.';
+          previewMessage.classList.remove('hint-warning');
+        };
+        var requestPreview = function () {
+          if (!window.fetch || !previewBody || !previewMessage) {
+            return;
+          }
+          var skuValue = (skuInput && skuInput.value.trim()) || '';
+          var statusValue = (statusSelect && statusSelect.value.trim()) || '';
+          if (skuValue === '' && statusValue === '') {
+            resetPreview();
+            return;
+          }
+          if (skuValue !== '' && skuValue.length < 2 && statusValue === '') {
+            previewBody.innerHTML = '<tr><td colspan="4">Waiting for at least two characters...</td></tr>';
+            previewMessage.textContent = 'Type two characters to preview SKU matches.';
+            previewMessage.classList.add('hint-warning');
+            return;
+          }
+          var params = new URLSearchParams();
+          if (skuValue !== '') {
+            params.set('sku', skuValue);
+          }
+          if (statusValue !== '') {
+            params.set('status', statusValue);
+          }
+          if (!params.toString()) {
+            resetPreview();
+            return;
+          }
+          previewMessage.textContent = 'Loading preview...';
+          previewMessage.classList.remove('hint-warning');
+          if (previewController && typeof previewController.abort === 'function') {
+            previewController.abort();
+          }
+          previewController = typeof AbortController !== 'undefined' ? new AbortController() : null;
+          fetch('lookup_preview.php?' + params.toString(), {
+            signal: previewController ? previewController.signal : undefined,
+          })
+            .then(function (response) {
+              if (!response.ok) {
+                throw new Error('Network response was not ok');
+              }
+              return response.json();
+            })
+            .then(function (items) {
+              if (!Array.isArray(items) || items.length === 0) {
+                previewBody.innerHTML = '<tr><td colspan="4">No matches found.</td></tr>';
+                previewMessage.textContent = 'No recent records match those terms.';
+                previewMessage.classList.add('hint-warning');
+                return;
+              }
+              renderPreviewRows(items);
+            })
+            .catch(function () {
+              previewMessage.textContent = 'Could not load preview right now.';
+              previewMessage.classList.add('hint-warning');
+            });
+        };
+        var schedulePreview = function () {
+          if (!window.fetch) {
+            return;
+          }
+          clearTimeout(previewTimer);
+          previewTimer = setTimeout(requestPreview, 220);
+        };
+        if (skuInput) {
+          skuInput.addEventListener('input', function () {
+            schedulePreview();
+          });
+        }
+        if (statusSelect) {
+          statusSelect.addEventListener('change', function () {
+            schedulePreview();
+          });
+        }
+        resetPreview();
         lookupForm.addEventListener('submit', function (event) {
           var sku = ((lookupForm.querySelector('[name="sku"]') || {}).value || '').trim();
           var status = ((lookupForm.querySelector('[name="status"]') || {}).value || '').trim();

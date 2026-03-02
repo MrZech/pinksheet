@@ -276,6 +276,15 @@ a:hover {
   color: #5a2438;
 }
 
+.lookup-preview {
+  width: min(800px, 100%);
+  margin-top: 6px;
+}
+
+.lookup-preview .table-wrap {
+  margin-top: 6px;
+}
+
 .form-grid {
   display: flex;
   flex-direction: column;
@@ -473,6 +482,16 @@ button:active,
   background: #fff5e4;
   border: 1px solid #f2d5a1;
   color: #805a17;
+}
+
+.hint {
+  font-size: 0.82rem;
+  color: var(--muted);
+  margin-top: 6px;
+}
+
+.hint-warning {
+  color: var(--accent-strong);
 }
 
 .error-box {
