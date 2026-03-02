@@ -103,6 +103,9 @@ $lookupStatus = trim($_GET['status'] ?? '');
 if ($lookupStatus !== '' && !in_array($lookupStatus, $statusOptions, true)) {
     $lookupStatus = '';
 }
+logLookup($lookupSku, $lookupStatus);
+$bulkErrors = [];
+$bulkMessage = '';
 $clearDraft = isset($_GET[CLEAR_DRAFT_PARAM]);
 logLookup($lookupSku, $lookupStatus);
 $currentItem = null;
@@ -118,6 +121,26 @@ if ($lookupSkuNormalized !== '') {
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (isset($_POST['bulk_update'])) {
+        $bulkStatus = trim($_POST['bulk_status'] ?? '');
+        $bulkIds = array_values(array_unique(array_map('intval', (array)($_POST['bulk_ids'] ?? []))));
+        $bulkIds = array_filter($bulkIds, static fn ($id): bool => $id > 0);
+        if ($bulkStatus === '' || !in_array($bulkStatus, $statusOptions, true)) {
+            $bulkErrors[] = 'Please pick a valid status for the bulk update.';
+        }
+        if (!$bulkIds) {
+            $bulkErrors[] = 'Select at least one SKU from the table.';
+        }
+        if (!$bulkErrors) {
+            $placeholders = implode(',', array_fill(0, count($bulkIds), '?'));
+            $stmt = $pdo->prepare("UPDATE intake_items SET status = ?, updated_at = datetime('now') WHERE id IN ($placeholders)");
+            $params = array_merge([$bulkStatus], $bulkIds);
+            $stmt->execute($params);
+            $bulkMessage = 'Updated ' . count($bulkIds) . ' SKU' . (count($bulkIds) === 1 ? '' : 's') . ' to ' . $bulkStatus . '.';
+        }
+        $saved = false;
+        $errors = [];
+    } else {
     $id = isset($_POST['id']) ? (int)$_POST['id'] : null;
     $sku = trim($_POST['sku'] ?? '');
     $data = [
@@ -297,11 +320,17 @@ function checked(string $name, string $value, array $formData): string
       <div class="sheet-scale" id="sheet-scale">
         <div class="sheet-content" id="sheet-content">
       <header class="sheet-header">
-        <div class="updated">Last updated: <span><?php echo date('Y-m-d'); ?></span></div>
-        <label class="print-toggle">
-          <input type="checkbox" id="print-pink">
-          <span>Print pink</span>
-        </label>
+        <div>
+          <div class="updated">Last updated: <span><?php echo date('Y-m-d'); ?></span></div>
+          <label class="print-toggle">
+            <input type="checkbox" id="print-pink">
+            <span>Print pink</span>
+          </label>
+        </div>
+        <div class="sheet-header-right">
+          <button type="button" class="print-button" id="print-button">Print</button>
+          <button type="button" class="theme-toggle" id="theme-toggle">Dark mode</button>
+        </div>
         <div class="status">
           <label>
             <span>Status:</span>
@@ -530,36 +559,68 @@ function checked(string $name, string $value, array $formData): string
             <a class="button-link" href="index.php?clear_draft=1">Clear</a>
           </div>
         </form>
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>SKU</th>
-                <th>Status</th>
-                <th>What is it?</th>
-                <th>Updated</th>
-                <th>Open</th>
-              </tr>
-            </thead>
-            <tbody>
-              <?php if (!$recent): ?>
-                <tr>
-                  <td colspan="5">No items found for this lookup.</td>
-                </tr>
-              <?php else: ?>
-                <?php foreach ($recent as $item): ?>
-                  <tr>
-                    <td><?php echo h($item['sku'] ?? ''); ?></td>
-                    <td><?php echo h($item['status'] ?? ''); ?></td>
-                    <td><?php echo h($item['what_is_it'] ?? ''); ?></td>
-                    <td><?php echo h($item['updated_at'] ?? ''); ?></td>
-                    <td><a class="open-link" href="index.php?sku=<?php echo urlencode((string)($item['sku'] ?? '')); ?>">Open</a></td>
-                  </tr>
+        <?php if ($bulkErrors): ?>
+          <div class="error-box">
+            <?php foreach ($bulkErrors as $error): ?>
+              <p class="error"><?php echo h($error); ?></p>
+            <?php endforeach; ?>
+          </div>
+        <?php elseif ($bulkMessage): ?>
+          <p class="success"><?php echo h($bulkMessage); ?></p>
+        <?php endif; ?>
+        <form id="bulk-form" method="post">
+          <input type="hidden" name="bulk_update" value="1">
+          <div class="bulk-actions">
+            <label>
+              Set selected to
+              <select name="bulk_status">
+                <option value="">Choose status</option>
+                <?php foreach ($statusOptions as $opt): ?>
+                  <option value="<?php echo $opt; ?>"><?php echo $opt; ?></option>
                 <?php endforeach; ?>
-              <?php endif; ?>
-            </tbody>
-          </table>
-        </div>
+              </select>
+            </label>
+            <button type="submit">Apply to selected</button>
+            <span class="hint">Check boxes in the table, then update that status in bulk.</span>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Select</th>
+                  <th>SKU</th>
+                  <th>Status</th>
+                  <th>What is it?</th>
+                  <th>Updated</th>
+                  <th>Open</th>
+                </tr>
+              </thead>
+              <tbody>
+                <?php if (!$recent): ?>
+                  <tr>
+                    <td colspan="6">No items found for this lookup.</td>
+                  </tr>
+                <?php else: ?>
+                  <?php foreach ($recent as $item): ?>
+                    <tr>
+                      <td class="bulk-checkbox-cell">
+                        <label class="bulk-checkbox">
+                          <input type="checkbox" name="bulk_ids[]" value="<?php echo isset($item['id']) ? (int)$item['id'] : 0; ?>">
+                          <span></span>
+                        </label>
+                      </td>
+                      <td><?php echo h($item['sku'] ?? ''); ?></td>
+                      <td><?php echo h($item['status'] ?? ''); ?></td>
+                      <td><?php echo h($item['what_is_it'] ?? ''); ?></td>
+                      <td><?php echo h($item['updated_at'] ?? ''); ?></td>
+                      <td><a class="open-link" href="index.php?sku=<?php echo urlencode((string)($item['sku'] ?? '')); ?>">Open</a></td>
+                    </tr>
+                  <?php endforeach; ?>
+                <?php endif; ?>
+              </tbody>
+            </table>
+          </div>
+        </form>
       </section>
         </div>
       </div>
@@ -567,6 +628,35 @@ function checked(string $name, string $value, array $formData): string
   </main>
   <script>
     (function () {
+      var themeToggle = document.getElementById('theme-toggle');
+      var applyThemeMode = function (mode) {
+        var isDark = mode === 'dark';
+        document.body.classList.toggle('dark-mode', isDark);
+        if (themeToggle) {
+          themeToggle.textContent = isDark ? 'Light mode' : 'Dark mode';
+        }
+      };
+      var storedTheme = null;
+      try {
+        storedTheme = localStorage.getItem('themePreference');
+      } catch (e) {}
+      var initialTheme = storedTheme || (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+      applyThemeMode(initialTheme);
+      if (themeToggle) {
+        themeToggle.addEventListener('click', function () {
+          var nextMode = document.body.classList.contains('dark-mode') ? 'light' : 'dark';
+          applyThemeMode(nextMode);
+          try {
+            localStorage.setItem('themePreference', nextMode);
+          } catch (e) {}
+        });
+      }
+      var printButton = document.getElementById('print-button');
+      if (printButton) {
+        printButton.addEventListener('click', function () {
+          window.print();
+        });
+      }
       var menuToggle = document.getElementById('menu-toggle');
       var menuPanel = document.getElementById('global-menu');
       if (menuToggle && menuPanel) {

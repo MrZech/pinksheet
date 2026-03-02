@@ -52,6 +52,10 @@ if (is_readable(HOME_DB_PATH)) {
     <section class="sheet home-sheet">
       <header class="sheet-header">
         <div class="updated">Dispo.Tech Intake</div>
+        <div class="sheet-header-right">
+          <button type="button" class="print-button" id="print-button">Print</button>
+          <button type="button" class="theme-toggle" id="theme-toggle">Dark mode</button>
+        </div>
       </header>
       <h1>Dispo.Tech Intake Lookup</h1>
       <nav class="breadcrumbs" aria-label="Breadcrumb">
@@ -111,6 +115,35 @@ if (is_readable(HOME_DB_PATH)) {
   </main>
   <script>
     (function () {
+      var themeToggle = document.getElementById('theme-toggle');
+      var applyThemeMode = function (mode) {
+        var isDark = mode === 'dark';
+        document.body.classList.toggle('dark-mode', isDark);
+        if (themeToggle) {
+          themeToggle.textContent = isDark ? 'Light mode' : 'Dark mode';
+        }
+      };
+      var storedTheme = null;
+      try {
+        storedTheme = localStorage.getItem('themePreference');
+      } catch (e) {}
+      var initialTheme = storedTheme || (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+      applyThemeMode(initialTheme);
+      if (themeToggle) {
+        themeToggle.addEventListener('click', function () {
+          var nextMode = document.body.classList.contains('dark-mode') ? 'light' : 'dark';
+          applyThemeMode(nextMode);
+          try {
+            localStorage.setItem('themePreference', nextMode);
+          } catch (e) {}
+        });
+      }
+      var printButton = document.getElementById('print-button');
+      if (printButton) {
+        printButton.addEventListener('click', function () {
+          window.print();
+        });
+      }
       var menuToggle = document.getElementById('menu-toggle');
       var menuPanel = document.getElementById('global-menu');
       if (!menuToggle || !menuPanel) {
