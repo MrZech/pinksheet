@@ -45,7 +45,7 @@ if (is_readable(HOME_DB_PATH)) {
         <ul class="menu-links">
           <li><a class="menu-link <?php echo $currentPage === 'home' ? 'is-active' : ''; ?>" href="home.php">Home</a></li>
           <li><a class="menu-link <?php echo $currentPage === 'lookup' ? 'is-active' : ''; ?>" href="home.php#sku-lookup">SKU Lookup</a></li>
-          <li><a class="menu-link <?php echo $currentPage === 'intake' ? 'is-active' : ''; ?>" href="index.php?clear_draft=1">New Intake</a></li>
+          <li><a class="menu-link <?php echo $currentPage === 'intake' ? 'is-active' : ''; ?>" href="index.php?clear_draft=1" onclick="localStorage.removeItem('intakeDraftV1'); window.location.href='index.php?clear_draft=1'; return false;">New Intake</a></li>
         </ul>
       </nav>
     </div>
@@ -87,7 +87,7 @@ if (is_readable(HOME_DB_PATH)) {
         <p class="hint" id="lookup-inline-hint">Type at least two characters for live matches; suggestions include SKU plus “What is it?” text.</p>
         <div class="actions">
           <button type="submit">Continue</button>
-          <a class="button-link" href="index.php?clear_draft=1">New Intake</a>
+          <a class="button-link" href="index.php?clear_draft=1" onclick="localStorage.removeItem('intakeDraftV1'); window.location.href='index.php?clear_draft=1'; return false;">New Intake</a>
         </div>
       </form>
     </section>

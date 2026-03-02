@@ -312,7 +312,7 @@ function checked(string $name, string $value, array $formData): string
         <ul class="menu-links">
           <li><a class="menu-link <?php echo $currentPage === 'home' ? 'is-active' : ''; ?>" href="home.php">Home</a></li>
           <li><a class="menu-link <?php echo $currentPage === 'lookup' ? 'is-active' : ''; ?>" href="home.php#sku-lookup">SKU Lookup</a></li>
-          <li><a class="menu-link <?php echo $currentPage === 'intake' ? 'is-active' : ''; ?>" href="index.php?clear_draft=1">New Intake</a></li>
+          <li><a class="menu-link <?php echo $currentPage === 'intake' ? 'is-active' : ''; ?>" href="index.php?clear_draft=1" onclick="localStorage.removeItem('intakeDraftV1'); window.location.href='index.php?clear_draft=1'; return false;">New Intake</a></li>
         </ul>
       </nav>
     </div>
