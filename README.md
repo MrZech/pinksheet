@@ -20,6 +20,7 @@ Records are stored in `data/intake.sqlite`.
 - `suggestions.php?q=...` lets the front-end fetch live SKU/description pairs while the user types, so the dropdown always shows relevant choices.
 - `lookup_preview.php` backs the preview table on the home lookup so you can see the 5–7 most recent matches for the typed SKU + status combo before opening the intake sheet.
 - The home lookup also surfaces inline guidance/hints and breadcrumb cues so users know they are searching by SKU or status before continuing.
+- Appending `?clear_draft=1` when opening `index.php` clears the local draft state so “New Intake” always shows a blank form without leftover presets.
 
 ## Navigation & logging
 

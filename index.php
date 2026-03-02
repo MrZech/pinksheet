@@ -277,7 +277,7 @@ function checked(string $name, string $value, array $formData): string
         <ul class="menu-links">
           <li><a class="menu-link <?php echo $currentPage === 'home' ? 'is-active' : ''; ?>" href="home.php">Home</a></li>
           <li><a class="menu-link <?php echo $currentPage === 'lookup' ? 'is-active' : ''; ?>" href="home.php#sku-lookup">SKU Lookup</a></li>
-          <li><a class="menu-link <?php echo $currentPage === 'intake' ? 'is-active' : ''; ?>" href="index.php">New Intake</a></li>
+          <li><a class="menu-link <?php echo $currentPage === 'intake' ? 'is-active' : ''; ?>" href="index.php?clear_draft=1">New Intake</a></li>
         </ul>
       </nav>
     </div>
@@ -333,7 +333,8 @@ function checked(string $name, string $value, array $formData): string
 
       <p class="error client-error" id="client-error" hidden>Please fill in SKU, Status, and What is it? before saving.</p>
 
-      <form id="intake-form" method="post" class="form-grid">
+          <form id="intake-form" method="post" class="form-grid">
+            <input type="hidden" id="clear-draft" value="<?php echo $clearDraft ? '1' : '0'; ?>">
         <input type="hidden" id="draft-dismiss" value="<?php echo $saved ? '1' : '0'; ?>">
         <input type="hidden" id="has-server-record" value="<?php echo $currentItem ? '1' : '0'; ?>">
         <input type="hidden" id="has-lookup-sku" value="<?php echo $lookupSkuNormalized !== '' ? '1' : '0'; ?>">
@@ -514,7 +515,7 @@ function checked(string $name, string $value, array $formData): string
           </div>
           <div class="actions">
             <button type="submit">Search</button>
-            <a class="button-link" href="index.php">Clear</a>
+            <a class="button-link" href="index.php?clear_draft=1">Clear</a>
           </div>
         </form>
         <div class="table-wrap">
@@ -590,9 +591,16 @@ function checked(string $name, string $value, array $formData): string
         var dismissDraft = document.getElementById('draft-dismiss');
         var hasRecord = document.getElementById('has-server-record');
         var hasLookup = document.getElementById('has-lookup-sku');
+        var clearDraft = document.getElementById('clear-draft');
+        if (clearDraft && clearDraft.value === '1') {
+          localStorage.removeItem(draftKey);
+        }
         var shouldRestore = dismissDraft && dismissDraft.value !== '1'
           && hasRecord && hasRecord.value !== '1'
           && hasLookup && hasLookup.value !== '1';
+        if (clearDraft && clearDraft.value === '1') {
+          shouldRestore = false;
+        }
 
         var applyRequiredState = function (name, missing) {
           var el = form.querySelector('[name="' + name + '"]');
