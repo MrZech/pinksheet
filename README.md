@@ -18,3 +18,8 @@ Records are stored in `data/intake.sqlite`.
 
  - `home.php` loads recent SKUs via SQLite to seed the lookup datalist for fast matches.
  - `suggestions.php?q=...` lets the front-end fetch live SKU/description pairs while the user types, so the dropdown always shows relevant choices.
+
+## Navigation & logging
+
+ - The hamburger menu now highlights the current section and each page includes breadcrumbs so users can tell where they are before opening a record.
+ - Each lookup (SKU/status) writing to `logs/lookup.csv` records timestamp, SKU, status, and source IP for trend analysis.

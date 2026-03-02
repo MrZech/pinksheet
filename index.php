@@ -4,6 +4,9 @@
 
 const DB_DIR = __DIR__ . '/data';
 const DB_PATH = __DIR__ . '/data/intake.sqlite';
+const LOOKUP_LOG_DIR = __DIR__ . '/logs';
+const LOOKUP_LOG_PATH = LOOKUP_LOG_DIR . '/lookup.csv';
+$currentPage = 'intake';
 
 if (!is_dir(DB_DIR)) {
     mkdir(DB_DIR, 0777, true);
@@ -61,6 +64,25 @@ function normalizeSku(string $sku): string
     return strtoupper(trim($sku));
 }
 
+// Write CSV entries for SKU/status lookups to analyze search trends later.
+function logLookup(string $sku, string $status): void
+{
+    if ($sku === '' && $status === '') {
+        return;
+    }
+    if (!is_dir(LOOKUP_LOG_DIR)) {
+        @mkdir(LOOKUP_LOG_DIR, 0777, true);
+    }
+    $fields = [
+        (new DateTime())->format('c'),
+        $sku,
+        $status,
+        $_SERVER['REMOTE_ADDR'] ?? 'cli',
+    ];
+    $line = implode(',', array_map(static fn (string $value): string => '"' . str_replace('"', '""', $value) . '"', $fields));
+    @file_put_contents(LOOKUP_LOG_PATH, $line . PHP_EOL, FILE_APPEND | LOCK_EX);
+}
+
 function statusOptions(): array
 {
     return ['Intake', 'Description', 'Tested', 'Listed', 'SOLD'];
@@ -76,6 +98,7 @@ $lookupStatus = trim($_GET['status'] ?? '');
 if ($lookupStatus !== '' && !in_array($lookupStatus, $statusOptions, true)) {
     $lookupStatus = '';
 }
+logLookup($lookupSku, $lookupStatus);
 $currentItem = null;
 $duplicateCount = 0;
 
@@ -250,16 +273,16 @@ function checked(string $name, string $value, array $formData): string
       </button>
       <nav class="menu-panel" id="global-menu" aria-hidden="true">
         <ul class="menu-links">
-          <li><a href="home.php">Home</a></li>
-          <li><a href="home.php#sku-lookup">SKU Lookup</a></li>
-          <li><a href="index.php">New Intake</a></li>
+          <li><a class="menu-link <?php echo $currentPage === 'home' ? 'is-active' : ''; ?>" href="home.php">Home</a></li>
+          <li><a class="menu-link <?php echo $currentPage === 'lookup' ? 'is-active' : ''; ?>" href="home.php#sku-lookup">SKU Lookup</a></li>
+          <li><a class="menu-link <?php echo $currentPage === 'intake' ? 'is-active' : ''; ?>" href="index.php">New Intake</a></li>
         </ul>
       </nav>
     </div>
     <section class="sheet intake">
       <div class="sheet-scale" id="sheet-scale">
         <div class="sheet-content" id="sheet-content">
-          <header class="sheet-header">
+      <header class="sheet-header">
         <div class="updated">Last updated: <span><?php echo date('Y-m-d'); ?></span></div>
         <label class="print-toggle">
           <input type="checkbox" id="print-pink">
@@ -277,6 +300,10 @@ function checked(string $name, string $value, array $formData): string
           </label>
         </div>
       </header>
+      <nav class="breadcrumbs" aria-label="Breadcrumb">
+        <a href="home.php">Home</a>
+        <span>Intake Sheet</span>
+      </nav>
 
       <h1>Dispo.Tech Tracker Intake Sheet</h1>
 

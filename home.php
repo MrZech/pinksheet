@@ -1,4 +1,5 @@
 <?php
+$currentPage = 'home';
 const HOME_DB_PATH = __DIR__ . '/data/intake.sqlite';
 $statusOptions = ['Intake', 'Description', 'Tested', 'Listed', 'SOLD'];
 $lookupSuggestions = [];
@@ -40,9 +41,9 @@ if (is_readable(HOME_DB_PATH)) {
       </button>
       <nav class="menu-panel" id="global-menu" aria-hidden="true">
         <ul class="menu-links">
-          <li><a href="home.php">Home</a></li>
-          <li><a href="home.php#sku-lookup">SKU Lookup</a></li>
-          <li><a href="index.php">New Intake</a></li>
+          <li><a class="menu-link <?php echo $currentPage === 'home' ? 'is-active' : ''; ?>" href="home.php">Home</a></li>
+          <li><a class="menu-link <?php echo $currentPage === 'lookup' ? 'is-active' : ''; ?>" href="home.php#sku-lookup">SKU Lookup</a></li>
+          <li><a class="menu-link <?php echo $currentPage === 'intake' ? 'is-active' : ''; ?>" href="index.php">New Intake</a></li>
         </ul>
       </nav>
     </div>
@@ -51,6 +52,10 @@ if (is_readable(HOME_DB_PATH)) {
         <div class="updated">Dispo.Tech Intake</div>
       </header>
       <h1>Dispo.Tech Intake Lookup</h1>
+      <nav class="breadcrumbs" aria-label="Breadcrumb">
+        <a href="home.php">Home</a>
+        <span>Lookup</span>
+      </nav>
       <p>Look up by SKU or by current status to find items quickly.</p>
       <form class="form-grid" method="get" action="index.php" id="sku-lookup">
         <div class="row">

@@ -198,11 +198,36 @@ a:hover {
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
   background: #fff;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
 }
 
 .menu-links a:hover {
   background: #fff6f9;
   text-decoration: none;
+}
+
+.menu-links a.is-active {
+  border-color: var(--accent-strong);
+  box-shadow: 0 6px 16px rgba(81, 23, 44, 0.3);
+  transform: translateY(-1px);
+}
+
+.breadcrumbs {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.85rem;
+  color: var(--muted);
+  margin-bottom: 12px;
+}
+
+.breadcrumbs a {
+  color: var(--muted);
+}
+
+.breadcrumbs span {
+  color: var(--accent-strong);
+  font-weight: 600;
 }
 
 .sheet-header .status label {
