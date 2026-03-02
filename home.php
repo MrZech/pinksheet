@@ -2,6 +2,7 @@
 const HOME_DB_PATH = __DIR__ . '/data/intake.sqlite';
 $statusOptions = ['Intake', 'Description', 'Tested', 'Listed', 'SOLD'];
 $lookupSuggestions = [];
+// Provision a short list of the most recently updated SKUs so the home lookup can show instant suggestions.
 if (is_readable(HOME_DB_PATH)) {
     try {
         $pdo = new PDO('sqlite:' . HOME_DB_PATH, null, null, [
@@ -56,13 +57,12 @@ if (is_readable(HOME_DB_PATH)) {
           <label>SKU
             <input type="text" name="sku" list="suggested-skus" autofocus>
           </label>
-          <?php if ($lookupSuggestions): ?>
-            <datalist id="suggested-skus">
-              <?php foreach ($lookupSuggestions as $option): ?>
-                <option value="<?php echo htmlspecialchars($option, ENT_QUOTES, 'UTF-8'); ?>">
-              <?php endforeach; ?>
-            </datalist>
-          <?php endif; ?>
+          <!-- Datalist seeded from latest SKUs, replaced dynamically when the user types. -->
+          <datalist id="suggested-skus">
+            <?php foreach ($lookupSuggestions as $option): ?>
+              <option value="<?php echo htmlspecialchars($option, ENT_QUOTES, 'UTF-8'); ?>">
+            <?php endforeach; ?>
+          </datalist>
           <label>Current Status
             <select name="status">
               <option value="">Any status</option>
@@ -119,6 +119,53 @@ if (is_readable(HOME_DB_PATH)) {
       var lookupForm = document.getElementById('sku-lookup');
       if (lookupForm) {
         var errorEl = document.getElementById('lookup-error');
+        var skuInput = lookupForm.querySelector('[name="sku"]');
+        var suggestionList = document.getElementById('suggested-skus');
+        if (skuInput && suggestionList && window.fetch && typeof AbortController !== 'undefined') {
+          var suggestionTimer = null;
+          var suggestionController = null;
+          // Debounced fetch keeps the datalist in sync with the backend while the user types.
+          var fetchSuggestions = function () {
+            // Live-search backend returns SKUs + descriptions so the dropdown shows context.
+            var query = skuInput.value.trim();
+            if (query.length < 2) {
+              return;
+            }
+            if (suggestionController) {
+              suggestionController.abort();
+            }
+            suggestionController = new AbortController();
+            fetch('suggestions.php?q=' + encodeURIComponent(query), {
+              signal: suggestionController.signal,
+            })
+              .then(function (response) {
+                if (!response.ok) {
+                  throw new Error('Network response was not ok');
+                }
+                return response.json();
+              })
+              .then(function (items) {
+                suggestionList.innerHTML = '';
+                items.forEach(function (entry) {
+                  var option = document.createElement('option');
+                  option.value = entry.value || '';
+                  if (entry.label && entry.label !== entry.value) {
+                    option.textContent = entry.label;
+                  }
+                  suggestionList.appendChild(option);
+                });
+              })
+              .catch(function () {});
+          };
+          skuInput.addEventListener('input', function () {
+            clearTimeout(suggestionTimer);
+            suggestionTimer = setTimeout(function () {
+              if (skuInput.value.trim().length >= 2) {
+                fetchSuggestions();
+              }
+            }, 220);
+          });
+        }
         lookupForm.addEventListener('submit', function (event) {
           var sku = ((lookupForm.querySelector('[name="sku"]') || {}).value || '').trim();
           var status = ((lookupForm.querySelector('[name="status"]') || {}).value || '').trim();
