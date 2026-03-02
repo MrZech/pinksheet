@@ -6,6 +6,7 @@ const DB_DIR = __DIR__ . '/data';
 const DB_PATH = __DIR__ . '/data/intake.sqlite';
 const LOOKUP_LOG_DIR = __DIR__ . '/logs';
 const LOOKUP_LOG_PATH = LOOKUP_LOG_DIR . '/lookup.csv';
+const CLEAR_DRAFT_PARAM = 'clear_draft';
 $currentPage = 'intake';
 
 if (!is_dir(DB_DIR)) {
@@ -98,6 +99,7 @@ $lookupStatus = trim($_GET['status'] ?? '');
 if ($lookupStatus !== '' && !in_array($lookupStatus, $statusOptions, true)) {
     $lookupStatus = '';
 }
+$clearDraft = isset($_GET[CLEAR_DRAFT_PARAM]);
 logLookup($lookupSku, $lookupStatus);
 $currentItem = null;
 $duplicateCount = 0;
