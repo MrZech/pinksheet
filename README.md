@@ -26,3 +26,9 @@ Records are stored in `data/intake.sqlite`.
 
  - The hamburger menu now highlights the current section and each page includes breadcrumbs so users can tell where they are before opening a record.
  - Each lookup (SKU/status) writing to `logs/lookup.csv` records timestamp, SKU, status, and source IP for trend analysis.
+
+## Maintenance & health
+
+ - `config.php` centralizes `MAINTENANCE_MODE`, input size limits, and API limits; every endpoint checks this flag so you can temporarily disable the app without editing each file.
+ - Both the suggestions and preview APIs cap `q`/`sku` to 50 characters (status to 30 characters) and obey `SUGGESTION_LIMIT`/`PREVIEW_LIMIT` to keep remote use predictable.
+ - `health.php` reports the current maintenance state plus the configured length/limit values in JSON, making it easy to hook into a monitoring or uptime probe before exposing the app remotely.

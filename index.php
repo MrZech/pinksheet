@@ -1,5 +1,9 @@
-﻿<?php
+<?php
+require_once __DIR__ . '/config.php';
+checkMaintenance();
+
 // Simple intake sheet app backed by SQLite
+
 
 
 const DB_DIR = __DIR__ . '/data';

@@ -1,4 +1,6 @@
 <?php
+require_once __DIR__ . '/config.php';
+checkMaintenance();
 $currentPage = 'home';
 const HOME_DB_PATH = __DIR__ . '/data/intake.sqlite';
 $statusOptions = ['Intake', 'Description', 'Tested', 'Listed', 'SOLD'];

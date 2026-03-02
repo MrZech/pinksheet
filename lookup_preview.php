@@ -1,12 +1,21 @@
 <?php
 declare(strict_types=1);
 
+require_once __DIR__ . '/config.php';
+checkMaintenance(true);
+
 const DB_PATH = __DIR__ . '/data/intake.sqlite';
 
 header('Content-Type: application/json; charset=utf-8');
 
 $sku = trim((string)($_GET['sku'] ?? ''));
 $status = trim((string)($_GET['status'] ?? ''));
+if (mb_strlen($sku) > MAX_QUERY_LENGTH) {
+    $sku = mb_substr($sku, 0, MAX_QUERY_LENGTH);
+}
+if (mb_strlen($status) > MAX_STATUS_LENGTH) {
+    $status = mb_substr($status, 0, MAX_STATUS_LENGTH);
+}
 if ($sku === '' && $status === '') {
     echo '[]';
     exit;
@@ -39,7 +48,7 @@ try {
     if ($conditions) {
         $sql .= ' WHERE ' . implode(' AND ', $conditions);
     }
-    $sql .= ' ORDER BY updated_at DESC, id DESC LIMIT 7';
+    $sql .= ' ORDER BY updated_at DESC, id DESC LIMIT ' . PREVIEW_LIMIT;
     $stmt = $pdo->prepare($sql);
     $stmt->execute($params);
     $results = array_map(static fn (array $row): array => [
