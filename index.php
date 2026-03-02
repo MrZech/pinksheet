@@ -251,6 +251,10 @@ if (!$formData && $currentItem) {
 if (!$formData && $lookupSku !== '') {
     $formData = ['sku' => $lookupSku];
 }
+$toastMessage = '';
+if ($saved) {
+    $toastMessage = $saveMode === 'created' ? 'Saved as new SKU record.' : 'Saved and synced to this SKU.';
+}
 
 function h(?string $value): string
 {
@@ -272,6 +276,10 @@ function checked(string $name, string $value, array $formData): string
 </head>
 <body>
   <main class="page">
+    <div id="save-toast" class="toast" role="status" aria-live="polite"
+      data-active="<?php echo $saved ? '1' : '0'; ?>"
+      data-message="<?php echo h($toastMessage); ?>">
+    </div>
     <div class="app-menu">
       <button type="button" class="menu-toggle" aria-expanded="false" aria-controls="global-menu" id="menu-toggle">
         <span class="hamburger" aria-hidden="true"></span>
@@ -709,6 +717,25 @@ function checked(string $name, string $value, array $formData): string
           apply(checkbox.checked);
           localStorage.setItem(storageKey, checkbox.checked ? '1' : '0');
         });
+      }
+
+      var toastElement = document.getElementById('save-toast');
+      var toastTimer = null;
+      if (toastElement && toastElement.dataset.active === '1') {
+        var toastMessage = (toastElement.dataset.message || '').trim();
+        if (toastMessage !== '') {
+          toastElement.textContent = toastMessage;
+          var showToast = function () {
+            toastElement.classList.add('toast-visible');
+            if (toastTimer) {
+              clearTimeout(toastTimer);
+            }
+            toastTimer = setTimeout(function () {
+              toastElement.classList.remove('toast-visible');
+            }, 4200);
+          };
+          showToast();
+        }
       }
 
       // Keep screen view at full readable size; print layout is handled by CSS.
