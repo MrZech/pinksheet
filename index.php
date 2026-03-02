@@ -669,9 +669,9 @@ function checked(string $name, string $value, array $formData): string
         var target = (event.currentTarget && event.currentTarget.getAttribute('href')) || 'index.php?clear_draft=1';
         window.location.href = target;
       };
-      newIntakeLinks.forEach(function (link) {
-        link.addEventListener('click', navigateNewIntake);
-      });
+      for (var ni = 0; ni < newIntakeLinks.length; ni++) {
+        newIntakeLinks[ni].addEventListener('click', navigateNewIntake);
+      }
       var menuToggle = document.getElementById('menu-toggle');
       var menuPanel = document.getElementById('global-menu');
       if (menuToggle && menuPanel) {
