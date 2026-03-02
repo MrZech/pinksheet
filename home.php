@@ -45,7 +45,7 @@ if (is_readable(HOME_DB_PATH)) {
         <ul class="menu-links">
           <li><a class="menu-link <?php echo $currentPage === 'home' ? 'is-active' : ''; ?>" href="home.php">Home</a></li>
           <li><a class="menu-link <?php echo $currentPage === 'lookup' ? 'is-active' : ''; ?>" href="home.php#sku-lookup">SKU Lookup</a></li>
-          <li><a class="menu-link <?php echo $currentPage === 'intake' ? 'is-active' : ''; ?>" href="index.php?clear_draft=1" onclick="localStorage.removeItem('intakeDraftV1'); window.location.href='index.php?clear_draft=1'; return false;">New Intake</a></li>
+          <li><a class="menu-link <?php echo $currentPage === 'intake' ? 'is-active' : ''; ?>" href="index.php?clear_draft=1" data-new-intake>New Intake</a></li>
         </ul>
       </nav>
     </div>
@@ -55,6 +55,7 @@ if (is_readable(HOME_DB_PATH)) {
         <div class="sheet-header-right">
           <button type="button" class="print-button" id="print-button">Print</button>
           <button type="button" class="theme-toggle" id="theme-toggle">Dark mode</button>
+          <a class="button-link new-intake-cta" href="index.php?clear_draft=1" data-new-intake>New Intake</a>
         </div>
       </header>
       <h1>Dispo.Tech Intake Lookup</h1>
@@ -87,7 +88,7 @@ if (is_readable(HOME_DB_PATH)) {
         <p class="hint" id="lookup-inline-hint">Type at least two characters for live matches; suggestions include SKU plus “What is it?” text.</p>
         <div class="actions">
           <button type="submit">Continue</button>
-          <a class="button-link" href="index.php?clear_draft=1" onclick="localStorage.removeItem('intakeDraftV1'); window.location.href='index.php?clear_draft=1'; return false;">New Intake</a>
+          <a class="button-link" href="index.php?clear_draft=1" data-new-intake>New Intake</a>
         </div>
       </form>
     </section>
@@ -144,23 +145,39 @@ if (is_readable(HOME_DB_PATH)) {
           window.print();
         });
       }
+
+      var intakeLinks = document.querySelectorAll('[data-new-intake]');
+      if (intakeLinks.length) {
+        var clearIntakeDraft = function () {
+          try {
+            localStorage.removeItem('intakeDraftV1');
+          } catch (e) {}
+        };
+        intakeLinks.forEach(function (link) {
+          link.addEventListener('click', clearIntakeDraft);
+        });
+      }
       var menuToggle = document.getElementById('menu-toggle');
       var menuPanel = document.getElementById('global-menu');
       if (!menuToggle || !menuPanel) {
         return;
       }
+      var bodyElement = document.body;
+
+      var setMenuState = function (open) {
+        menuPanel.classList.toggle('is-open', open);
+        menuPanel.setAttribute('aria-hidden', open ? 'false' : 'true');
+        menuToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+        bodyElement.classList.toggle('has-open-menu', open);
+      };
 
       var closeMenu = function () {
-        menuPanel.classList.remove('is-open');
-        menuPanel.setAttribute('aria-hidden', 'true');
-        menuToggle.setAttribute('aria-expanded', 'false');
+        setMenuState(false);
       };
 
       menuToggle.addEventListener('click', function () {
         var opening = !menuPanel.classList.contains('is-open');
-        menuPanel.classList.toggle('is-open', opening);
-        menuPanel.setAttribute('aria-hidden', opening ? 'false' : 'true');
-        menuToggle.setAttribute('aria-expanded', opening ? 'true' : 'false');
+        setMenuState(opening);
       });
 
       document.addEventListener('click', function (event) {
