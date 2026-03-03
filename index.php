@@ -120,7 +120,7 @@ if ($lookupSkuNormalized !== '') {
     $duplicateCount = (int)$countStmt->fetchColumn();
 }
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {}
     if (isset($_POST['bulk_update'])) {
         $bulkStatus = trim($_POST['bulk_status'] ?? '');
         $bulkIds = array_values(array_unique(array_map('intval', (array)($_POST['bulk_ids'] ?? []))));
