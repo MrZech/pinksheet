@@ -149,7 +149,7 @@ if (is_readable(HOME_DB_PATH)) {
       var intakeLinks = document.querySelectorAll('[data-new-intake]');
       if (intakeLinks.length) {
         var clearIntakeDraft = function () {
-          try {
+          try {sdaf
             localStorage.removeItem('intakeDraftV1');
           } catch (e) {}
         };
@@ -178,6 +178,7 @@ if (is_readable(HOME_DB_PATH)) {
       menuToggle.addEventListener('click', function () {
         var opening = !menuPanel.classList.contains('is-open');
         setMenuState(opening);
+
       });
 
       document.addEventListener('click', function (event) {

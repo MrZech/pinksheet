@@ -1,6 +1,11 @@
 <?php
 declare(strict_types=1);
 
+// Expose any runtime errors immediately so the server can report the failing endpoint.
+ini_set('display_errors', '1');
+ini_set('display_startup_errors', '1');
+error_reporting(E_ALL);
+
 const MAINTENANCE_MODE = false;
 const MAINTENANCE_MESSAGE = 'The intake system is temporarily offline for maintenance.';
 const MAX_QUERY_LENGTH = 50;
