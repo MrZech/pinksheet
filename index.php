@@ -1,9 +1,17 @@
 <?php
+require_once __DIR__ . '/config.php';
+checkMaintenance();
+
 // Simple intake sheet app backed by SQLite
+
 
 
 const DB_DIR = __DIR__ . '/data';
 const DB_PATH = __DIR__ . '/data/intake.sqlite';
+const LOOKUP_LOG_DIR = __DIR__ . '/logs';
+const LOOKUP_LOG_PATH = LOOKUP_LOG_DIR . '/lookup.csv';
+const CLEAR_DRAFT_PARAM = 'clear_draft';
+$currentPage = 'intake';
 
 if (!is_dir(DB_DIR)) {
     mkdir(DB_DIR, 0777, true);
@@ -65,11 +73,45 @@ function normalizeSku(string $sku): string
     return strtoupper(trim($sku));
 }
 
+// Write CSV entries for SKU/status lookups to analyze search trends later.
+function logLookup(string $sku, string $status): void
+{
+    if ($sku === '' && $status === '') {
+        return;
+    }
+    if (!is_dir(LOOKUP_LOG_DIR)) {
+        @mkdir(LOOKUP_LOG_DIR, 0777, true);
+    }
+    $fields = [
+        (new DateTime())->format('c'),
+        $sku,
+        $status,
+        $_SERVER['REMOTE_ADDR'] ?? 'cli',
+    ];
+    $line = implode(',', array_map(static fn (string $value): string => '"' . str_replace('"', '""', $value) . '"', $fields));
+    @file_put_contents(LOOKUP_LOG_PATH, $line . PHP_EOL, FILE_APPEND | LOCK_EX);
+}
+
+function statusOptions(): array
+{
+    return ['Intake', 'Description', 'Tested', 'Listed', 'SOLD'];
+}
+
 $saved = isset($_GET['saved']);
 $saveMode = trim($_GET['save_mode'] ?? '');
 $errors = [];
+$statusOptions = statusOptions();
 $lookupSku = trim($_GET['sku'] ?? '');
 $lookupSkuNormalized = normalizeSku($lookupSku);
+$lookupStatus = trim($_GET['status'] ?? '');
+if ($lookupStatus !== '' && !in_array($lookupStatus, $statusOptions, true)) {
+    $lookupStatus = '';
+}
+logLookup($lookupSku, $lookupStatus);
+$bulkErrors = [];
+$bulkMessage = '';
+$clearDraft = isset($_GET[CLEAR_DRAFT_PARAM]);
+logLookup($lookupSku, $lookupStatus);
 $currentItem = null;
 $duplicateCount = 0;
 
@@ -82,7 +124,27 @@ if ($lookupSkuNormalized !== '') {
     $duplicateCount = (int)$countStmt->fetchColumn();
 }
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {}
+    if (isset($_POST['bulk_update'])) {
+        $bulkStatus = trim($_POST['bulk_status'] ?? '');
+        $bulkIds = array_values(array_unique(array_map('intval', (array)($_POST['bulk_ids'] ?? []))));
+        $bulkIds = array_filter($bulkIds, static fn ($id): bool => $id > 0);
+        if ($bulkStatus === '' || !in_array($bulkStatus, $statusOptions, true)) {
+            $bulkErrors[] = 'Please pick a valid status for the bulk update.';
+        }
+        if (!$bulkIds) {
+            $bulkErrors[] = 'Select at least one SKU from the table.';
+        }
+        if (!$bulkErrors) {
+            $placeholders = implode(',', array_fill(0, count($bulkIds), '?'));
+            $stmt = $pdo->prepare("UPDATE intake_items SET status = ?, updated_at = datetime('now') WHERE id IN ($placeholders)");
+            $params = array_merge([$bulkStatus], $bulkIds);
+            $stmt->execute($params);
+            $bulkMessage = 'Updated ' . count($bulkIds) . ' SKU' . (count($bulkIds) === 1 ? '' : 's') . ' to ' . $bulkStatus . '.';
+        }
+        $saved = false;
+        $errors = [];
+    } else {
     $id = isset($_POST['id']) ? (int)$_POST['id'] : null;
     $sku = trim($_POST['sku'] ?? '');
     $data = [
@@ -111,8 +173,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         'screen_resolution' => trim($_POST['screen_resolution'] ?? ''),
         'where_it_goes' => trim($_POST['where_it_goes'] ?? ''),
         'ebay_status' => trim($_POST['ebay_status'] ?? ''),
-        'ebay_price' => $_POST['ebay_price'] !== '' ? (float)$_POST['ebay_price'] : null,
-        'dispotech_price' => $_POST['dispotech_price'] !== '' ? (float)$_POST['dispotech_price'] : null,
+        'ebay_price' => ($_POST['ebay_price'] ?? '') !== '' ? (float)$_POST['ebay_price'] : null,
+        'dispotech_price' => ($_POST['dispotech_price'] ?? '') !== '' ? (float)$_POST['dispotech_price'] : null,
         'in_ebay_room' => trim($_POST['in_ebay_room'] ?? ''),
         'what_box' => trim($_POST['what_box'] ?? ''),
         'notes' => trim($_POST['notes'] ?? ''),
@@ -203,13 +265,24 @@ SQL);
     }
 }
 
-$recent = $pdo->query('SELECT * FROM intake_items ORDER BY id DESC LIMIT 25')->fetchAll(PDO::FETCH_ASSOC);
+$recent = [];
+if ($lookupStatus !== '') {
+    $recentStmt = $pdo->prepare('SELECT * FROM intake_items WHERE status = :status ORDER BY updated_at DESC, id DESC LIMIT 100');
+    $recentStmt->execute(['status' => $lookupStatus]);
+    $recent = $recentStmt->fetchAll(PDO::FETCH_ASSOC);
+} else {
+    $recent = $pdo->query('SELECT * FROM intake_items ORDER BY id DESC LIMIT 25')->fetchAll(PDO::FETCH_ASSOC);
+}
 $formData = $_POST;
 if (!$formData && $currentItem) {
     $formData = $currentItem;
 }
 if (!$formData && $lookupSku !== '') {
     $formData = ['sku' => $lookupSku];
+}
+$toastMessage = '';
+if ($saved) {
+    $toastMessage = $saveMode === 'created' ? 'Saved as new SKU record.' : 'Saved and synced to this SKU.';
 }
 
 function h(?string $value): string
@@ -232,6 +305,10 @@ function checked(string $name, string $value, array $formData): string
 </head>
 <body>
   <main class="page">
+    <div id="save-toast" class="toast" role="status" aria-live="polite"
+      data-active="<?php echo $saved ? '1' : '0'; ?>"
+      data-message="<?php echo h($toastMessage); ?>">
+    </div>
     <div class="app-menu">
       <button type="button" class="menu-toggle" aria-expanded="false" aria-controls="global-menu" id="menu-toggle">
         <span class="hamburger" aria-hidden="true"></span>
@@ -239,33 +316,44 @@ function checked(string $name, string $value, array $formData): string
       </button>
       <nav class="menu-panel" id="global-menu" aria-hidden="true">
         <ul class="menu-links">
-          <li><a href="home.php">Home</a></li>
-          <li><a href="home.php#sku-lookup">SKU Lookup</a></li>
-          <li><a href="index.php">New Intake</a></li>
+          <li><a class="menu-link <?php echo $currentPage === 'home' ? 'is-active' : ''; ?>" href="home.php">Home</a></li>
+          <li><a class="menu-link <?php echo $currentPage === 'lookup' ? 'is-active' : ''; ?>" href="home.php#sku-lookup">SKU Lookup</a></li>
+          <li><a class="menu-link <?php echo $currentPage === 'intake' ? 'is-active' : ''; ?>" href="index.php?clear_draft=1" data-new-intake>New Intake</a></li>
         </ul>
       </nav>
     </div>
     <section class="sheet intake">
       <div class="sheet-scale" id="sheet-scale">
         <div class="sheet-content" id="sheet-content">
-          <header class="sheet-header">
-        <div class="updated">Last updated: <span><?php echo date('Y-m-d'); ?></span></div>
-        <label class="print-toggle">
-          <input type="checkbox" id="print-pink">
-          <span>Print pink</span>
-        </label>
+      <header class="sheet-header">
+        <div>
+          <div class="updated">Last updated: <span><?php echo date('Y-m-d'); ?></span></div>
+          <label class="print-toggle">
+            <input type="checkbox" id="print-pink">
+            <span>Print pink</span>
+          </label>
+        </div>
+        <div class="sheet-header-right">
+          <button type="button" class="print-button" id="print-button">Print</button>
+          <button type="button" class="theme-toggle" id="theme-toggle">Dark mode</button>
+          <a class="button-link new-intake-cta" href="index.php?clear_draft=1" data-new-intake>New Intake</a>
+        </div>
         <div class="status">
           <label>
             <span>Status:</span>
             <select name="status" form="intake-form">
               <option value="">Select</option>
-              <?php foreach (['Intake','Description','Tested','Listed','SOLD'] as $opt): ?>
+              <?php foreach ($statusOptions as $opt): ?>
                 <option value="<?php echo $opt; ?>" <?php echo (($formData['status'] ?? '') === $opt) ? 'selected' : ''; ?>><?php echo $opt; ?></option>
               <?php endforeach; ?>
             </select>
           </label>
         </div>
       </header>
+      <nav class="breadcrumbs" aria-label="Breadcrumb">
+        <a href="home.php">Home</a>
+        <span>Intake Sheet</span>
+      </nav>
 
       <h1>Dispo.Tech Tracker Intake Sheet</h1>
 
@@ -293,7 +381,8 @@ function checked(string $name, string $value, array $formData): string
 
       <p class="error client-error" id="client-error" hidden>Please fill in SKU before saving.</p>
 
-      <form id="intake-form" method="post" class="form-grid">
+          <form id="intake-form" method="post" class="form-grid">
+            <input type="hidden" id="clear-draft" value="<?php echo $clearDraft ? '1' : '0'; ?>">
         <input type="hidden" id="draft-dismiss" value="<?php echo $saved ? '1' : '0'; ?>">
         <input type="hidden" id="has-server-record" value="<?php echo $currentItem ? '1' : '0'; ?>">
         <input type="hidden" id="has-lookup-sku" value="<?php echo $lookupSkuNormalized !== '' ? '1' : '0'; ?>">
@@ -460,35 +549,88 @@ function checked(string $name, string $value, array $formData): string
       </form>
 
       <section class="section recent-items">
-        <h2>Recent SKUs</h2>
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>SKU</th>
-                <th>Status</th>
-                <th>Updated</th>
-                <th>Open</th>
-              </tr>
-            </thead>
-            <tbody>
-              <?php if (!$recent): ?>
-                <tr>
-                  <td colspan="4">No intake items saved yet.</td>
-                </tr>
-              <?php else: ?>
-                <?php foreach ($recent as $item): ?>
-                  <tr>
-                    <td><?php echo h($item['sku'] ?? ''); ?></td>
-                    <td><?php echo h($item['status'] ?? ''); ?></td>
-                    <td><?php echo h($item['updated_at'] ?? ''); ?></td>
-                    <td><a class="open-link" href="index.php?sku=<?php echo urlencode((string)($item['sku'] ?? '')); ?>">Open</a></td>
-                  </tr>
+        <h2><?php echo $lookupStatus !== '' ? 'Status Results' : 'Recent SKUs'; ?></h2>
+        <form class="form-grid" method="get" action="index.php">
+          <div class="row">
+            <label>SKU
+              <input type="text" name="sku" value="<?php echo h($lookupSku); ?>">
+            </label>
+            <label>Status
+              <select name="status">
+                <option value="">Any status</option>
+                <?php foreach ($statusOptions as $opt): ?>
+                  <option value="<?php echo $opt; ?>" <?php echo $lookupStatus === $opt ? 'selected' : ''; ?>><?php echo $opt; ?></option>
                 <?php endforeach; ?>
-              <?php endif; ?>
-            </tbody>
-          </table>
-        </div>
+              </select>
+            </label>
+          </div>
+            <div class="actions">
+            <button type="submit">Search</button>
+            <a class="button-link" href="index.php?clear_draft=1" data-new-intake>Clear</a>
+          </div>
+        </form>
+        <?php if ($bulkErrors): ?>
+          <div class="error-box">
+            <?php foreach ($bulkErrors as $error): ?>
+              <p class="error"><?php echo h($error); ?></p>
+            <?php endforeach; ?>
+          </div>
+        <?php elseif ($bulkMessage): ?>
+          <p class="success"><?php echo h($bulkMessage); ?></p>
+        <?php endif; ?>
+        <form id="bulk-form" method="post">
+          <input type="hidden" name="bulk_update" value="1">
+          <div class="bulk-actions">
+            <label>
+              Set selected to
+              <select name="bulk_status">
+                <option value="">Choose status</option>
+                <?php foreach ($statusOptions as $opt): ?>
+                  <option value="<?php echo $opt; ?>"><?php echo $opt; ?></option>
+                <?php endforeach; ?>
+              </select>
+            </label>
+            <button type="submit">Apply to selected</button>
+            <span class="hint">Check boxes in the table, then update that status in bulk.</span>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Select</th>
+                  <th>SKU</th>
+                  <th>Status</th>
+                  <th>What is it?</th>
+                  <th>Updated</th>
+                  <th>Open</th>
+                </tr>
+              </thead>
+              <tbody>
+                <?php if (!$recent): ?>
+                  <tr>
+                    <td colspan="6">No items found for this lookup.</td>
+                  </tr>
+                <?php else: ?>
+                  <?php foreach ($recent as $item): ?>
+                    <tr>
+                      <td class="bulk-checkbox-cell">
+                        <label class="bulk-checkbox">
+                          <input type="checkbox" name="bulk_ids[]" value="<?php echo isset($item['id']) ? (int)$item['id'] : 0; ?>">
+                          <span></span>
+                        </label>
+                      </td>
+                      <td><?php echo h($item['sku'] ?? ''); ?></td>
+                      <td><?php echo h($item['status'] ?? ''); ?></td>
+                      <td><?php echo h($item['what_is_it'] ?? ''); ?></td>
+                      <td><?php echo h($item['updated_at'] ?? ''); ?></td>
+                      <td><a class="open-link" href="index.php?sku=<?php echo urlencode((string)($item['sku'] ?? '')); ?>">Open</a></td>
+                    </tr>
+                  <?php endforeach; ?>
+                <?php endif; ?>
+              </tbody>
+            </table>
+          </div>
+        </form>
       </section>
         </div>
       </div>
@@ -496,19 +638,64 @@ function checked(string $name, string $value, array $formData): string
   </main>
   <script>
     (function () {
+      var themeToggle = document.getElementById('theme-toggle');
+      var applyThemeMode = function (mode) {
+        var isDark = mode === 'dark';
+        document.body.classList.toggle('dark-mode', isDark);
+        if (themeToggle) {
+          themeToggle.textContent = isDark ? 'Light mode' : 'Dark mode';
+        }
+      };
+      var storedTheme = null;
+      try {
+        storedTheme = localStorage.getItem('themePreference');
+      } catch (e) {}
+      var initialTheme = storedTheme || (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+      applyThemeMode(initialTheme);
+      if (themeToggle) {
+        themeToggle.addEventListener('click', function () {
+          var nextMode = document.body.classList.contains('dark-mode') ? 'light' : 'dark';
+          applyThemeMode(nextMode);
+          try {
+            localStorage.setItem('themePreference', nextMode);
+          } catch (e) {}
+        });
+      }
+      var printButton = document.getElementById('print-button');
+      if (printButton) {
+        printButton.addEventListener('click', function () {
+          window.print();
+        });
+      }
+      var intakeLinks = document.querySelectorAll('[data-new-intake]');
+      if (intakeLinks.length) {
+        var clearIntakeDraft = function () {
+          try {
+            localStorage.removeItem('intakeDraftV1');
+          } catch (e) {}
+        };
+        intakeLinks.forEach(function (link) {
+          link.addEventListener('click', clearIntakeDraft);
+        });
+      }
       var menuToggle = document.getElementById('menu-toggle');
       var menuPanel = document.getElementById('global-menu');
       if (menuToggle && menuPanel) {
-        var closeMenu = function () {
-          menuPanel.classList.remove('is-open');
-          menuPanel.setAttribute('aria-hidden', 'true');
-          menuToggle.setAttribute('aria-expanded', 'false');
+        var bodyElement = document.body;
+        var setMenuState = function (open) {
+          menuPanel.classList.toggle('is-open', open);
+          menuPanel.setAttribute('aria-hidden', open ? 'false' : 'true');
+          menuToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+          bodyElement.classList.toggle('has-open-menu', open);
         };
+
+        var closeMenu = function () {
+          setMenuState(false);
+        };
+
         menuToggle.addEventListener('click', function () {
           var opening = !menuPanel.classList.contains('is-open');
-          menuPanel.classList.toggle('is-open', opening);
-          menuPanel.setAttribute('aria-hidden', opening ? 'false' : 'true');
-          menuToggle.setAttribute('aria-expanded', opening ? 'true' : 'false');
+          setMenuState(opening);
         });
         document.addEventListener('click', function (event) {
           if (!menuPanel.classList.contains('is-open')) {
@@ -532,9 +719,16 @@ function checked(string $name, string $value, array $formData): string
         var dismissDraft = document.getElementById('draft-dismiss');
         var hasRecord = document.getElementById('has-server-record');
         var hasLookup = document.getElementById('has-lookup-sku');
+        var clearDraft = document.getElementById('clear-draft');
+        if (clearDraft && clearDraft.value === '1') {
+          localStorage.removeItem(draftKey);
+        }
         var shouldRestore = dismissDraft && dismissDraft.value !== '1'
           && hasRecord && hasRecord.value !== '1'
           && hasLookup && hasLookup.value !== '1';
+        if (clearDraft && clearDraft.value === '1') {
+          shouldRestore = false;
+        }
 
         var applyRequiredState = function (name, missing) {
           var el = form.querySelector('[name="' + name + '"]');
@@ -633,6 +827,25 @@ function checked(string $name, string $value, array $formData): string
           apply(checkbox.checked);
           localStorage.setItem(storageKey, checkbox.checked ? '1' : '0');
         });
+      }
+
+      var toastElement = document.getElementById('save-toast');
+      var toastTimer = null;
+      if (toastElement && toastElement.dataset.active === '1') {
+        var toastMessage = (toastElement.dataset.message || '').trim();
+        if (toastMessage !== '') {
+          toastElement.textContent = toastMessage;
+          var showToast = function () {
+            toastElement.classList.add('toast-visible');
+            if (toastTimer) {
+              clearTimeout(toastTimer);
+            }
+            toastTimer = setTimeout(function () {
+              toastElement.classList.remove('toast-visible');
+            }, 4200);
+          };
+          showToast();
+        }
       }
 
       // Keep screen view at full readable size; print layout is handled by CSS.
