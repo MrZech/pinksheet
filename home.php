@@ -85,7 +85,7 @@ if (is_readable(HOME_DB_PATH)) {
           </label>
         </div>
         <p class="error client-error" id="lookup-error" hidden>Enter a SKU or pick a status to search.</p>
-        <p class="hint" id="lookup-inline-hint">Type at least two characters for live matches; suggestions include SKU plus “What is it?” text.</p>
+        <p class="hint" id="lookup-inline-hint">Type at least two characters for live matches; suggestions include SKU plus "What is it?" text.</p>
         <div class="actions">
           <button type="submit">Continue</button>
           <a class="button-link" href="index.php?clear_draft=1" data-new-intake>New Intake</a>
@@ -149,7 +149,7 @@ if (is_readable(HOME_DB_PATH)) {
       var intakeLinks = document.querySelectorAll('[data-new-intake]');
       if (intakeLinks.length) {
         var clearIntakeDraft = function () {
-          try {sdaf
+          try {
             localStorage.removeItem('intakeDraftV1');
           } catch (e) {}
         };

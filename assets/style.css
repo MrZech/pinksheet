@@ -547,6 +547,43 @@ textarea:focus {
   box-shadow: 0 0 0 3px rgba(177, 63, 104, 0.16);
 }
 
+/* Dark mode overrides placed after base styles to ensure they win. */
+body.dark-mode .section {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: var(--line-dark);
+  color: var(--ink-dark);
+}
+
+body.dark-mode fieldset {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: var(--line-dark);
+}
+
+body.dark-mode input[type="text"],
+body.dark-mode input[type="date"],
+body.dark-mode input[type="number"],
+body.dark-mode select,
+body.dark-mode textarea {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: var(--line-dark);
+  color: var(--ink-dark);
+  box-shadow: none;
+}
+
+body.dark-mode select option {
+  background: #1a0f17;
+  color: var(--ink-dark);
+}
+
+body.dark-mode .table-wrap,
+body.dark-mode table,
+body.dark-mode th,
+body.dark-mode td {
+  background: transparent;
+  color: var(--ink-dark);
+  border-color: var(--line-dark);
+}
+
 .section textarea {
   width: 100%;
   min-height: 90px;
@@ -603,6 +640,15 @@ legend {
 
 .conjoined .segment input:checked + span {
   font-weight: 700;
+}
+
+body.dark-mode .conjoined {
+  border-color: var(--line-dark);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+body.dark-mode .conjoined .segment {
+  border-color: var(--line-dark);
 }
 
 .actions {

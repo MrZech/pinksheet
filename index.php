@@ -107,7 +107,6 @@ $lookupStatus = trim($_GET['status'] ?? '');
 if ($lookupStatus !== '' && !in_array($lookupStatus, $statusOptions, true)) {
     $lookupStatus = '';
 }
-logLookup($lookupSku, $lookupStatus);
 $bulkErrors = [];
 $bulkMessage = '';
 $clearDraft = isset($_GET[CLEAR_DRAFT_PARAM]);
@@ -124,7 +123,7 @@ if ($lookupSkuNormalized !== '') {
     $duplicateCount = (int)$countStmt->fetchColumn();
 }
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {}
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (isset($_POST['bulk_update'])) {
         $bulkStatus = trim($_POST['bulk_status'] ?? '');
         $bulkIds = array_values(array_unique(array_map('intval', (array)($_POST['bulk_ids'] ?? []))));
@@ -145,47 +144,47 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {}
         $saved = false;
         $errors = [];
     } else {
-    $id = isset($_POST['id']) ? (int)$_POST['id'] : null;
-    $sku = trim($_POST['sku'] ?? '');
-    $data = [
-        'id' => $id,
-        'sku' => $sku,
-        'sku_normalized' => normalizeSku($sku),
-        'status' => trim($_POST['status'] ?? ''),
-        'what_is_it' => trim($_POST['what_is_it'] ?? ''),
-        'date_received' => trim($_POST['date_received'] ?? ''),
-        'source' => trim($_POST['source'] ?? ''),
-        'functional' => trim($_POST['functional'] ?? ''),
-        'condition' => trim($_POST['condition'] ?? ''),
-        'is_square' => isset($_POST['is_square']) ? 1 : 0,
-        'care_if_square' => isset($_POST['care_if_square']) ? 1 : 0,
-        'cords_adapters' => trim($_POST['cords_adapters'] ?? ''),
-        'keep_items_together' => trim($_POST['keep_items_together'] ?? ''),
-        'picture_taken' => trim($_POST['picture_taken'] ?? ''),
-        'power_on' => trim($_POST['power_on'] ?? ''),
-        'brand_model' => trim($_POST['brand_model'] ?? ''),
-        'ram' => trim($_POST['ram'] ?? ''),
-        'ssd_gb' => trim($_POST['ssd_gb'] ?? ''),
-        'cpu' => trim($_POST['cpu'] ?? ''),
-        'os' => trim($_POST['os'] ?? ''),
-        'battery_health' => trim($_POST['battery_health'] ?? ''),
-        'graphics_card' => trim($_POST['graphics_card'] ?? ''),
-        'screen_resolution' => trim($_POST['screen_resolution'] ?? ''),
-        'where_it_goes' => trim($_POST['where_it_goes'] ?? ''),
-        'ebay_status' => trim($_POST['ebay_status'] ?? ''),
-        'ebay_price' => ($_POST['ebay_price'] ?? '') !== '' ? (float)$_POST['ebay_price'] : null,
-        'dispotech_price' => ($_POST['dispotech_price'] ?? '') !== '' ? (float)$_POST['dispotech_price'] : null,
-        'in_ebay_room' => trim($_POST['in_ebay_room'] ?? ''),
-        'what_box' => trim($_POST['what_box'] ?? ''),
-        'notes' => trim($_POST['notes'] ?? ''),
-    ];
+        $id = isset($_POST['id']) ? (int)$_POST['id'] : null;
+        $sku = trim($_POST['sku'] ?? '');
+        $data = [
+            'id' => $id,
+            'sku' => $sku,
+            'sku_normalized' => normalizeSku($sku),
+            'status' => trim($_POST['status'] ?? ''),
+            'what_is_it' => trim($_POST['what_is_it'] ?? ''),
+            'date_received' => trim($_POST['date_received'] ?? ''),
+            'source' => trim($_POST['source'] ?? ''),
+            'functional' => trim($_POST['functional'] ?? ''),
+            'condition' => trim($_POST['condition'] ?? ''),
+            'is_square' => isset($_POST['is_square']) ? 1 : 0,
+            'care_if_square' => isset($_POST['care_if_square']) ? 1 : 0,
+            'cords_adapters' => trim($_POST['cords_adapters'] ?? ''),
+            'keep_items_together' => trim($_POST['keep_items_together'] ?? ''),
+            'picture_taken' => trim($_POST['picture_taken'] ?? ''),
+            'power_on' => trim($_POST['power_on'] ?? ''),
+            'brand_model' => trim($_POST['brand_model'] ?? ''),
+            'ram' => trim($_POST['ram'] ?? ''),
+            'ssd_gb' => trim($_POST['ssd_gb'] ?? ''),
+            'cpu' => trim($_POST['cpu'] ?? ''),
+            'os' => trim($_POST['os'] ?? ''),
+            'battery_health' => trim($_POST['battery_health'] ?? ''),
+            'graphics_card' => trim($_POST['graphics_card'] ?? ''),
+            'screen_resolution' => trim($_POST['screen_resolution'] ?? ''),
+            'where_it_goes' => trim($_POST['where_it_goes'] ?? ''),
+            'ebay_status' => trim($_POST['ebay_status'] ?? ''),
+            'ebay_price' => ($_POST['ebay_price'] ?? '') !== '' ? (float)$_POST['ebay_price'] : null,
+            'dispotech_price' => ($_POST['dispotech_price'] ?? '') !== '' ? (float)$_POST['dispotech_price'] : null,
+            'in_ebay_room' => trim($_POST['in_ebay_room'] ?? ''),
+            'what_box' => trim($_POST['what_box'] ?? ''),
+            'notes' => trim($_POST['notes'] ?? ''),
+        ];
 
-    if ($data['sku_normalized'] === '') {
-        $errors[] = 'SKU is required to save this intake item.';
-    }
+        if ($data['sku_normalized'] === '') {
+            $errors[] = 'SKU is required to save this intake item.';
+        }
 
-    if (!$errors) {
-        $updateStmt = $pdo->prepare(<<<'SQL'
+        if (!$errors) {
+            $updateStmt = $pdo->prepare(<<<'SQL'
 UPDATE intake_items SET
     sku = :sku,
     sku_normalized = :sku_normalized,
@@ -263,6 +262,7 @@ SQL);
         header('Location: ' . $redirect);
         exit;
     }
+}
 }
 
 $recent = [];
