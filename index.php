@@ -156,8 +156,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'source' => trim($_POST['source'] ?? ''),
             'functional' => trim($_POST['functional'] ?? ''),
             'condition' => trim($_POST['condition'] ?? ''),
-            'is_square' => isset($_POST['is_square']) ? 1 : 0,
-            'care_if_square' => isset($_POST['care_if_square']) ? 1 : 0,
+            'is_square' => isset($_POST['square_and_care']) ? 1 : 0,
+            'care_if_square' => isset($_POST['square_and_care']) ? 1 : 0,
             'cords_adapters' => trim($_POST['cords_adapters'] ?? ''),
             'keep_items_together' => trim($_POST['keep_items_together'] ?? ''),
             'picture_taken' => trim($_POST['picture_taken'] ?? ''),
@@ -388,14 +388,14 @@ function checked(string $name, string $value, array $formData): string
         <input type="hidden" id="has-lookup-sku" value="<?php echo $lookupSkuNormalized !== '' ? '1' : '0'; ?>">
         <input type="hidden" name="id" value="<?php echo h(isset($formData['id']) ? (string)$formData['id'] : ''); ?>">
         <div class="form-columns">
-          <div class="row">
-            <label>SKU
-              <input type="text" name="sku" value="<?php echo h($formData['sku'] ?? ''); ?>" required>
-            </label>
-            <label>What is it?
-              <input type="text" name="what_is_it" value="<?php echo h($formData['what_is_it'] ?? ''); ?>">
-            </label>
-          </div>
+        <div class="row">
+          <label>SKU
+              <input type="text" name="sku" value="<?php echo h($formData['sku'] ?? ''); ?>" required autofocus>
+          </label>
+          <label>What is it?
+              <input type="text" name="what_is_it" value="<?php echo h($formData['what_is_it'] ?? ''); ?>" placeholder="e.g., Laptop, Monitor, Parts bundle">
+          </label>
+        </div>
 
           <div class="row">
             <label>Date Received
@@ -444,6 +444,11 @@ function checked(string $name, string $value, array $formData): string
                 <label><input type="radio" name="cords_adapters" value="Yes" <?php echo checked('cords_adapters','Yes', $formData); ?>> Yes</label>
                 <label><input type="radio" name="cords_adapters" value="No" <?php echo checked('cords_adapters','No', $formData); ?>> No</label>
               </fieldset>
+              <label class="inline">
+                <?php $squareChecked = !empty($formData['is_square']) || !empty($formData['care_if_square']); ?>
+                <input type="checkbox" name="square_and_care" <?php echo $squareChecked ? 'checked' : ''; ?>>
+                <span>Square item (flag it so we care)</span>
+              </label>
               <fieldset>
                 <legend>Keep items together?</legend>
                 <label><input type="radio" name="keep_items_together" value="Yes" <?php echo checked('keep_items_together','Yes', $formData); ?>> Yes</label>
