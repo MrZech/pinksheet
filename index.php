@@ -667,9 +667,40 @@ function checked(string $name, string $value, array $formData): string
           } catch (e) {}
         });
       }
+
+      var resizeTextareasForPrint = function () {
+        var textareas = document.querySelectorAll('textarea');
+        textareas.forEach(function (ta) {
+          ta.style.height = 'auto';
+          ta.style.minHeight = '0';
+          ta.style.height = (ta.scrollHeight + 6) + 'px';
+        });
+      };
+      var resetTextareaHeights = function () {
+        document.querySelectorAll('textarea').forEach(function (ta) {
+          ta.style.height = '';
+          ta.style.minHeight = '';
+        });
+      };
+      window.addEventListener('beforeprint', resizeTextareasForPrint);
+      window.addEventListener('afterprint', resetTextareaHeights);
+      if (window.matchMedia) {
+        var printWatcher = window.matchMedia('print');
+        if (printWatcher && printWatcher.addListener) {
+          printWatcher.addListener(function (mql) {
+            if (mql.matches) {
+              resizeTextareasForPrint();
+            } else {
+              resetTextareaHeights();
+            }
+          });
+        }
+      }
+
       var printButton = document.getElementById('print-button');
       if (printButton) {
         printButton.addEventListener('click', function () {
+          resizeTextareasForPrint();
           window.print();
         });
       }

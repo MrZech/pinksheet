@@ -2,7 +2,8 @@
 
 ## Backups & logs
 - Script: `scripts/backup.ps1 -RetentionDays 14` copies `data/intake.sqlite` to `data/backups/` and rotates `logs/lookup.csv` into `logs/archive/`.
-- Scheduled task helper: `scripts/register_backup_task.ps1 -Hour 0 -Minute 15 -RetentionDays 14` (run elevated). Task name defaults to `PinksheetNightlyBackup`.
+- Scheduled task helper: `scripts/register_backup_task.ps1 -Hour 0 -Minute 15 -RetentionDays 14 -SleepIfIdleMinutes 5` (run elevated). Task name defaults to `PinksheetNightlyBackup`.
+- Sleep option: `-SleepIfIdleMinutes` will put the machine to sleep after the backup if idle at least that many minutes; set to `0` to disable.
 - Restore: stop the app, pick a backup from `data/backups/`, copy over `data/intake.sqlite`, then start the app.
 
 ## Health
@@ -14,3 +15,7 @@
 
 ## Space management
 - Backups/log archives older than retention are pruned in the backup script. Tight on space? Lower `RetentionDays` when scheduling.
+
+## Task visibility
+- Enable Task Scheduler history (Task Scheduler → View → Enable All Tasks History) to track runs/failures.
+- Inspect task: `Get-ScheduledTask -TaskName PinksheetNightlyBackup | Format-List TaskName,State,LastRunTime,NextRunTime`.

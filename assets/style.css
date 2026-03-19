@@ -989,6 +989,7 @@ textarea {
   font-size: 9.5pt;
   color: #000;
   background: #fff;
+  overflow-wrap: anywhere;
 }
 
 input[type="text"]:focus,
@@ -1004,6 +1005,9 @@ textarea:focus {
   textarea {
     min-height: 46px;
     color: #000;
+    overflow: visible;
+    white-space: pre-wrap;
+    height: auto !important;
   }
 
   input::placeholder,
