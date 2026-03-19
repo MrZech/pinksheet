@@ -547,6 +547,32 @@ textarea:focus {
   box-shadow: 0 0 0 3px rgba(177, 63, 104, 0.16);
 }
 
+.focus-ring,
+input[type="text"]:focus-visible,
+input[type="date"]:focus-visible,
+input[type="number"]:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+button:focus-visible,
+.button-link:focus-visible,
+a.menu-link:focus-visible {
+  outline: 2px solid var(--accent-strong);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 3px rgba(177, 63, 104, 0.2);
+}
+
+body.dark-mode input[type="text"]:focus-visible,
+body.dark-mode input[type="date"]:focus-visible,
+body.dark-mode input[type="number"]:focus-visible,
+body.dark-mode select:focus-visible,
+body.dark-mode textarea:focus-visible,
+body.dark-mode button:focus-visible,
+body.dark-mode .button-link:focus-visible,
+body.dark-mode a.menu-link:focus-visible {
+  outline-color: var(--accent-dark);
+  box-shadow: 0 0 0 3px rgba(255, 142, 202, 0.28);
+}
+
 /* Dark mode overrides placed after base styles to ensure they win. */
 body.dark-mode .section {
   background: rgba(255, 255, 255, 0.06);

@@ -36,6 +36,7 @@ Records are stored in `data/intake.sqlite`.
  - `config.php` centralizes `MAINTENANCE_MODE`, input size limits, and API limits; every endpoint checks this flag so you can temporarily disable the app without editing each file.
  - Both the suggestions and preview APIs cap `q`/`sku` to 50 characters (status to 30 characters) and obey `SUGGESTION_LIMIT`/`PREVIEW_LIMIT` to keep remote use predictable.
  - `health.php` reports the current maintenance state plus the configured length/limit values in JSON, making it easy to hook into a monitoring or uptime probe before exposing the app remotely.
+ - Backups: run `powershell -File scripts/backup.ps1` (optionally pass `-RetentionDays 14`) to snapshot `data/intake.sqlite` to `data/backups/` and rotate `logs/lookup.csv` into `logs/archive/`, pruning files older than the retention window. Schedule this nightly via Task Scheduler or cron to keep the DB and logs tidy.
 
 ## Bulk status updates
 
