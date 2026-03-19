@@ -47,7 +47,7 @@ body {
 }
 
 .theme-toggle {
-  background: linear-gradient(180deg, var(--accent) 0%, var(--accent-strong) 100%);
+  background: linear-gradient(180deg, var(--accent-strong) 0%, var(--accent) 100%);
   color: #fff;
   border: none;
   border-radius: 999px;
@@ -60,6 +60,7 @@ body {
 
 .theme-toggle:hover {
   transform: translateY(-1px);
+  filter: brightness(0.96);
 }
 
 .print-button {
@@ -77,6 +78,7 @@ body {
 
 .print-button:hover {
   transform: translateY(-1px);
+  filter: brightness(0.95);
 }
 
 body.dark-mode {
@@ -975,19 +977,29 @@ th {
     color: #000;
   }
 
-  input[type="text"],
-  input[type="date"],
-  input[type="number"],
-  select,
-  textarea {
-    padding: 4px 6px;
-    border-radius: 0;
-    border-color: #000;
-    box-shadow: none;
-    font-size: 9.5pt;
-    color: #000;
-    background: #fff;
-  }
+input[type="text"],
+input[type="date"],
+input[type="number"],
+select,
+textarea {
+  padding: 4px 6px;
+  border-radius: 0;
+  border-color: #000;
+  box-shadow: none;
+  font-size: 9.5pt;
+  color: #000;
+  background: #fff;
+}
+
+input[type="text"]:focus,
+input[type="date"]:focus,
+input[type="number"]:focus,
+select:focus,
+textarea:focus {
+  outline: none;
+  border-color: var(--accent-strong);
+  box-shadow: 0 0 0 2px rgba(129, 57, 97, 0.14);
+}
 
   textarea {
     min-height: 46px;
@@ -1034,11 +1046,15 @@ th {
     border-color: #000;
   }
 
-  table,
-  th,
-  td {
-    color: #000;
-  }
+table,
+th,
+td {
+  color: #000;
+}
+
+tbody tr:nth-child(even) {
+  background: rgba(0, 0, 0, 0.025);
+}
 
   .recent-items,
   .actions,
