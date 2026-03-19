@@ -46,3 +46,11 @@ Records are stored in `data/intake.sqlite`.
 ## Printing
 
  - Use the new “Print” button in the sheet headers to trigger `window.print()` whenever you want a paper copy; the media styles already hide UI elements like the menu, breadcrumbs, and toast so the output stays clean.
+
+## Docs
+
+- `docs/usage.md` — core flows, themes, print guidance.
+- `docs/schema.md` — intake_items columns and notes.
+- `docs/maintenance.md` — backups, scheduled task helper, restore steps.
+- `docs/dev.md` — file map, run instructions, quick smoke test.
+- `CHANGELOG.md` — noteworthy UI/ops changes.

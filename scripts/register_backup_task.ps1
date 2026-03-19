@@ -19,13 +19,15 @@ if (-not (Test-Path $backupScript)) {
 $action = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument "-NoProfile -ExecutionPolicy Bypass -File `"$backupScript`" -RetentionDays $RetentionDays"
 
 # Trigger: daily at the requested time (defaults to 12:15 AM).
-$trigger = New-ScheduledTaskTrigger -Daily -At ([DateTime]::Today.AddHours($Hour).AddMinutes($Minute).TimeOfDay)
+$runTime = [DateTime]::Today.AddHours($Hour).AddMinutes($Minute)
+$trigger = New-ScheduledTaskTrigger -Daily -At $runTime
 
 # Use current user context; prompt for password if needed when registering.
 $principal = New-ScheduledTaskPrincipal -UserId $env:USERNAME -LogonType Interactive -RunLevel Highest
 
 # Build task definition.
-$task = New-ScheduledTask -Action $action -Trigger $trigger -Principal $principal -Settings (New-ScheduledTaskSettingsSet -StartWhenAvailable -RunOnlyIfNetworkAvailable $false -AllowStartIfOnBatteries)
+$settings = New-ScheduledTaskSettingsSet -StartWhenAvailable -AllowStartIfOnBatteries
+$task = New-ScheduledTask -Action $action -Trigger $trigger -Principal $principal -Settings $settings
 
 # Register or replace existing.
 Register-ScheduledTask -TaskName $TaskName -InputObject $task -Force
