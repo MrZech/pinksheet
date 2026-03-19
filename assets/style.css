@@ -1,13 +1,13 @@
 :root {
-  --page-bg: #f8dde7;
-  --page-bg-alt: #fceff4;
-  --sheet-bg: rgba(255, 243, 248, 0.88);
+  --page-bg: #f5e7ef;
+  --page-bg-alt: #f7edf3;
+  --sheet-bg: rgba(248, 243, 246, 0.9);
   --ink: #2d1b23;
   --muted: #7a5a66;
-  --line: #dcb4c2;
-  --line-strong: #c5879d;
-  --accent: #b13f68;
-  --accent-strong: #8f2e51;
+  --line: #d8c4ce;
+  --line-strong: #c18aa1;
+  --accent: #a5486d;
+  --accent-strong: #8a3557;
   --ok-bg: #e8f8ef;
   --ok-ink: #1f6940;
   --err-bg: #fde9ee;
@@ -41,8 +41,8 @@ body {
   font-family: "Segoe UI", "Trebuchet MS", "Tahoma", sans-serif;
   color: var(--ink);
   background:
-    radial-gradient(1200px 900px at 8% 12%, rgba(255, 255, 255, 0.58), transparent 60%),
-    radial-gradient(1000px 800px at 92% 88%, rgba(255, 195, 219, 0.45), transparent 62%),
+    radial-gradient(1200px 900px at 8% 12%, rgba(255, 255, 255, 0.4), transparent 60%),
+    radial-gradient(1000px 800px at 92% 88%, rgba(248, 188, 210, 0.32), transparent 62%),
     linear-gradient(145deg, var(--page-bg) 0%, var(--page-bg-alt) 100%);
 }
 
@@ -860,6 +860,15 @@ th {
 }
 
 @media print {
+  :root {
+    --ink: #000;
+    --muted: #000;
+    --line: #000;
+    --line-strong: #000;
+    --accent: #000;
+    --accent-strong: #000;
+  }
+
   @page {
     size: letter portrait;
     margin: 0.15in;
@@ -878,6 +887,11 @@ th {
     line-height: 1.2;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
+  }
+
+  a {
+    color: #000;
+    text-decoration: none;
   }
 
   .page {
@@ -958,6 +972,7 @@ th {
   label {
     gap: 4px;
     font-size: 9pt;
+    color: #000;
   }
 
   input[type="text"],
@@ -970,10 +985,19 @@ th {
     border-color: #000;
     box-shadow: none;
     font-size: 9.5pt;
+    color: #000;
+    background: #fff;
   }
 
   textarea {
     min-height: 46px;
+    color: #000;
+  }
+
+  input::placeholder,
+  textarea::placeholder {
+    color: #000;
+    opacity: 1;
   }
 
   fieldset {
@@ -989,6 +1013,7 @@ th {
     flex-direction: row;
     align-items: center;
     gap: 6px;
+    color: #000;
   }
 
   legend {
@@ -1007,6 +1032,12 @@ th {
   .conjoined .segment {
     padding: 5px 7px;
     border-color: #000;
+  }
+
+  table,
+  th,
+  td {
+    color: #000;
   }
 
   .recent-items,
