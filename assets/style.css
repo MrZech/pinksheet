@@ -1,13 +1,13 @@
 :root {
-  --page-bg: #f5e7ef;
-  --page-bg-alt: #f7edf3;
-  --sheet-bg: rgba(248, 243, 246, 0.9);
-  --ink: #2d1b23;
-  --muted: #7a5a66;
-  --line: #d8c4ce;
-  --line-strong: #c18aa1;
-  --accent: #a5486d;
-  --accent-strong: #8a3557;
+  --page-bg: #ece7ef;
+  --page-bg-alt: #f3f0f4;
+  --sheet-bg: rgba(245, 243, 247, 0.92);
+  --ink: #241d25;
+  --muted: #6c626d;
+  --line: #cfc6d2;
+  --line-strong: #b6a9ba;
+  --accent: #7b5d7d;
+  --accent-strong: #634a65;
   --ok-bg: #e8f8ef;
   --ok-ink: #1f6940;
   --err-bg: #fde9ee;
@@ -41,8 +41,8 @@ body {
   font-family: "Segoe UI", "Trebuchet MS", "Tahoma", sans-serif;
   color: var(--ink);
   background:
-    radial-gradient(1200px 900px at 8% 12%, rgba(255, 255, 255, 0.4), transparent 60%),
-    radial-gradient(1000px 800px at 92% 88%, rgba(248, 188, 210, 0.32), transparent 62%),
+    radial-gradient(1100px 820px at 12% 10%, rgba(255, 255, 255, 0.25), transparent 60%),
+    radial-gradient(950px 760px at 88% 86%, rgba(180, 168, 190, 0.22), transparent 62%),
     linear-gradient(145deg, var(--page-bg) 0%, var(--page-bg-alt) 100%);
 }
 
@@ -106,10 +106,10 @@ body.dark-mode a {
 
 .sheet {
   background: var(--sheet-bg);
-  border: 1px solid rgba(255, 255, 255, 0.55);
+  border: 1px solid var(--line);
   border-radius: var(--radius-lg);
   padding: 22px 24px 24px;
-  box-shadow: var(--shadow-soft), var(--shadow-strong);
+  box-shadow: 0 10px 26px rgba(32, 24, 37, 0.12), 0 18px 46px rgba(32, 24, 37, 0.14);
   overflow: hidden;
   backdrop-filter: blur(8px);
 }
