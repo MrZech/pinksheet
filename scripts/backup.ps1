@@ -1,5 +1,7 @@
 param(
-    [int]$RetentionDays = 14
+    [int]$RetentionDays = 14,
+    # If >0, attempt to sleep the machine after backup when user idle at least this many minutes.
+    [int]$SleepIfIdleMinutes = 0
 )
 
 $ErrorActionPreference = 'Stop'
@@ -57,3 +59,38 @@ Get-ChildItem -Path $logArchiveDir -File |
         Write-Host "Removing old archived log $($_.FullName)"
         Remove-Item $_.FullName -Force
     }
+
+# Put machine to sleep if idle long enough and requested.
+if ($SleepIfIdleMinutes -gt 0) {
+    $kernel = @"
+using System;
+using System.Runtime.InteropServices;
+public static class IdleTime {
+    [StructLayout(LayoutKind.Sequential)]
+    struct LASTINPUTINFO { public int cbSize; public uint dwTime; }
+    [DllImport("user32.dll")]
+    static extern bool GetLastInputInfo(ref LASTINPUTINFO plii);
+    public static TimeSpan GetIdleTime() {
+        LASTINPUTINFO info = new LASTINPUTINFO();
+        info.cbSize = Marshal.SizeOf(info);
+        if (!GetLastInputInfo(ref info)) return TimeSpan.Zero;
+        uint idleMillis = unchecked((uint)Environment.TickCount) - info.dwTime;
+        return TimeSpan.FromMilliseconds(idleMillis);
+    }
+}
+"@
+    Add-Type $kernel -ErrorAction SilentlyContinue | Out-Null
+    $idle = [IdleTime]::GetIdleTime()
+    if ($idle.TotalMinutes -ge $SleepIfIdleMinutes) {
+        Write-Host "Idle for $([int]$idle.TotalMinutes) min; attempting to sleep..."
+        try {
+            Add-Type -AssemblyName System.Windows.Forms | Out-Null
+            [System.Windows.Forms.Application]::SetSuspendState('Suspend', $false, $false) | Out-Null
+            Write-Host "Sleep requested."
+        } catch {
+            Write-Warning "Sleep request failed: $_"
+        }
+    } else {
+        Write-Host "User active (idle $([int]$idle.TotalMinutes) min); skipping sleep."
+    }
+}
