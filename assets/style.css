@@ -1,13 +1,13 @@
 :root {
-  --page-bg: #f8dde7;
-  --page-bg-alt: #fceff4;
-  --sheet-bg: rgba(255, 243, 248, 0.88);
-  --ink: #2d1b23;
-  --muted: #7a5a66;
-  --line: #dcb4c2;
-  --line-strong: #c5879d;
-  --accent: #b13f68;
-  --accent-strong: #8f2e51;
+  --page-bg: #eaaed6;
+  --page-bg-alt: #e29ccf;
+  --sheet-bg: rgba(245, 223, 238, 0.92);
+  --ink: #281825;
+  --muted: #70475b;
+  --line: #d39ac0;
+  --line-strong: #c07cab;
+  --accent: #a14b78;
+  --accent-strong: #823961;
   --ok-bg: #e8f8ef;
   --ok-ink: #1f6940;
   --err-bg: #fde9ee;
@@ -41,13 +41,13 @@ body {
   font-family: "Segoe UI", "Trebuchet MS", "Tahoma", sans-serif;
   color: var(--ink);
   background:
-    radial-gradient(1200px 900px at 8% 12%, rgba(255, 255, 255, 0.58), transparent 60%),
-    radial-gradient(1000px 800px at 92% 88%, rgba(255, 195, 219, 0.45), transparent 62%),
+    radial-gradient(1100px 820px at 12% 10%, rgba(255, 255, 255, 0.22), transparent 60%),
+    radial-gradient(950px 760px at 88% 86%, rgba(234, 174, 214, 0.35), transparent 62%),
     linear-gradient(145deg, var(--page-bg) 0%, var(--page-bg-alt) 100%);
 }
 
 .theme-toggle {
-  background: linear-gradient(180deg, var(--accent) 0%, var(--accent-strong) 100%);
+  background: linear-gradient(180deg, var(--accent-strong) 0%, var(--accent) 100%);
   color: #fff;
   border: none;
   border-radius: 999px;
@@ -60,6 +60,7 @@ body {
 
 .theme-toggle:hover {
   transform: translateY(-1px);
+  filter: brightness(0.96);
 }
 
 .print-button {
@@ -77,6 +78,7 @@ body {
 
 .print-button:hover {
   transform: translateY(-1px);
+  filter: brightness(0.95);
 }
 
 body.dark-mode {
@@ -106,10 +108,10 @@ body.dark-mode a {
 
 .sheet {
   background: var(--sheet-bg);
-  border: 1px solid rgba(255, 255, 255, 0.55);
+  border: 1px solid var(--line);
   border-radius: var(--radius-lg);
   padding: 22px 24px 24px;
-  box-shadow: var(--shadow-soft), var(--shadow-strong);
+  box-shadow: 0 10px 26px rgba(32, 24, 37, 0.12), 0 18px 46px rgba(32, 24, 37, 0.14);
   overflow: hidden;
   backdrop-filter: blur(8px);
 }
@@ -549,6 +551,69 @@ textarea:focus {
   box-shadow: 0 0 0 3px rgba(177, 63, 104, 0.16);
 }
 
+.focus-ring,
+input[type="text"]:focus-visible,
+input[type="date"]:focus-visible,
+input[type="number"]:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+button:focus-visible,
+.button-link:focus-visible,
+a.menu-link:focus-visible {
+  outline: 2px solid var(--accent-strong);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 3px rgba(177, 63, 104, 0.2);
+}
+
+body.dark-mode input[type="text"]:focus-visible,
+body.dark-mode input[type="date"]:focus-visible,
+body.dark-mode input[type="number"]:focus-visible,
+body.dark-mode select:focus-visible,
+body.dark-mode textarea:focus-visible,
+body.dark-mode button:focus-visible,
+body.dark-mode .button-link:focus-visible,
+body.dark-mode a.menu-link:focus-visible {
+  outline-color: var(--accent-dark);
+  box-shadow: 0 0 0 3px rgba(255, 142, 202, 0.28);
+}
+
+/* Dark mode overrides placed after base styles to ensure they win. */
+body.dark-mode .section {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: var(--line-dark);
+  color: var(--ink-dark);
+}
+
+body.dark-mode fieldset {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: var(--line-dark);
+}
+
+body.dark-mode input[type="text"],
+body.dark-mode input[type="date"],
+body.dark-mode input[type="number"],
+body.dark-mode select,
+body.dark-mode textarea {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: var(--line-dark);
+  color: var(--ink-dark);
+  box-shadow: none;
+}
+
+body.dark-mode select option {
+  background: #1a0f17;
+  color: var(--ink-dark);
+}
+
+body.dark-mode .table-wrap,
+body.dark-mode table,
+body.dark-mode th,
+body.dark-mode td {
+  background: transparent;
+  color: var(--ink-dark);
+  border-color: var(--line-dark);
+}
+
 .section textarea {
   width: 100%;
   min-height: 90px;
@@ -605,6 +670,15 @@ legend {
 
 .conjoined .segment input:checked + span {
   font-weight: 700;
+}
+
+body.dark-mode .conjoined {
+  border-color: var(--line-dark);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+body.dark-mode .conjoined .segment {
+  border-color: var(--line-dark);
 }
 
 .actions {
@@ -836,6 +910,15 @@ th {
 }
 
 @media print {
+  :root {
+    --ink: #000;
+    --muted: #000;
+    --line: #000;
+    --line-strong: #000;
+    --accent: #000;
+    --accent-strong: #000;
+  }
+
   @page {
     size: letter portrait;
     margin: 0.15in;
@@ -854,6 +937,11 @@ th {
     line-height: 1.2;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
+  }
+
+  a {
+    color: #000;
+    text-decoration: none;
   }
 
   .page {
@@ -934,22 +1022,46 @@ th {
   label {
     gap: 4px;
     font-size: 9pt;
+    color: #000;
   }
 
-  input[type="text"],
-  input[type="date"],
-  input[type="number"],
-  select,
-  textarea {
-    padding: 4px 6px;
-    border-radius: 0;
-    border-color: #000;
-    box-shadow: none;
-    font-size: 9.5pt;
-  }
+input[type="text"],
+input[type="date"],
+input[type="number"],
+select,
+textarea {
+  padding: 4px 6px;
+  border-radius: 0;
+  border-color: #000;
+  box-shadow: none;
+  font-size: 9.5pt;
+  color: #000;
+  background: #fff;
+  overflow-wrap: anywhere;
+}
+
+input[type="text"]:focus,
+input[type="date"]:focus,
+input[type="number"]:focus,
+select:focus,
+textarea:focus {
+  outline: none;
+  border-color: var(--accent-strong);
+  box-shadow: 0 0 0 2px rgba(129, 57, 97, 0.14);
+}
 
   textarea {
     min-height: 46px;
+    color: #000;
+    overflow: visible;
+    white-space: pre-wrap;
+    height: auto !important;
+  }
+
+  input::placeholder,
+  textarea::placeholder {
+    color: #000;
+    opacity: 1;
   }
 
   fieldset {
@@ -965,6 +1077,7 @@ th {
     flex-direction: row;
     align-items: center;
     gap: 6px;
+    color: #000;
   }
 
   legend {
@@ -984,6 +1097,16 @@ th {
     padding: 5px 7px;
     border-color: #000;
   }
+
+table,
+th,
+td {
+  color: #000;
+}
+
+tbody tr:nth-child(even) {
+  background: rgba(0, 0, 0, 0.025);
+}
 
   .recent-items,
   .actions,

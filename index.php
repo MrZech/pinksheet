@@ -55,6 +55,7 @@ CREATE TABLE IF NOT EXISTS intake_items (
     ram TEXT,
     ssd_gb TEXT,
     cpu TEXT,
+    os TEXT,
     battery_health TEXT,
     graphics_card TEXT,
     screen_resolution TEXT,
@@ -84,6 +85,9 @@ $columns = $pdo->query("PRAGMA table_info(intake_items)")->fetchAll(PDO::FETCH_A
 $columnNames = array_map(static fn(array $column): string => (string)$column['name'], $columns);
 if (!in_array('sku_normalized', $columnNames, true)) {
     $pdo->exec('ALTER TABLE intake_items ADD COLUMN sku_normalized TEXT');
+}
+if (!in_array('os', $columnNames, true)) {
+    $pdo->exec('ALTER TABLE intake_items ADD COLUMN os TEXT');
 }
 $pdo->exec("CREATE INDEX IF NOT EXISTS idx_intake_items_sku_normalized ON intake_items (sku_normalized)");
 $pdo->exec("UPDATE intake_items SET sku_normalized = UPPER(TRIM(COALESCE(sku, ''))) WHERE sku_normalized IS NULL OR sku_normalized = ''");
@@ -171,7 +175,6 @@ $lookupStatus = trim($_GET['status'] ?? '');
 if ($lookupStatus !== '' && !in_array($lookupStatus, $statusOptions, true)) {
     $lookupStatus = '';
 }
-logLookup($lookupSku, $lookupStatus);
 $bulkErrors = [];
 $bulkMessage = '';
 $clearDraft = isset($_GET[CLEAR_DRAFT_PARAM]);
@@ -289,6 +292,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         if (!$errors) {
             $updateStmt = $pdo->prepare(<<<'SQL'
+        if (!$errors) {
+            $updateStmt = $pdo->prepare(<<<'SQL'
 UPDATE intake_items SET
     sku = :sku,
     sku_normalized = :sku_normalized,
@@ -308,6 +313,7 @@ UPDATE intake_items SET
     ram = :ram,
     ssd_gb = :ssd_gb,
     cpu = :cpu,
+    os = :os,
     battery_health = :battery_health,
     graphics_card = :graphics_card,
     screen_resolution = :screen_resolution,
@@ -337,7 +343,7 @@ INSERT INTO intake_items (
     sku, sku_normalized, status, what_is_it, date_received, source,
     functional, condition, is_square, care_if_square,
     cords_adapters, keep_items_together, picture_taken,
-    power_on, brand_model, ram, ssd_gb, cpu, battery_health,
+    power_on, brand_model, ram, ssd_gb, cpu, os, battery_health,
     graphics_card, screen_resolution, where_it_goes,
     ebay_status, ebay_price, dispotech_price, in_ebay_room,
     what_box, notes, updated_at
@@ -345,7 +351,7 @@ INSERT INTO intake_items (
     :sku, :sku_normalized, :status, :what_is_it, :date_received, :source,
     :functional, :condition, :is_square, :care_if_square,
     :cords_adapters, :keep_items_together, :picture_taken,
-    :power_on, :brand_model, :ram, :ssd_gb, :cpu, :battery_health,
+    :power_on, :brand_model, :ram, :ssd_gb, :cpu, :os, :battery_health,
     :graphics_card, :screen_resolution, :where_it_goes,
     :ebay_status, :ebay_price, :dispotech_price, :in_ebay_room,
     :what_box, :notes, datetime('now')
@@ -439,6 +445,7 @@ function checked(string $name, string $value, array $formData): string
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Dispo.Tech Intake Sheet</title>
   <link rel="stylesheet" href="assets/style.css">
+  <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
 </head>
 <body>
   <main class="page">
@@ -478,7 +485,7 @@ function checked(string $name, string $value, array $formData): string
         <div class="status">
           <label>
             <span>Status:</span>
-            <select name="status" form="intake-form" required>
+            <select name="status" form="intake-form">
               <option value="">Select</option>
               <?php foreach ($statusOptions as $opt): ?>
                 <option value="<?php echo $opt; ?>" <?php echo (($formData['status'] ?? '') === $opt) ? 'selected' : ''; ?>><?php echo $opt; ?></option>
@@ -516,7 +523,7 @@ function checked(string $name, string $value, array $formData): string
         <p class="warning">This SKU has <?php echo $duplicateCount; ?> records in history. Saving updates the newest one.</p>
       <?php endif; ?>
 
-      <p class="error client-error" id="client-error" hidden>Please fill in SKU, Status, and What is it? before saving.</p>
+      <p class="error client-error" id="client-error" hidden>Please fill in SKU before saving.</p>
 
           <form id="intake-form" method="post" enctype="multipart/form-data" class="form-grid">
             <input type="hidden" id="clear-draft" value="<?php echo $clearDraft ? '1' : '0'; ?>">
@@ -525,14 +532,14 @@ function checked(string $name, string $value, array $formData): string
         <input type="hidden" id="has-lookup-sku" value="<?php echo $lookupSkuNormalized !== '' ? '1' : '0'; ?>">
         <input type="hidden" name="id" value="<?php echo h(isset($formData['id']) ? (string)$formData['id'] : ''); ?>">
         <div class="form-columns">
-          <div class="row">
-            <label>SKU
-              <input type="text" name="sku" value="<?php echo h($formData['sku'] ?? ''); ?>" required>
-            </label>
-            <label>What is it?
-              <input type="text" name="what_is_it" value="<?php echo h($formData['what_is_it'] ?? ''); ?>" required>
-            </label>
-          </div>
+        <div class="row">
+          <label>SKU
+              <input type="text" name="sku" value="<?php echo h($formData['sku'] ?? ''); ?>" required autofocus>
+          </label>
+          <label>What is it?
+              <input type="text" name="what_is_it" value="<?php echo h($formData['what_is_it'] ?? ''); ?>" placeholder="e.g., Laptop, Monitor, Parts bundle">
+          </label>
+        </div>
 
           <div class="row">
             <label>Date Received
@@ -581,6 +588,11 @@ function checked(string $name, string $value, array $formData): string
                 <label><input type="radio" name="cords_adapters" value="Yes" <?php echo checked('cords_adapters','Yes', $formData); ?>> Yes</label>
                 <label><input type="radio" name="cords_adapters" value="No" <?php echo checked('cords_adapters','No', $formData); ?>> No</label>
               </fieldset>
+              <label class="inline">
+                <?php $squareChecked = !empty($formData['is_square']) || !empty($formData['care_if_square']); ?>
+                <input type="checkbox" name="square_and_care" <?php echo $squareChecked ? 'checked' : ''; ?>>
+                <span>Square item (flag it so we care)</span>
+              </label>
               <fieldset>
                 <legend>Keep items together?</legend>
                 <label><input type="radio" name="keep_items_together" value="Yes" <?php echo checked('keep_items_together','Yes', $formData); ?>> Yes</label>
@@ -616,6 +628,9 @@ function checked(string $name, string $value, array $formData): string
               </label>
               <label>CPU
                 <input type="text" name="cpu" value="<?php echo h($formData['cpu'] ?? ''); ?>">
+              </label>
+              <label>OS
+                <input type="text" name="os" value="<?php echo h($formData['os'] ?? ''); ?>">
               </label>
             </div>
 
@@ -817,9 +832,40 @@ function checked(string $name, string $value, array $formData): string
           } catch (e) {}
         });
       }
+
+      var resizeTextareasForPrint = function () {
+        var textareas = document.querySelectorAll('textarea');
+        textareas.forEach(function (ta) {
+          ta.style.height = 'auto';
+          ta.style.minHeight = '0';
+          ta.style.height = (ta.scrollHeight + 6) + 'px';
+        });
+      };
+      var resetTextareaHeights = function () {
+        document.querySelectorAll('textarea').forEach(function (ta) {
+          ta.style.height = '';
+          ta.style.minHeight = '';
+        });
+      };
+      window.addEventListener('beforeprint', resizeTextareasForPrint);
+      window.addEventListener('afterprint', resetTextareaHeights);
+      if (window.matchMedia) {
+        var printWatcher = window.matchMedia('print');
+        if (printWatcher && printWatcher.addListener) {
+          printWatcher.addListener(function (mql) {
+            if (mql.matches) {
+              resizeTextareasForPrint();
+            } else {
+              resetTextareaHeights();
+            }
+          });
+        }
+      }
+
       var printButton = document.getElementById('print-button');
       if (printButton) {
         printButton.addEventListener('click', function () {
+          resizeTextareasForPrint();
           window.print();
         });
       }
@@ -952,7 +998,7 @@ function checked(string $name, string $value, array $formData): string
           if (!event.target || !event.target.name) {
             return;
           }
-          if (event.target.name === 'sku' || event.target.name === 'status' || event.target.name === 'what_is_it') {
+          if (event.target.name === 'sku') {
             applyRequiredState(event.target.name, false);
             if (errorEl) {
               errorEl.hidden = true;
@@ -962,15 +1008,9 @@ function checked(string $name, string $value, array $formData): string
         form.addEventListener('change', queueDraftSave);
         form.addEventListener('submit', function (event) {
           var sku = ((form.querySelector('[name="sku"]') || {}).value || '').trim();
-          var status = ((form.querySelector('[name="status"]') || {}).value || '').trim();
-          var whatIsIt = ((form.querySelector('[name="what_is_it"]') || {}).value || '').trim();
           var missingSku = sku === '';
-          var missingStatus = status === '';
-          var missingWhat = whatIsIt === '';
           applyRequiredState('sku', missingSku);
-          applyRequiredState('status', missingStatus);
-          applyRequiredState('what_is_it', missingWhat);
-          if (missingSku || missingStatus || missingWhat) {
+          if (missingSku) {
             event.preventDefault();
             if (errorEl) {
               errorEl.hidden = false;
