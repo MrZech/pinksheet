@@ -130,6 +130,7 @@ body.dark-mode .section h2 {
 body.dark-mode input[type="text"],
 body.dark-mode input[type="date"],
 body.dark-mode input[type="number"],
+body.dark-mode input[type="file"],
 body.dark-mode select,
 body.dark-mode textarea {
   background: rgba(255, 255, 255, 0.08);
@@ -525,6 +526,7 @@ label.inline {
 input[type="text"],
 input[type="date"],
 input[type="number"],
+input[type="file"],
 select,
 textarea {
   width: 100%;
@@ -686,6 +688,52 @@ button:active,
 
 .hint-warning {
   color: var(--accent-strong);
+}
+
+.sku-photo-grid {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+}
+
+.sku-photo-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  padding: 8px;
+  background: rgba(255, 255, 255, 0.68);
+  min-height: 164px;
+}
+
+.sku-photo-item:hover {
+  text-decoration: none;
+  border-color: var(--line-strong);
+}
+
+.sku-photo-item img {
+  width: 100%;
+  height: 120px;
+  object-fit: cover;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.5);
+}
+
+.sku-photo-item span {
+  font-size: 0.78rem;
+  color: var(--muted);
+  line-height: 1.2;
+  word-break: break-word;
+}
+
+body.dark-mode .sku-photo-item {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: var(--line-dark);
+}
+
+body.dark-mode .sku-photo-item span {
+  color: var(--muted-dark);
 }
 
 .error-box {
