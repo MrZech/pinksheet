@@ -13,6 +13,7 @@ Then open `http://localhost:8000`.
 ## Data storage
 
 Records are stored in `data/intake.sqlite`.
+SKU photo uploads are stored in `data/sku_photos/<SKU_NORMALIZED>/` and indexed in a new `sku_photos` table.
 
 ## Lookup suggestions
 
@@ -42,6 +43,12 @@ Records are stored in `data/intake.sqlite`.
 
  - Select the checkboxes in the “Recent SKUs” table, choose a new status, and click “Apply to selected”; the server updates those rows and reports how many SKUs moved into the chosen stage.
  - Bulk updates obey the same status list as the intake form, and feedback messages appear above the table so you always know the result.
+
+## SKU photos
+
+ - Use the “SKU Photos” section on `index.php` to upload up to 8 images per save (JPG/PNG/WEBP/GIF, max 8MB each).
+ - Photos are attached by normalized SKU, so each SKU has its own independent gallery and does not share photos with other SKUs.
+ - `photo.php?id=...` streams photo files by DB record so intake pages can render thumbnails safely.
 
 ## Printing
 

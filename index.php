@@ -11,10 +11,22 @@ const DB_PATH = __DIR__ . '/data/intake.sqlite';
 const LOOKUP_LOG_DIR = __DIR__ . '/logs';
 const LOOKUP_LOG_PATH = LOOKUP_LOG_DIR . '/lookup.csv';
 const CLEAR_DRAFT_PARAM = 'clear_draft';
+const PHOTO_UPLOAD_DIR = DB_DIR . '/sku_photos';
+const MAX_SKU_PHOTOS_PER_UPLOAD = 8;
+const MAX_SKU_PHOTO_BYTES = 8 * 1024 * 1024;
+const ALLOWED_PHOTO_MIME_TYPES = [
+    'image/jpeg' => 'jpg',
+    'image/png' => 'png',
+    'image/webp' => 'webp',
+    'image/gif' => 'gif',
+];
 $currentPage = 'intake';
 
 if (!is_dir(DB_DIR)) {
     mkdir(DB_DIR, 0777, true);
+}
+if (!is_dir(PHOTO_UPLOAD_DIR)) {
+    mkdir(PHOTO_UPLOAD_DIR, 0777, true);
 }
 
 $pdo = new PDO('sqlite:' . DB_PATH, null, null, [
@@ -56,6 +68,18 @@ CREATE TABLE IF NOT EXISTS intake_items (
     notes TEXT
 );
 SQL);
+$pdo->exec(<<<'SQL'
+CREATE TABLE IF NOT EXISTS sku_photos (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    sku_normalized TEXT NOT NULL,
+    original_name TEXT NOT NULL,
+    stored_name TEXT NOT NULL,
+    mime_type TEXT NOT NULL,
+    file_size INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+SQL);
+$pdo->exec("CREATE INDEX IF NOT EXISTS idx_sku_photos_sku_normalized ON sku_photos (sku_normalized)");
 
 $columns = $pdo->query("PRAGMA table_info(intake_items)")->fetchAll(PDO::FETCH_ASSOC);
 $columnNames = array_map(static fn(array $column): string => (string)$column['name'], $columns);
@@ -71,6 +95,50 @@ $pdo->exec("UPDATE intake_items SET sku_normalized = UPPER(TRIM(COALESCE(sku, ''
 function normalizeSku(string $sku): string
 {
     return strtoupper(trim($sku));
+}
+
+function normalizeUploadedFiles(array $uploaded): array
+{
+    if (!isset($uploaded['name']) || !is_array($uploaded['name'])) {
+        return [];
+    }
+    $files = [];
+    foreach ($uploaded['name'] as $index => $name) {
+        $files[] = [
+            'name' => (string)$name,
+            'type' => (string)($uploaded['type'][$index] ?? ''),
+            'tmp_name' => (string)($uploaded['tmp_name'][$index] ?? ''),
+            'error' => (int)($uploaded['error'][$index] ?? UPLOAD_ERR_NO_FILE),
+            'size' => (int)($uploaded['size'][$index] ?? 0),
+        ];
+    }
+    return $files;
+}
+
+function sanitizeFilename(string $name): string
+{
+    $name = trim($name);
+    if ($name === '') {
+        return 'photo';
+    }
+    $clean = preg_replace('/[^A-Za-z0-9._-]+/', '_', $name);
+    return trim((string)$clean, '._-') ?: 'photo';
+}
+
+function normalizedSkuDirectory(string $skuNormalized): string
+{
+    $dir = preg_replace('/[^A-Z0-9_-]+/', '_', $skuNormalized);
+    return trim((string)$dir, '_') ?: 'UNASSIGNED';
+}
+
+function loadSkuPhotos(PDO $pdo, string $skuNormalized): array
+{
+    if ($skuNormalized === '') {
+        return [];
+    }
+    $stmt = $pdo->prepare('SELECT id, original_name, mime_type, file_size, created_at FROM sku_photos WHERE sku_normalized = :sku_normalized ORDER BY id DESC');
+    $stmt->execute(['sku_normalized' => $skuNormalized]);
+    return $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
 
 // Write CSV entries for SKU/status lookups to analyze search trends later.
@@ -156,8 +224,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'source' => trim($_POST['source'] ?? ''),
             'functional' => trim($_POST['functional'] ?? ''),
             'condition' => trim($_POST['condition'] ?? ''),
-            'is_square' => isset($_POST['square_and_care']) ? 1 : 0,
-            'care_if_square' => isset($_POST['square_and_care']) ? 1 : 0,
+            'is_square' => isset($_POST['is_square']) ? 1 : 0,
+            'care_if_square' => isset($_POST['care_if_square']) ? 1 : 0,
             'cords_adapters' => trim($_POST['cords_adapters'] ?? ''),
             'keep_items_together' => trim($_POST['keep_items_together'] ?? ''),
             'picture_taken' => trim($_POST['picture_taken'] ?? ''),
@@ -166,23 +234,64 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'ram' => trim($_POST['ram'] ?? ''),
             'ssd_gb' => trim($_POST['ssd_gb'] ?? ''),
             'cpu' => trim($_POST['cpu'] ?? ''),
-            'os' => trim($_POST['os'] ?? ''),
             'battery_health' => trim($_POST['battery_health'] ?? ''),
             'graphics_card' => trim($_POST['graphics_card'] ?? ''),
             'screen_resolution' => trim($_POST['screen_resolution'] ?? ''),
             'where_it_goes' => trim($_POST['where_it_goes'] ?? ''),
             'ebay_status' => trim($_POST['ebay_status'] ?? ''),
-            'ebay_price' => ($_POST['ebay_price'] ?? '') !== '' ? (float)$_POST['ebay_price'] : null,
-            'dispotech_price' => ($_POST['dispotech_price'] ?? '') !== '' ? (float)$_POST['dispotech_price'] : null,
+            'ebay_price' => $_POST['ebay_price'] !== '' ? (float)$_POST['ebay_price'] : null,
+            'dispotech_price' => $_POST['dispotech_price'] !== '' ? (float)$_POST['dispotech_price'] : null,
             'in_ebay_room' => trim($_POST['in_ebay_room'] ?? ''),
             'what_box' => trim($_POST['what_box'] ?? ''),
             'notes' => trim($_POST['notes'] ?? ''),
         ];
+        $pendingPhotoUploads = [];
 
         if ($data['sku_normalized'] === '') {
             $errors[] = 'SKU is required to save this intake item.';
         }
 
+        $uploadedPhotos = normalizeUploadedFiles((array)($_FILES['sku_photos'] ?? []));
+        if ($uploadedPhotos) {
+            if (count($uploadedPhotos) > MAX_SKU_PHOTOS_PER_UPLOAD) {
+                $errors[] = 'You can upload up to ' . MAX_SKU_PHOTOS_PER_UPLOAD . ' photos at once.';
+            }
+            $finfo = finfo_open(FILEINFO_MIME_TYPE);
+            foreach ($uploadedPhotos as $upload) {
+                if (($upload['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_NO_FILE) {
+                    continue;
+                }
+                if (($upload['error'] ?? UPLOAD_ERR_OK) !== UPLOAD_ERR_OK) {
+                    $errors[] = 'One of the selected photos failed to upload. Please try again.';
+                    continue;
+                }
+                if (($upload['size'] ?? 0) <= 0 || ($upload['size'] ?? 0) > MAX_SKU_PHOTO_BYTES) {
+                    $errors[] = 'Each photo must be smaller than 8MB.';
+                    continue;
+                }
+                if (!is_uploaded_file((string)($upload['tmp_name'] ?? ''))) {
+                    $errors[] = 'One of the selected photos is invalid. Please re-select the file.';
+                    continue;
+                }
+                $mimeType = (string)finfo_file($finfo, (string)$upload['tmp_name']);
+                $extension = ALLOWED_PHOTO_MIME_TYPES[$mimeType] ?? null;
+                if ($extension === null) {
+                    $errors[] = 'Only JPG, PNG, WEBP, or GIF photos are allowed.';
+                    continue;
+                }
+                $pendingPhotoUploads[] = [
+                    'tmp_name' => (string)$upload['tmp_name'],
+                    'mime_type' => $mimeType,
+                    'extension' => $extension,
+                    'original_name' => sanitizeFilename((string)$upload['name']),
+                    'file_size' => (int)$upload['size'],
+                ];
+            }
+            finfo_close($finfo);
+        }
+
+        if (!$errors) {
+            $updateStmt = $pdo->prepare(<<<'SQL'
         if (!$errors) {
             $updateStmt = $pdo->prepare(<<<'SQL'
 UPDATE intake_items SET
@@ -218,18 +327,18 @@ UPDATE intake_items SET
     updated_at = datetime('now')
 WHERE id = :id;
 SQL);
-        $saveMode = 'updated';
-        if ($id) {
-            $updateStmt->execute($data);
-        } else {
-            $existingStmt = $pdo->prepare('SELECT id FROM intake_items WHERE sku_normalized = :sku_normalized ORDER BY id DESC LIMIT 1');
-            $existingStmt->execute(['sku_normalized' => $data['sku_normalized']]);
-            $existingId = (int)($existingStmt->fetchColumn() ?: 0);
-            if ($existingId > 0) {
-                $data['id'] = $existingId;
+            $saveMode = 'updated';
+            if ($id) {
                 $updateStmt->execute($data);
             } else {
-                $stmt = $pdo->prepare(<<<'SQL'
+                $existingStmt = $pdo->prepare('SELECT id FROM intake_items WHERE sku_normalized = :sku_normalized ORDER BY id DESC LIMIT 1');
+                $existingStmt->execute(['sku_normalized' => $data['sku_normalized']]);
+                $existingId = (int)($existingStmt->fetchColumn() ?: 0);
+                if ($existingId > 0) {
+                    $data['id'] = $existingId;
+                    $updateStmt->execute($data);
+                } else {
+                    $stmt = $pdo->prepare(<<<'SQL'
 INSERT INTO intake_items (
     sku, sku_normalized, status, what_is_it, date_received, source,
     functional, condition, is_square, care_if_square,
@@ -248,21 +357,50 @@ INSERT INTO intake_items (
     :what_box, :notes, datetime('now')
 );
 SQL);
-                $insertData = $data;
-                unset($insertData['id']);
-                $stmt->execute($insertData);
-                $saveMode = 'created';
+                    $insertData = $data;
+                    unset($insertData['id']);
+                    $stmt->execute($insertData);
+                    $saveMode = 'created';
+                }
+            }
+
+            if ($pendingPhotoUploads) {
+                $skuPhotoDir = PHOTO_UPLOAD_DIR . '/' . normalizedSkuDirectory($data['sku_normalized']);
+                if (!is_dir($skuPhotoDir) && !mkdir($skuPhotoDir, 0777, true) && !is_dir($skuPhotoDir)) {
+                    $errors[] = 'Could not create the photo folder for this SKU.';
+                } else {
+                    $insertPhotoStmt = $pdo->prepare(<<<'SQL'
+INSERT INTO sku_photos (sku_normalized, original_name, stored_name, mime_type, file_size, created_at)
+VALUES (:sku_normalized, :original_name, :stored_name, :mime_type, :file_size, datetime('now'));
+SQL);
+                    foreach ($pendingPhotoUploads as $upload) {
+                        $storedName = bin2hex(random_bytes(16)) . '.' . $upload['extension'];
+                        $destination = $skuPhotoDir . '/' . $storedName;
+                        if (!move_uploaded_file($upload['tmp_name'], $destination)) {
+                            $errors[] = 'Could not save one of the selected photos. Please try again.';
+                            break;
+                        }
+                        $insertPhotoStmt->execute([
+                            'sku_normalized' => $data['sku_normalized'],
+                            'original_name' => $upload['original_name'],
+                            'stored_name' => $storedName,
+                            'mime_type' => $upload['mime_type'],
+                            'file_size' => $upload['file_size'],
+                        ]);
+                    }
+                }
+            }
+
+            if (!$errors) {
+                $redirect = $_SERVER['PHP_SELF'] . '?saved=1&save_mode=' . urlencode($saveMode);
+                if ($data['sku'] !== '') {
+                    $redirect .= '&sku=' . urlencode($data['sku']);
+                }
+                header('Location: ' . $redirect);
+                exit;
             }
         }
-
-        $redirect = $_SERVER['PHP_SELF'] . '?saved=1&save_mode=' . urlencode($saveMode);
-        if ($data['sku'] !== '') {
-            $redirect .= '&sku=' . urlencode($data['sku']);
-        }
-        header('Location: ' . $redirect);
-        exit;
     }
-}
 }
 
 $recent = [];
@@ -280,6 +418,11 @@ if (!$formData && $currentItem) {
 if (!$formData && $lookupSku !== '') {
     $formData = ['sku' => $lookupSku];
 }
+$activeSkuNormalized = normalizeSku(trim((string)($formData['sku'] ?? '')));
+if ($activeSkuNormalized === '') {
+    $activeSkuNormalized = $lookupSkuNormalized;
+}
+$skuPhotos = loadSkuPhotos($pdo, $activeSkuNormalized);
 $toastMessage = '';
 if ($saved) {
     $toastMessage = $saveMode === 'created' ? 'Saved as new SKU record.' : 'Saved and synced to this SKU.';
@@ -382,7 +525,7 @@ function checked(string $name, string $value, array $formData): string
 
       <p class="error client-error" id="client-error" hidden>Please fill in SKU before saving.</p>
 
-          <form id="intake-form" method="post" class="form-grid">
+          <form id="intake-form" method="post" enctype="multipart/form-data" class="form-grid">
             <input type="hidden" id="clear-draft" value="<?php echo $clearDraft ? '1' : '0'; ?>">
         <input type="hidden" id="draft-dismiss" value="<?php echo $saved ? '1' : '0'; ?>">
         <input type="hidden" id="has-server-record" value="<?php echo $currentItem ? '1' : '0'; ?>">
@@ -502,6 +645,28 @@ function checked(string $name, string $value, array $formData): string
                 <input type="text" name="screen_resolution" value="<?php echo h($formData['screen_resolution'] ?? ''); ?>">
               </label>
             </div>
+          </div>
+
+          <div class="section sku-photos">
+            <h2>SKU Photos</h2>
+            <label>Add photos for this SKU
+              <input type="file" name="sku_photos[]" accept="image/jpeg,image/png,image/webp,image/gif" multiple>
+            </label>
+            <p class="hint">Photos are attached to this SKU only after you click Save Intake Item.</p>
+            <?php if ($activeSkuNormalized === ''): ?>
+              <p class="hint">Enter a SKU first to keep photos grouped with that specific item.</p>
+            <?php elseif (!$skuPhotos): ?>
+              <p class="hint">No photos saved for SKU <?php echo h($activeSkuNormalized); ?> yet.</p>
+            <?php else: ?>
+              <div class="sku-photo-grid">
+                <?php foreach ($skuPhotos as $photo): ?>
+                  <a class="sku-photo-item" href="photo.php?id=<?php echo isset($photo['id']) ? (int)$photo['id'] : 0; ?>" target="_blank" rel="noopener">
+                    <img src="photo.php?id=<?php echo isset($photo['id']) ? (int)$photo['id'] : 0; ?>" alt="Photo for SKU <?php echo h($activeSkuNormalized); ?>" loading="lazy">
+                    <span><?php echo h($photo['original_name'] ?? 'Photo'); ?></span>
+                  </a>
+                <?php endforeach; ?>
+              </div>
+            <?php endif; ?>
           </div>
 
           <div class="section">
@@ -791,6 +956,9 @@ function checked(string $name, string $value, array $formData): string
                     field.checked = !!value;
                     return;
                   }
+                  if (field.type === 'file') {
+                    return;
+                  }
                   field.value = value;
                 });
               });
@@ -811,6 +979,9 @@ function checked(string $name, string $value, array $formData): string
             }
             if (field.type === 'checkbox') {
               payload[field.name] = field.checked;
+              return;
+            }
+            if (field.type === 'file') {
               return;
             }
             payload[field.name] = field.value;

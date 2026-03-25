@@ -154,7 +154,7 @@ if (is_readable(HOME_DB_PATH)) {
             localStorage.removeItem('intakeDraftV1');
           } catch (e) {}
         };
-        intakeLinks.forEach(function (link) {
+        intakeLinks.forEach(function (link) { vwert
           link.addEventListener('click', clearIntakeDraft);
         });
       }
