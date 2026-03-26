@@ -562,17 +562,20 @@ function checked(string $name, string $value, array $formData): string
               <input type="text" name="sku" value="<?php echo h($formData['sku'] ?? ''); ?>" required autofocus>
           </label>
           <label>What is it?
-            <select id="what-is-it-select">
-              <?php
-              $currentWhat = trim((string)($formData['what_is_it'] ?? ''));
-              $isCustomWhat = $currentWhat !== '' && !in_array($currentWhat, $whatIsItOptions, true);
-              foreach ($whatIsItOptions as $opt):
-                  $selected = (!$isCustomWhat && $currentWhat === $opt) ? 'selected' : '';
-              ?>
-                <option value="<?php echo h($opt); ?>" <?php echo $selected; ?>><?php echo h($opt); ?></option>
-              <?php endforeach; ?>
-              <option value="__custom__" <?php echo $isCustomWhat ? 'selected' : ''; ?>>New item…</option>
-            </select>
+            <div class="what-field">
+              <select id="what-is-it-select">
+                <?php
+                $currentWhat = trim((string)($formData['what_is_it'] ?? ''));
+                $isCustomWhat = $currentWhat !== '' && !in_array($currentWhat, $whatIsItOptions, true);
+                foreach ($whatIsItOptions as $opt):
+                    $selected = (!$isCustomWhat && $currentWhat === $opt) ? 'selected' : '';
+                ?>
+                  <option value="<?php echo h($opt); ?>" <?php echo $selected; ?>><?php echo h($opt); ?></option>
+                <?php endforeach; ?>
+                <option value="__custom__" <?php echo $isCustomWhat ? 'selected' : ''; ?>>New item...</option>
+              </select>
+              <button type="button" class="clear-what" id="what-clear" aria-label="Clear \"What is it?\" value">x</button>
+            </div>
             <input type="text"
                    id="what-is-it-input"
                    name="what_is_it"
@@ -916,6 +919,7 @@ function checked(string $name, string $value, array $formData): string
       var whatSelect = document.getElementById('what-is-it-select');
       var whatInput = document.getElementById('what-is-it-input');
       var whatError = document.getElementById('what-error');
+      var whatClear = document.getElementById('what-clear');
       var syncWhatField = function () {
         if (!whatSelect || !whatInput) {
           return;
@@ -938,6 +942,18 @@ function checked(string $name, string $value, array $formData): string
       if (whatSelect && whatInput) {
         syncWhatField();
         whatSelect.addEventListener('change', syncWhatField);
+      }
+      if (whatClear && whatSelect && whatInput) {
+        whatClear.addEventListener('click', function () {
+          whatSelect.value = '__custom__';
+          whatInput.hidden = false;
+          whatInput.required = true;
+          whatInput.value = '';
+          if (whatError) {
+            whatError.hidden = true;
+          }
+          whatInput.focus();
+        });
       }
 
       var intakeLinks = document.querySelectorAll('[data-new-intake]');

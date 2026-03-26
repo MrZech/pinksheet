@@ -548,6 +548,33 @@ label {
   font-size: 0.9rem;
 }
 
+.what-field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.clear-what {
+  align-self: flex-start;
+  padding: 6px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: #fff;
+  color: var(--ink);
+  cursor: pointer;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+}
+
+.clear-what:hover {
+  background: var(--accent-tint);
+  border-color: var(--accent);
+}
+
+.clear-what:focus-visible {
+  outline: 2px solid var(--accent-strong);
+  outline-offset: 2px;
+}
+
 label.inline {
   flex-direction: row;
   align-items: center;
