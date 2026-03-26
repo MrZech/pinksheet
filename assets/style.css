@@ -312,6 +312,26 @@ body.has-open-menu .page {
   }
 }
 
+/* Mobile-friendly menu: full-width drawer and prevent background scroll. */
+body.has-open-menu {
+  overflow: hidden;
+}
+
+@media (max-width: 640px) {
+  .menu-panel {
+    left: 12px;
+    right: 12px;
+    width: auto;
+    max-height: calc(100vh - 24px);
+    transform: translateY(-12px) translateX(0);
+    opacity: 0;
+  }
+
+  .menu-panel.is-open {
+    transform: translateY(0);
+  }
+}
+
 .menu-links {
   list-style: none;
   margin: 0;
@@ -338,6 +358,15 @@ body.has-open-menu .page {
   border-color: var(--accent-strong);
   box-shadow: 0 6px 16px rgba(81, 23, 44, 0.3);
   transform: translateY(-1px);
+}
+
+/* Inline select + custom input pairing */
+label select + input[hidden] {
+  margin-top: 6px;
+}
+
+label select {
+  min-width: 180px;
 }
 
 .breadcrumbs {

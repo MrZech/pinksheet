@@ -165,9 +165,25 @@ function statusOptions(): array
     return ['Intake', 'Description', 'Tested', 'Listed', 'SOLD'];
 }
 
+function baseWhatIsItOptions(): array
+{
+    return ['Laptop', 'Desktop', 'Mini PC'];
+}
+
+$whatIsItOptions = baseWhatIsItOptions();
+
+$existingWhatIsIt = $pdo->query("SELECT DISTINCT what_is_it FROM intake_items WHERE what_is_it IS NOT NULL AND TRIM(what_is_it) <> '' ORDER BY what_is_it ASC LIMIT 120")->fetchAll(PDO::FETCH_COLUMN);
+foreach ($existingWhatIsIt as $label) {
+    $label = trim((string)$label);
+    if ($label !== '' && !in_array($label, $whatIsItOptions, true)) {
+        $whatIsItOptions[] = $label;
+    }
+}
+
 $saved = isset($_GET['saved']);
 $saveMode = trim($_GET['save_mode'] ?? '');
 $errors = [];
+$photoWarnings = [];
 $statusOptions = statusOptions();
 $lookupSku = trim($_GET['sku'] ?? '');
 $lookupSkuNormalized = normalizeSku($lookupSku);
@@ -250,11 +266,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($data['sku_normalized'] === '') {
             $errors[] = 'SKU is required to save this intake item.';
         }
+        if ($data['what_is_it'] === '') {
+            $errors[] = '"What is it?" is required.';
+        }
 
         $uploadedPhotos = normalizeUploadedFiles((array)($_FILES['sku_photos'] ?? []));
         if ($uploadedPhotos) {
             if (count($uploadedPhotos) > MAX_SKU_PHOTOS_PER_UPLOAD) {
-                $errors[] = 'You can upload up to ' . MAX_SKU_PHOTOS_PER_UPLOAD . ' photos at once.';
+                $photoWarnings[] = 'You can upload up to ' . MAX_SKU_PHOTOS_PER_UPLOAD . ' photos at once; extra files were ignored.';
             }
             $finfo = finfo_open(FILEINFO_MIME_TYPE);
             foreach ($uploadedPhotos as $upload) {
@@ -262,21 +281,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     continue;
                 }
                 if (($upload['error'] ?? UPLOAD_ERR_OK) !== UPLOAD_ERR_OK) {
-                    $errors[] = 'One of the selected photos failed to upload. Please try again.';
+                    $photoWarnings[] = 'One of the selected photos failed to upload and was skipped.';
                     continue;
                 }
                 if (($upload['size'] ?? 0) <= 0 || ($upload['size'] ?? 0) > MAX_SKU_PHOTO_BYTES) {
-                    $errors[] = 'Each photo must be smaller than 8MB.';
+                    $photoWarnings[] = 'A selected photo was outside the size limit and was skipped.';
                     continue;
                 }
                 if (!is_uploaded_file((string)($upload['tmp_name'] ?? ''))) {
-                    $errors[] = 'One of the selected photos is invalid. Please re-select the file.';
+                    $photoWarnings[] = 'A selected photo looked invalid and was skipped.';
                     continue;
                 }
                 $mimeType = (string)finfo_file($finfo, (string)$upload['tmp_name']);
                 $extension = ALLOWED_PHOTO_MIME_TYPES[$mimeType] ?? null;
                 if ($extension === null) {
-                    $errors[] = 'Only JPG, PNG, WEBP, or GIF photos are allowed.';
+                    $photoWarnings[] = 'Only JPG, PNG, WEBP, or GIF photos are allowed; other files were skipped.';
                     continue;
                 }
                 $pendingPhotoUploads[] = [
@@ -290,8 +309,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             finfo_close($finfo);
         }
 
-        if (!$errors) {
-            $updateStmt = $pdo->prepare(<<<'SQL'
         if (!$errors) {
             $updateStmt = $pdo->prepare(<<<'SQL'
 UPDATE intake_items SET
@@ -367,7 +384,7 @@ SQL);
             if ($pendingPhotoUploads) {
                 $skuPhotoDir = PHOTO_UPLOAD_DIR . '/' . normalizedSkuDirectory($data['sku_normalized']);
                 if (!is_dir($skuPhotoDir) && !mkdir($skuPhotoDir, 0777, true) && !is_dir($skuPhotoDir)) {
-                    $errors[] = 'Could not create the photo folder for this SKU.';
+                    $photoWarnings[] = 'Could not create the photo folder for this SKU; item saved without photos.';
                 } else {
                     $insertPhotoStmt = $pdo->prepare(<<<'SQL'
 INSERT INTO sku_photos (sku_normalized, original_name, stored_name, mime_type, file_size, created_at)
@@ -377,8 +394,8 @@ SQL);
                         $storedName = bin2hex(random_bytes(16)) . '.' . $upload['extension'];
                         $destination = $skuPhotoDir . '/' . $storedName;
                         if (!move_uploaded_file($upload['tmp_name'], $destination)) {
-                            $errors[] = 'Could not save one of the selected photos. Please try again.';
-                            break;
+                            $photoWarnings[] = 'A photo could not be saved and was skipped; the item was saved.';
+                            continue;
                         }
                         $insertPhotoStmt->execute([
                             'sku_normalized' => $data['sku_normalized'],
@@ -511,13 +528,21 @@ function checked(string $name, string $value, array $formData): string
         </p>
       <?php endif; ?>
 
-      <?php if ($errors): ?>
-        <div class="error-box">
-          <?php foreach ($errors as $error): ?>
-            <p class="error"><?php echo h($error); ?></p>
-          <?php endforeach; ?>
-        </div>
-      <?php endif; ?>
+<?php if ($errors): ?>
+  <div class="error-box">
+    <?php foreach ($errors as $error): ?>
+      <p class="error"><?php echo h($error); ?></p>
+    <?php endforeach; ?>
+  </div>
+<?php endif; ?>
+<?php if ($photoWarnings): ?>
+  <div class="warning-box">
+    <?php foreach ($photoWarnings as $warning): ?>
+      <p class="warning"><?php echo h($warning); ?></p>
+    <?php endforeach; ?>
+    <p class="hint">Item is saved even if photos were skipped.</p>
+  </div>
+<?php endif; ?>
 
       <?php if ($lookupSkuNormalized !== '' && $duplicateCount > 1): ?>
         <p class="warning">This SKU has <?php echo $duplicateCount; ?> records in history. Saving updates the newest one.</p>
@@ -537,9 +562,26 @@ function checked(string $name, string $value, array $formData): string
               <input type="text" name="sku" value="<?php echo h($formData['sku'] ?? ''); ?>" required autofocus>
           </label>
           <label>What is it?
-              <input type="text" name="what_is_it" value="<?php echo h($formData['what_is_it'] ?? ''); ?>" placeholder="e.g., Laptop, Monitor, Parts bundle">
+            <select id="what-is-it-select">
+              <?php
+              $currentWhat = trim((string)($formData['what_is_it'] ?? ''));
+              $isCustomWhat = $currentWhat !== '' && !in_array($currentWhat, $whatIsItOptions, true);
+              foreach ($whatIsItOptions as $opt):
+                  $selected = (!$isCustomWhat && $currentWhat === $opt) ? 'selected' : '';
+              ?>
+                <option value="<?php echo h($opt); ?>" <?php echo $selected; ?>><?php echo h($opt); ?></option>
+              <?php endforeach; ?>
+              <option value="__custom__" <?php echo $isCustomWhat ? 'selected' : ''; ?>>New item…</option>
+            </select>
+            <input type="text"
+                   id="what-is-it-input"
+                   name="what_is_it"
+                   value="<?php echo h($currentWhat); ?>"
+                   placeholder="Describe the item"
+                   <?php echo $isCustomWhat ? '' : 'hidden'; ?>>
           </label>
         </div>
+        <p class="error client-error" id="what-error" hidden>Please enter a value for "What is it?".</p>
 
           <div class="row">
             <label>Date Received
@@ -869,6 +911,35 @@ function checked(string $name, string $value, array $formData): string
           window.print();
         });
       }
+
+      // "What is it?" select with custom entry support
+      var whatSelect = document.getElementById('what-is-it-select');
+      var whatInput = document.getElementById('what-is-it-input');
+      var whatError = document.getElementById('what-error');
+      var syncWhatField = function () {
+        if (!whatSelect || !whatInput) {
+          return;
+        }
+        var value = whatSelect.value;
+        var useCustom = value === '__custom__';
+        whatInput.hidden = !useCustom;
+        whatInput.required = useCustom;
+        if (!useCustom && whatError) {
+          whatError.hidden = true;
+        }
+        if (useCustom) {
+          if (whatInput.value.trim() === '') {
+            whatInput.focus();
+          }
+        } else {
+          whatInput.value = value;
+        }
+      };
+      if (whatSelect && whatInput) {
+        syncWhatField();
+        whatSelect.addEventListener('change', syncWhatField);
+      }
+
       var intakeLinks = document.querySelectorAll('[data-new-intake]');
       if (intakeLinks.length) {
         var clearIntakeDraft = function () {
@@ -1004,6 +1075,9 @@ function checked(string $name, string $value, array $formData): string
               errorEl.hidden = true;
             }
           }
+          if (event.target === whatInput && whatError) {
+            whatError.hidden = true;
+          }
         });
         form.addEventListener('change', queueDraftSave);
         form.addEventListener('submit', function (event) {
@@ -1016,6 +1090,19 @@ function checked(string $name, string $value, array $formData): string
               errorEl.hidden = false;
             }
             return;
+          }
+          if (whatSelect && whatInput && whatSelect.value === '__custom__') {
+            if (whatInput.value.trim() === '') {
+              event.preventDefault();
+              if (whatError) {
+                whatError.hidden = false;
+              }
+              whatInput.focus();
+              return;
+            }
+            if (whatError) {
+              whatError.hidden = true;
+            }
           }
           localStorage.removeItem(draftKey);
         });
