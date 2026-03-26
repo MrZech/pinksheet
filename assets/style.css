@@ -575,6 +575,42 @@ label {
   outline-offset: 2px;
 }
 
+.what-options-list {
+  margin-top: 6px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.what-options-label {
+  font-size: 0.8rem;
+  color: var(--ink-muted);
+}
+
+.what-option-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: #fff;
+  color: var(--ink);
+  cursor: pointer;
+  transition: border-color 0.18s ease, background 0.18s ease, box-shadow 0.18s ease;
+}
+
+.what-option-pill:hover {
+  border-color: var(--accent);
+  background: var(--accent-tint);
+}
+
+.what-option-pill:focus-visible {
+  outline: 2px solid var(--accent-strong);
+  outline-offset: 2px;
+}
+
 label.inline {
   flex-direction: row;
   align-items: center;

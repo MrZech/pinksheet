@@ -576,6 +576,7 @@ function checked(string $name, string $value, array $formData): string
               </select>
               <button type="button" class="clear-what" id="what-clear" aria-label="Remove the selected option from the list">x</button>
             </div>
+            <div class="what-options-list" id="what-option-manager" aria-live="polite"></div>
             <input type="text"
                    id="what-is-it-input"
                    name="what_is_it"
@@ -921,8 +922,46 @@ function checked(string $name, string $value, array $formData): string
       var whatInput = document.getElementById('what-is-it-input');
       var whatError = document.getElementById('what-error');
       var whatClear = document.getElementById('what-clear');
+      var whatManager = document.getElementById('what-option-manager');
       var isProtectedWhat = function (value) {
         return baseWhatOptions.indexOf(value) !== -1;
+      };
+      var renderWhatOptions = function () {
+        if (!whatManager || !whatSelect) {
+          return;
+        }
+        var options = [];
+        whatSelect.querySelectorAll('option').forEach(function (opt) {
+          var value = opt.value;
+          if (value === '__custom__' || isProtectedWhat(value)) {
+            return;
+          }
+          options.push({ value: value, label: opt.textContent });
+        });
+        if (!options.length) {
+          whatManager.innerHTML = '';
+          return;
+        }
+        var html = '<span class=\"what-options-label\">Custom options:</span>';
+        options.forEach(function (opt) {
+          html += '<button type=\"button\" class=\"what-option-pill\" data-what=\"' + opt.value.replace(/\"/g, '&quot;') + '\">' +
+            '<span>' + opt.label + '</span><span aria-hidden=\"true\">×</span></button>';
+        });
+        whatManager.innerHTML = html;
+        whatManager.querySelectorAll('.what-option-pill').forEach(function (btn) {
+          btn.addEventListener('click', function () {
+            var value = btn.getAttribute('data-what');
+            var option = whatSelect.querySelector('option[value=\"' + CSS.escape(value) + '\"]');
+            if (option) {
+              option.remove();
+            }
+            if (whatSelect.value === value) {
+              whatSelect.value = '__custom__';
+              syncWhatField();
+            }
+            renderWhatOptions();
+          });
+        });
       };
       var syncWhatField = function () {
         if (!whatSelect || !whatInput) {
@@ -946,6 +985,7 @@ function checked(string $name, string $value, array $formData): string
       if (whatSelect && whatInput) {
         syncWhatField();
         whatSelect.addEventListener('change', syncWhatField);
+        renderWhatOptions();
       }
       if (whatClear && whatSelect && whatInput) {
         whatClear.addEventListener('click', function () {
@@ -966,6 +1006,7 @@ function checked(string $name, string $value, array $formData): string
             whatError.hidden = true;
           }
           whatInput.focus();
+          renderWhatOptions();
         });
       }
 
