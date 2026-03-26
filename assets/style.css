@@ -587,6 +587,10 @@ label {
   flex-direction: column;
 }
 
+.what-menu-list[hidden] {
+  display: none !important;
+}
+
 .what-menu-item {
   display: flex;
   align-items: center;
