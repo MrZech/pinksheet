@@ -930,6 +930,7 @@ function checked(string $name, string $value, array $formData): string
 
       // "What is it?" select with custom entry support
       var whatInput = document.getElementById('what-is-it-input');
+      var whatError = document.getElementById('what-error');
       var whatMenuToggle = document.getElementById('what-menu-toggle');
       var whatMenuList = document.getElementById('what-menu-list');
       var isProtectedWhat = function (value) {
@@ -1135,18 +1136,16 @@ function checked(string $name, string $value, array $formData): string
             }
             return;
           }
-          if (whatSelect && whatInput && whatSelect.value === '__custom__') {
-            if (whatInput.value.trim() === '') {
-              event.preventDefault();
-              if (whatError) {
-                whatError.hidden = false;
-              }
-              whatInput.focus();
-              return;
-            }
+          if (whatInput && whatInput.value.trim() === '') {
+            event.preventDefault();
             if (whatError) {
-              whatError.hidden = true;
+              whatError.hidden = false;
             }
+            whatInput.focus();
+            return;
+          }
+          if (whatError) {
+            whatError.hidden = true;
           }
           localStorage.removeItem(draftKey);
         });
