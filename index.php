@@ -561,27 +561,39 @@ function checked(string $name, string $value, array $formData): string
           <label>SKU
               <input type="text" name="sku" value="<?php echo h($formData['sku'] ?? ''); ?>" required autofocus>
           </label>
+          <?php
+            $currentWhat = trim((string)($formData['what_is_it'] ?? ''));
+            $whatOptionsList = $whatIsItOptions;
+            if ($currentWhat !== '' && !in_array($currentWhat, $whatOptionsList, true)) {
+                $whatOptionsList[] = $currentWhat;
+            }
+          ?>
           <label>What is it?
-            <div class="what-field">
-              <select id="what-is-it-select">
-                <?php
-                $currentWhat = trim((string)($formData['what_is_it'] ?? ''));
-                $isCustomWhat = $currentWhat !== '' && !in_array($currentWhat, $whatIsItOptions, true);
-                foreach ($whatIsItOptions as $opt):
-                    $selected = (!$isCustomWhat && $currentWhat === $opt) ? 'selected' : '';
-                ?>
-                  <option value="<?php echo h($opt); ?>" <?php echo $selected; ?>><?php echo h($opt); ?></option>
-                <?php endforeach; ?>
-                <option value="__custom__" <?php echo $isCustomWhat ? 'selected' : ''; ?>>New item...</option>
-              </select>
-              <button type="button" class="clear-what" id="what-clear" aria-label="Delete this dropdown option">x</button>
+            <div class="what-field dropdown-mode">
+              <input type="text"
+                     id="what-is-it-input"
+                     name="what_is_it"
+                     value="<?php echo h($currentWhat); ?>"
+                     placeholder="Describe the item">
+              <div class="what-menu">
+                <button type="button" class="what-menu-toggle" id="what-menu-toggle" aria-expanded="false" aria-haspopup="listbox">▼</button>
+                <div class="what-menu-list" id="what-menu-list" role="listbox" hidden>
+                  <?php foreach ($whatOptionsList as $opt): ?>
+                    <button type="button"
+                            class="what-menu-item"
+                            role="option"
+                            data-value="<?php echo h($opt); ?>">
+                      <span class="what-menu-label"><?php echo h($opt); ?></span>
+                      <?php if (!in_array($opt, baseWhatIsItOptions(), true)): ?>
+                        <span class="what-menu-delete" data-value="<?php echo h($opt); ?>" aria-label="Delete <?php echo h($opt); ?>">×</span>
+                      <?php else: ?>
+                        <span class="what-menu-spacer"></span>
+                      <?php endif; ?>
+                    </button>
+                  <?php endforeach; ?>
+                </div>
+              </div>
             </div>
-            <input type="text"
-                   id="what-is-it-input"
-                   name="what_is_it"
-                   value="<?php echo h($currentWhat); ?>"
-                   placeholder="Describe the item"
-                   <?php echo $isCustomWhat ? '' : 'hidden'; ?>>
           </label>
         </div>
         <p class="error client-error" id="what-error" hidden>Please enter a value for "What is it?".</p>
@@ -917,55 +929,56 @@ function checked(string $name, string $value, array $formData): string
       }
 
       // "What is it?" select with custom entry support
-      var whatSelect = document.getElementById('what-is-it-select');
       var whatInput = document.getElementById('what-is-it-input');
-      var whatError = document.getElementById('what-error');
-      var whatClear = document.getElementById('what-clear');
+      var whatMenuToggle = document.getElementById('what-menu-toggle');
+      var whatMenuList = document.getElementById('what-menu-list');
       var isProtectedWhat = function (value) {
         return baseWhatOptions.indexOf(value) !== -1;
       };
-      var syncWhatField = function () {
-        if (!whatSelect || !whatInput) {
-          return;
-        }
-        var value = whatSelect.value;
-        var useCustom = value === '__custom__';
-        whatInput.hidden = !useCustom;
-        whatInput.required = useCustom;
-        if (!useCustom && whatError) {
-          whatError.hidden = true;
-        }
-        if (useCustom) {
-          if (whatInput.value.trim() === '') {
-            whatInput.focus();
-          }
-        } else {
-          whatInput.value = value;
-        }
+      var closeWhatMenu = function () {
+        if (!whatMenuList || !whatMenuToggle) return;
+        whatMenuList.hidden = true;
+        whatMenuToggle.setAttribute('aria-expanded', 'false');
       };
-      if (whatSelect && whatInput) {
-        syncWhatField();
-        whatSelect.addEventListener('change', syncWhatField);
-      }
-      if (whatClear && whatSelect && whatInput) {
-        whatClear.addEventListener('click', function () {
-          var value = whatSelect.value || '';
-          if (value === '' || value === '__custom__' || isProtectedWhat(value)) {
-            alert('Default options cannot be removed.');
-            return;
+      var openWhatMenu = function () {
+        if (!whatMenuList || !whatMenuToggle) return;
+        whatMenuList.hidden = false;
+        whatMenuToggle.setAttribute('aria-expanded', 'true');
+      };
+      if (whatMenuToggle && whatMenuList) {
+        whatMenuToggle.addEventListener('click', function () {
+          if (whatMenuList.hidden) {
+            openWhatMenu();
+          } else {
+            closeWhatMenu();
           }
-          var option = whatSelect.querySelector('option[value="' + CSS.escape(value) + '"]');
-          if (option) {
-            option.remove();
+        });
+        document.addEventListener('click', function (evt) {
+          if (!whatMenuList.hidden && !whatMenuList.contains(evt.target) && evt.target !== whatMenuToggle) {
+            closeWhatMenu();
           }
-          whatSelect.value = '__custom__';
-          whatInput.hidden = false;
-          whatInput.required = true;
-          whatInput.value = '';
-          if (whatError) {
-            whatError.hidden = true;
-          }
-          whatInput.focus();
+        });
+        whatMenuList.querySelectorAll('.what-menu-item').forEach(function (btn) {
+          btn.addEventListener('click', function (evt) {
+            var deleteBtn = evt.target.closest('.what-menu-delete');
+            var value = btn.getAttribute('data-value') || '';
+            if (deleteBtn) {
+              if (isProtectedWhat(value)) {
+                alert('Default options cannot be removed.');
+                return;
+              }
+              btn.remove();
+              if (whatInput && whatInput.value === value) {
+                whatInput.value = '';
+              }
+              closeWhatMenu();
+              return;
+            }
+            if (whatInput) {
+              whatInput.value = value;
+              closeWhatMenu();
+            }
+          });
         });
       }
 
