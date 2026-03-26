@@ -576,7 +576,7 @@ function checked(string $name, string $value, array $formData): string
                      value="<?php echo h($currentWhat); ?>"
                      placeholder="Describe the item">
               <div class="what-menu">
-                <button type="button" class="what-menu-toggle" id="what-menu-toggle" aria-expanded="false" aria-haspopup="listbox">▼</button>
+                <button type="button" class="what-menu-toggle" id="what-menu-toggle" aria-expanded="false" aria-haspopup="listbox" aria-label="Open item type list">▼</button>
                 <div class="what-menu-list" id="what-menu-list" role="listbox" hidden>
                   <?php foreach ($whatOptionsList as $opt): ?>
                     <button type="button"
@@ -958,27 +958,29 @@ function checked(string $name, string $value, array $formData): string
             closeWhatMenu();
           }
         });
-        whatMenuList.querySelectorAll('.what-menu-item').forEach(function (btn) {
-          btn.addEventListener('click', function (evt) {
-            var deleteBtn = evt.target.closest('.what-menu-delete');
-            var value = btn.getAttribute('data-value') || '';
-            if (deleteBtn) {
-              if (isProtectedWhat(value)) {
-                alert('Default options cannot be removed.');
-                return;
-              }
-              btn.remove();
-              if (whatInput && whatInput.value === value) {
-                whatInput.value = '';
-              }
-              closeWhatMenu();
+        whatMenuList.addEventListener('click', function (evt) {
+          var itemBtn = evt.target.closest('.what-menu-item');
+          if (!itemBtn) {
+            return;
+          }
+          var value = itemBtn.getAttribute('data-value') || '';
+          var deleteBtn = evt.target.closest('.what-menu-delete');
+          if (deleteBtn) {
+            if (isProtectedWhat(value)) {
+              alert('Default options cannot be removed.');
               return;
             }
-            if (whatInput) {
-              whatInput.value = value;
-              closeWhatMenu();
+            itemBtn.remove();
+            if (whatInput && whatInput.value === value) {
+              whatInput.value = '';
             }
-          });
+            closeWhatMenu();
+            return;
+          }
+          if (whatInput) {
+            whatInput.value = value;
+            closeWhatMenu();
+          }
         });
       }
 

@@ -549,21 +549,35 @@ label {
 }
 
 .what-field {
+  position: relative;
   display: flex;
   align-items: center;
-  gap: 8px;
 }
 
 .what-menu {
   position: relative;
+  flex: 1;
+}
+
+.what-field input[type="text"]#what-is-it-input {
+  width: 100%;
+  padding-right: 42px;
 }
 
 .what-menu-toggle {
-  padding: 8px 10px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-sm);
-  background: #fff;
+  position: absolute;
+  top: 50%;
+  right: 8px;
+  transform: translateY(-50%);
+  padding: 4px 6px;
+  border: none;
+  background: transparent;
   cursor: pointer;
+  color: var(--ink-muted);
+}
+
+.what-menu-toggle:hover {
+  color: var(--ink);
 }
 
 .what-menu-toggle:focus-visible {
@@ -574,11 +588,13 @@ label {
 .what-menu-list {
   position: absolute;
   top: calc(100% + 4px);
+  left: 0;
   right: 0;
-  min-width: 240px;
+  min-width: 100%;
   max-height: 260px;
   overflow-y: auto;
   background: #fff;
+  color: var(--ink);
   border: 1px solid var(--line);
   border-radius: var(--radius-md);
   box-shadow: 0 8px 22px rgba(0, 0, 0, 0.14);
@@ -608,6 +624,7 @@ label {
 
 .what-menu-label {
   flex: 1;
+  color: var(--ink);
 }
 
 .what-menu-delete,
@@ -624,6 +641,7 @@ label {
 .what-menu-delete {
   border-radius: 50%;
   transition: background 0.15s ease, color 0.15s ease;
+  cursor: pointer;
 }
 
 .what-menu-delete:hover {
