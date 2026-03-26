@@ -574,7 +574,7 @@ function checked(string $name, string $value, array $formData): string
                 <?php endforeach; ?>
                 <option value="__custom__" <?php echo $isCustomWhat ? 'selected' : ''; ?>>New item...</option>
               </select>
-              <button type="button" class="clear-what" id="what-clear" aria-label="Clear \"What is it?\" value">x</button>
+              <button type="button" class="clear-what" id="what-clear" aria-label="Remove the selected option from the list">x</button>
             </div>
             <input type="text"
                    id="what-is-it-input"
@@ -854,6 +854,7 @@ function checked(string $name, string $value, array $formData): string
   </main>
   <script>
     (function () {
+      var baseWhatOptions = <?php echo json_encode(baseWhatIsItOptions(), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT); ?>;
       var themeToggle = document.getElementById('theme-toggle');
       var applyThemeMode = function (mode) {
         var isDark = mode === 'dark';
@@ -920,6 +921,9 @@ function checked(string $name, string $value, array $formData): string
       var whatInput = document.getElementById('what-is-it-input');
       var whatError = document.getElementById('what-error');
       var whatClear = document.getElementById('what-clear');
+      var isProtectedWhat = function (value) {
+        return baseWhatOptions.indexOf(value) !== -1;
+      };
       var syncWhatField = function () {
         if (!whatSelect || !whatInput) {
           return;
@@ -945,6 +949,15 @@ function checked(string $name, string $value, array $formData): string
       }
       if (whatClear && whatSelect && whatInput) {
         whatClear.addEventListener('click', function () {
+          var value = whatSelect.value || '';
+          if (value === '' || value === '__custom__' || isProtectedWhat(value)) {
+            alert('Default options cannot be removed.');
+            return;
+          }
+          var option = whatSelect.querySelector('option[value="' + CSS.escape(value) + '"]');
+          if (option) {
+            option.remove();
+          }
           whatSelect.value = '__custom__';
           whatInput.hidden = false;
           whatInput.required = true;
