@@ -938,24 +938,24 @@ function checked(string $name, string $value, array $formData): string
       };
       var closeWhatMenu = function () {
         if (!whatMenuList || !whatMenuToggle) return;
-        whatMenuList.hidden = true;
+        whatMenuList.classList.remove('is-open');
         whatMenuToggle.setAttribute('aria-expanded', 'false');
       };
       var openWhatMenu = function () {
         if (!whatMenuList || !whatMenuToggle) return;
-        whatMenuList.hidden = false;
+        whatMenuList.classList.add('is-open');
         whatMenuToggle.setAttribute('aria-expanded', 'true');
       };
       if (whatMenuToggle && whatMenuList) {
         whatMenuToggle.addEventListener('click', function () {
-          if (whatMenuList.hidden) {
+          if (!whatMenuList.classList.contains('is-open')) {
             openWhatMenu();
           } else {
             closeWhatMenu();
           }
         });
         document.addEventListener('click', function (evt) {
-          if (!whatMenuList.hidden && !whatMenuList.contains(evt.target) && evt.target !== whatMenuToggle) {
+          if (whatMenuList.classList.contains('is-open') && !whatMenuList.contains(evt.target) && evt.target !== whatMenuToggle) {
             closeWhatMenu();
           }
         });

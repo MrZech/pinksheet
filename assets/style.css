@@ -555,7 +555,7 @@ label {
 }
 
 .what-menu {
-  position: relative;
+  position: static;
   flex: 1;
 }
 
@@ -598,13 +598,13 @@ label {
   border: 1px solid var(--line);
   border-radius: var(--radius-md);
   box-shadow: 0 8px 22px rgba(0, 0, 0, 0.14);
-  z-index: 20;
-  display: flex;
+  z-index: 200;
+  display: none;
   flex-direction: column;
 }
 
-.what-menu-list[hidden] {
-  display: none !important;
+.what-menu-list.is-open {
+  display: flex;
 }
 
 .what-menu-item {
