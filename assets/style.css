@@ -900,6 +900,10 @@ button:active,
   grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
 }
 
+.sku-photo-preview {
+  margin-top: 10px;
+}
+
 .sku-photo-item {
   display: flex;
   flex-direction: column;
@@ -922,6 +926,10 @@ button:active,
   object-fit: cover;
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.5);
+}
+
+.sku-photo-item.is-preview {
+  border-style: dashed;
 }
 
 .sku-photo-item span {

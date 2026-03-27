@@ -709,6 +709,10 @@ function checked(string $name, string $value, array $formData): string
             <label>Add photos for this SKU
               <input type="file" name="sku_photos[]" accept="image/jpeg,image/png,image/webp,image/gif" multiple>
             </label>
+            <div class="sku-photo-preview" id="sku-photo-preview" hidden>
+              <p class="hint">Preview (not saved until you click Save Intake Item):</p>
+              <div class="sku-photo-grid" id="sku-photo-preview-list" aria-live="polite"></div>
+            </div>
             <p class="hint">Photos are attached to this SKU only after you click Save Intake Item.</p>
             <?php if ($activeSkuNormalized === ''): ?>
               <p class="hint">Enter a SKU first to keep photos grouped with that specific item.</p>
@@ -1150,6 +1154,73 @@ function checked(string $name, string $value, array $formData): string
           localStorage.removeItem(draftKey);
         });
       }
+
+      var photoInput = document.querySelector('input[name="sku_photos[]"]');
+      var previewContainer = document.getElementById('sku-photo-preview');
+      var previewList = document.getElementById('sku-photo-preview-list');
+      var previewUrls = [];
+      var clearPreview = function () {
+        previewUrls.forEach(function (url) {
+          URL.revokeObjectURL(url);
+        });
+        previewUrls = [];
+        if (previewList) {
+          previewList.innerHTML = '';
+        }
+        if (previewContainer) {
+          previewContainer.hidden = true;
+        }
+      };
+      var formatSize = function (bytes) {
+        if (bytes < 1024) return bytes + ' B';
+        if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+        return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+      };
+      var renderPreview = function (fileList) {
+        clearPreview();
+        if (!previewContainer || !previewList || !fileList || !fileList.length) {
+          return;
+        }
+        Array.prototype.forEach.call(fileList, function (file) {
+          if (!file || !file.type || !file.type.startsWith('image/')) {
+            return;
+          }
+          var url = URL.createObjectURL(file);
+          previewUrls.push(url);
+          var link = document.createElement('a');
+          link.className = 'sku-photo-item is-preview';
+          link.href = url;
+          link.target = '_blank';
+          link.rel = 'noopener';
+          link.title = 'Open ' + (file.name || 'photo') + ' in a new tab';
+
+          var img = document.createElement('img');
+          img.src = url;
+          img.alt = file.name || 'Selected photo';
+          img.loading = 'lazy';
+
+          var caption = document.createElement('span');
+          var label = file.name || 'Photo';
+          var size = Number.isFinite(file.size) ? ' • ' + formatSize(file.size) : '';
+          caption.textContent = label + size;
+
+          link.appendChild(img);
+          link.appendChild(caption);
+          previewList.appendChild(link);
+        });
+        previewContainer.hidden = previewList.children.length === 0;
+      };
+      if (photoInput) {
+        photoInput.addEventListener('change', function () {
+          renderPreview(photoInput.files);
+        });
+      }
+      if (form) {
+        form.addEventListener('submit', function () {
+          clearPreview();
+        });
+      }
+      window.addEventListener('beforeunload', clearPreview);
 
       var checkbox = document.getElementById('print-pink');
       if (checkbox) {
