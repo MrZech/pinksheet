@@ -41,6 +41,7 @@ function sanitizeFilename(string $name): string
 function errorResponse(string $message, int $code = 400): void
 {
     http_response_code($code);
+    @file_put_contents(__DIR__ . '/logs/upload_errors.log', '[' . date('c') . '] ' . $message . PHP_EOL, FILE_APPEND);
     echo json_encode(['status' => 'error', 'message' => $message]);
     exit;
 }
@@ -88,6 +89,17 @@ if ($extension === null) {
 $pdo = new PDO('sqlite:' . DB_PATH, null, null, [
     PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
 ]);
+$pdo->exec(<<<'SQL'
+CREATE TABLE IF NOT EXISTS sku_photos (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    sku_normalized TEXT NOT NULL,
+    original_name TEXT NOT NULL,
+    stored_name TEXT NOT NULL,
+    mime_type TEXT NOT NULL,
+    file_size INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+SQL);
 
 if (!is_dir(PHOTO_UPLOAD_DIR)) {
     mkdir(PHOTO_UPLOAD_DIR, 0777, true);
@@ -105,16 +117,20 @@ if (!move_uploaded_file($tmp, $destination)) {
     errorResponse('Failed to save file to disk.');
 }
 
-$stmt = $pdo->prepare(<<<'SQL'
+try {
+    $stmt = $pdo->prepare(<<<'SQL'
 INSERT INTO sku_photos (sku_normalized, original_name, stored_name, mime_type, file_size, created_at)
 VALUES (:sku_normalized, :original_name, :stored_name, :mime_type, :file_size, datetime('now'));
 SQL);
-$stmt->execute([
-    'sku_normalized' => $sku,
-    'original_name' => sanitizeFilename($originalDisplayName),
-    'stored_name' => $storedName,
-    'mime_type' => $mimeType,
-    'file_size' => $size,
-]);
+    $stmt->execute([
+        'sku_normalized' => $sku,
+        'original_name' => sanitizeFilename($originalDisplayName),
+        'stored_name' => $storedName,
+        'mime_type' => $mimeType,
+        'file_size' => $size,
+    ]);
+} catch (Throwable $e) {
+    errorResponse('Database error: ' . $e->getMessage(), 500);
+}
 
 echo json_encode(['status' => 'ok', 'message' => 'Uploaded', 'id' => $pdo->lastInsertId()]);
