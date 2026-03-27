@@ -797,6 +797,7 @@ function checked(string $name, string $value, array $formData): string
               <p class="hint">Preview (not saved until you click Save Intake Item):</p>
               <div class="sku-photo-grid" id="sku-photo-preview-list" aria-live="polite"></div>
             </div>
+            <div id="photo-upload-messages" class="upload-messages" aria-live="polite"></div>
             <p class="hint">Photos are attached when you click Save Intake Item.</p>
             <p class="hint">Per-photo limit: <?php echo h(humanBytes($effectivePhotoLimitBytes)); ?>.</p>
             <?php if ($activeSkuNormalized === ''): ?>
@@ -1258,6 +1259,14 @@ function checked(string $name, string $value, array $formData): string
       var skuField = document.querySelector('input[name="sku"]');
       var isUploading = false;
       var submitButton = document.querySelector('button[type="submit"]');
+      var uploadMessages = document.getElementById('photo-upload-messages');
+      var pushUploadMessage = function (text, type) {
+        if (!uploadMessages) return;
+        var div = document.createElement('div');
+        div.className = 'msg ' + (type === 'error' ? 'err' : 'ok');
+        div.textContent = text;
+        uploadMessages.appendChild(div);
+      };
       var clearPreview = function () {
         photoQueue.forEach(function (entry) {
           URL.revokeObjectURL(entry.url);
@@ -1417,6 +1426,7 @@ function checked(string $name, string $value, array $formData): string
                 sendChunk(chunkIndex + 1);
               } else {
                 updateProgress(fileIndex, 100);
+                pushUploadMessage((file.name || 'photo') + ' uploaded', 'ok');
                 onDone();
               }
             }
@@ -1464,7 +1474,7 @@ function checked(string $name, string $value, array $formData): string
               submitButton.disabled = false;
               submitButton.textContent = 'Save Intake Item';
             }
-            alert('Photo upload failed for ' + (entry.file.name || 'photo') + ': ' + msg);
+            pushUploadMessage('Failed: ' + (entry.file.name || 'photo') + ' — ' + msg, 'error');
           });
         };
         next();

@@ -1013,6 +1013,30 @@ button:active,
   transition: width 120ms linear;
 }
 
+.upload-messages {
+  margin-top: 8px;
+  display: grid;
+  gap: 4px;
+}
+
+.upload-messages .msg {
+  padding: 6px 8px;
+  border-radius: var(--radius-sm);
+  font-size: 0.82rem;
+}
+
+.msg.ok {
+  background: #eef9f0;
+  border: 1px solid #b8e6c1;
+  color: #1f7a3d;
+}
+
+.msg.err {
+  background: #fff0f3;
+  border: 1px solid #f4c2d0;
+  color: #9f2a3f;
+}
+
 .sku-photo-actions {
   display: flex;
   justify-content: flex-end;
