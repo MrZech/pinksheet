@@ -234,6 +234,7 @@ $serverUploadLimitBytes = min(
     iniBytes((string)ini_get('post_max_size')) ?: MAX_SKU_PHOTO_BYTES
 );
 $effectivePhotoLimitBytes = min(MAX_SKU_PHOTO_BYTES, $serverUploadLimitBytes);
+$postLimitBytes = iniBytes((string)ini_get('post_max_size')) ?: ($effectivePhotoLimitBytes * MAX_SKU_PHOTOS_PER_UPLOAD);
 
 if ($lookupSkuNormalized !== '') {
     $stmt = $pdo->prepare('SELECT * FROM intake_items WHERE sku_normalized = :sku_normalized ORDER BY id DESC LIMIT 1');
@@ -245,6 +246,10 @@ if ($lookupSkuNormalized !== '') {
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $contentLength = isset($_SERVER['CONTENT_LENGTH']) ? (int)$_SERVER['CONTENT_LENGTH'] : 0;
+    if ($contentLength > 0 && $contentLength > $postLimitBytes && !isset($_POST['bulk_update']) && !isset($_POST['delete_photo_id'])) {
+        $errors[] = 'Upload failed: total request size exceeded server limit of ' . humanBytes($postLimitBytes) . '. Try fewer/smaller photos or raise post_max_size.';
+    }
     if (isset($_POST['delete_photo_id'])) {
         $photoId = (int)$_POST['delete_photo_id'];
         $photo = null;
@@ -349,6 +354,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             foreach ($uploadedPhotos as $upload) {
                 $originalDisplayName = (string)($upload['name'] ?? 'photo');
                 if (($upload['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_NO_FILE) {
+                    continue;
+                }
+                if (($upload['error'] ?? UPLOAD_ERR_OK) === UPLOAD_ERR_INI_SIZE) {
+                    $photoWarnings[] = $originalDisplayName . ' exceeded server upload_max_filesize of ' . humanBytes($serverUploadLimitBytes) . ' and was skipped.';
                     continue;
                 }
                 if (($upload['error'] ?? UPLOAD_ERR_OK) !== UPLOAD_ERR_OK) {
