@@ -12,8 +12,8 @@ const LOOKUP_LOG_DIR = __DIR__ . '/logs';
 const LOOKUP_LOG_PATH = LOOKUP_LOG_DIR . '/lookup.csv';
 const CLEAR_DRAFT_PARAM = 'clear_draft';
 const PHOTO_UPLOAD_DIR = DB_DIR . '/sku_photos';
-const MAX_SKU_PHOTOS_PER_UPLOAD = 8;
-const MAX_SKU_PHOTO_BYTES = 16 * 1024 * 1024;
+const MAX_SKU_PHOTOS_PER_UPLOAD = 100;
+const MAX_SKU_PHOTO_BYTES = 50 * 1024 * 1024;
 const ALLOWED_PHOTO_MIME_TYPES = [
     'image/jpeg' => 'jpg',
     'image/png' => 'png',
@@ -336,13 +336,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'notes' => trim($_POST['notes'] ?? ''),
         ];
         $pendingPhotoUploads = [];
-
-        if ($data['sku_normalized'] === '') {
-            $errors[] = 'SKU is required to save this intake item.';
-        }
-        if ($data['what_is_it'] === '') {
-            $errors[] = '"What is it?" is required.';
-        }
 
         $uploadedPhotos = normalizeUploadedFiles((array)($_FILES['sku_photos'] ?? []));
         if ($uploadedPhotos) {
@@ -1246,17 +1239,6 @@ function checked(string $name, string $value, array $formData): string
             }
             return;
           }
-          if (whatInput && whatInput.value.trim() === '') {
-            event.preventDefault();
-            if (whatError) {
-              whatError.hidden = false;
-            }
-            whatInput.focus();
-            return;
-          }
-          if (whatError) {
-            whatError.hidden = true;
-          }
           if (photoQueue.length) {
             event.preventDefault();
             uploadQueueThenSubmit();
@@ -1404,6 +1386,67 @@ function checked(string $name, string $value, array $formData): string
         }
         var i = 0;
         var total = photoQueue.length;
+        var CHUNK_SIZE = 512 * 1024; // 512KB to stay under server limits
+
+        var uploadFileChunked = function (entry, fileIndex, onDone, onError) {
+          var file = entry.file;
+          var uploadId = entry.uploadId || (entry.uploadId = (Date.now() + '-' + Math.random().toString(16).slice(2)));
+          var chunkTotal = Math.ceil(file.size / CHUNK_SIZE);
+          var sendChunk = function (chunkIndex) {
+            var start = chunkIndex * CHUNK_SIZE;
+            var end = Math.min(file.size, start + CHUNK_SIZE);
+            var blob = file.slice(start, end);
+            var fd = new FormData();
+            fd.append('sku', sku);
+            fd.append('upload_id', uploadId);
+            fd.append('chunk_index', String(chunkIndex));
+            fd.append('chunk_total', String(chunkTotal));
+            fd.append('total_size', String(file.size));
+            fd.append('original_name', file.name || 'photo');
+            fd.append('mime_type', file.type || 'application/octet-stream');
+            fd.append('chunk', blob);
+            var xhr = new XMLHttpRequest();
+            xhr.open('POST', 'upload_photo_chunk.php');
+            xhr.upload.onprogress = function (evt) {
+              if (evt.lengthComputable) {
+                var pct = ((start + evt.loaded) / file.size) * 100;
+                updateProgress(fileIndex, pct);
+              }
+            };
+            xhr.onreadystatechange = function () {
+              if (xhr.readyState === 4) {
+                var ok = xhr.status >= 200 && xhr.status < 300;
+                if (!ok) {
+                  onError('Status ' + xhr.status);
+                  return;
+                }
+                var resp = {};
+                try {
+                  resp = JSON.parse(xhr.responseText || '{}');
+                } catch (e) {
+                  onError('Bad JSON response');
+                  return;
+                }
+                if (resp.status !== 'ok') {
+                  onError(resp.message || 'Upload failed');
+                  return;
+                }
+                if (chunkIndex + 1 < chunkTotal) {
+                  sendChunk(chunkIndex + 1);
+                } else {
+                  updateProgress(fileIndex, 100);
+                  onDone();
+                }
+              }
+            };
+            xhr.onerror = function () {
+              onError('Network error');
+            };
+            xhr.send(fd);
+          };
+          sendChunk(0);
+        };
+
         var uploadNext = function () {
           if (i >= total) {
             if (submitButton) {
@@ -1415,44 +1458,17 @@ function checked(string $name, string $value, array $formData): string
             return;
           }
           var entry = photoQueue[i];
-          updateProgress(i, 5);
-          var fd = new FormData();
-          fd.append('sku', sku);
-          fd.append('photo', entry.file);
-          var xhr = new XMLHttpRequest();
-          xhr.open('POST', 'upload_photo.php');
-          xhr.upload.onprogress = function (evt) {
-            if (evt.lengthComputable) {
-              var pct = (evt.loaded / evt.total) * 100;
-              updateProgress(i, pct);
-            }
-          };
-          xhr.onreadystatechange = function () {
-            if (xhr.readyState === 4) {
-              var ok = xhr.status >= 200 && xhr.status < 300;
-              if (ok) {
-                updateProgress(i, 100);
-                i += 1;
-                uploadNext();
-              } else {
-                isUploading = false;
-                if (submitButton) {
-                  submitButton.disabled = false;
-                  submitButton.textContent = 'Save Intake Item';
-                }
-                alert('Photo upload failed for ' + (entry.file.name || 'photo') + '. Status ' + xhr.status);
-              }
-            }
-          };
-          xhr.onerror = function () {
+          uploadFileChunked(entry, i, function () {
+            i += 1;
+            uploadNext();
+          }, function (msg) {
             isUploading = false;
             if (submitButton) {
               submitButton.disabled = false;
               submitButton.textContent = 'Save Intake Item';
             }
-            alert('Network error while uploading ' + (entry.file.name || 'photo') + '.');
-          };
-          xhr.send(fd);
+            alert('Photo upload failed for ' + (entry.file.name || 'photo') + ': ' + msg);
+          });
         };
         uploadNext();
       };
