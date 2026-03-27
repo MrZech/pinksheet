@@ -1242,11 +1242,6 @@ function checked(string $name, string $value, array $formData): string
             }
             return;
           }
-          if (photoQueue.length) {
-            event.preventDefault();
-            uploadQueueThenSubmit();
-            return;
-          }
           localStorage.removeItem(draftKey);
         });
       }
@@ -1367,15 +1362,76 @@ function checked(string $name, string $value, array $formData): string
           bar.style.width = Math.min(100, Math.max(0, percent)) + '%';
         }
       };
-      var uploadQueueThenSubmit = function () {
-        if (isUploading) return;
+      var CHUNK_SIZE = 512 * 1024; // 512KB to stay under server limits
+      var uploadFileChunked = function (entry, fileIndex, onDone, onError) {
+        var file = entry.file;
+        var uploadId = entry.uploadId || (entry.uploadId = (Date.now() + '-' + Math.random().toString(16).slice(2)));
         var sku = (skuField && skuField.value || '').trim();
         if (!sku) {
-          alert('Enter a SKU before saving so photos can attach.');
+          onError('Enter a SKU before uploading photos so they can attach.');
           return;
         }
-        if (!photoQueue.length) {
-          form.submit();
+        var chunkTotal = Math.ceil(file.size / CHUNK_SIZE);
+        var sendChunk = function (chunkIndex) {
+          var start = chunkIndex * CHUNK_SIZE;
+          var end = Math.min(file.size, start + CHUNK_SIZE);
+          var blob = file.slice(start, end);
+          var fd = new FormData();
+          fd.append('sku', sku);
+          fd.append('upload_id', uploadId);
+          fd.append('chunk_index', String(chunkIndex));
+          fd.append('chunk_total', String(chunkTotal));
+          fd.append('total_size', String(file.size));
+          fd.append('original_name', file.name || 'photo');
+          fd.append('mime_type', file.type || 'application/octet-stream');
+          fd.append('chunk', blob);
+          var xhr = new XMLHttpRequest();
+          xhr.open('POST', 'upload_photo_chunk.php');
+          xhr.upload.onprogress = function (evt) {
+            if (evt.lengthComputable) {
+              var pct = ((start + evt.loaded) / file.size) * 100;
+              updateProgress(fileIndex, pct);
+            }
+          };
+          xhr.onreadystatechange = function () {
+            if (xhr.readyState === 4) {
+              var ok = xhr.status >= 200 && xhr.status < 300;
+              if (!ok) {
+                onError('Status ' + xhr.status);
+                return;
+              }
+              var resp = {};
+              try {
+                resp = JSON.parse(xhr.responseText || '{}');
+              } catch (e) {
+                onError('Bad JSON response');
+                return;
+              }
+              if (resp.status !== 'ok') {
+                onError(resp.message || 'Upload failed');
+                return;
+              }
+              if (chunkIndex + 1 < chunkTotal) {
+                sendChunk(chunkIndex + 1);
+              } else {
+                updateProgress(fileIndex, 100);
+                onDone();
+              }
+            }
+          };
+          xhr.onerror = function () {
+            onError('Network error');
+          };
+          xhr.send(fd);
+        };
+        sendChunk(0);
+      };
+
+      var processQueue = function () {
+        if (isUploading || !photoQueue.length) return;
+        var sku = (skuField && skuField.value || '').trim();
+        if (!sku) {
+          alert('Enter a SKU before uploading photos so they can attach.');
           return;
         }
         isUploading = true;
@@ -1383,87 +1439,23 @@ function checked(string $name, string $value, array $formData): string
           submitButton.disabled = true;
           submitButton.textContent = 'Uploading photos...';
         }
-        // prevent files from posting again with the form
-        if (photoInput && photoInput.value !== '') {
-          photoInput.value = '';
-        }
-        var i = 0;
+        var idx = 0;
         var total = photoQueue.length;
-        var CHUNK_SIZE = 512 * 1024; // 512KB to stay under server limits
-
-        var uploadFileChunked = function (entry, fileIndex, onDone, onError) {
-          var file = entry.file;
-          var uploadId = entry.uploadId || (entry.uploadId = (Date.now() + '-' + Math.random().toString(16).slice(2)));
-          var chunkTotal = Math.ceil(file.size / CHUNK_SIZE);
-          var sendChunk = function (chunkIndex) {
-            var start = chunkIndex * CHUNK_SIZE;
-            var end = Math.min(file.size, start + CHUNK_SIZE);
-            var blob = file.slice(start, end);
-            var fd = new FormData();
-            fd.append('sku', sku);
-            fd.append('upload_id', uploadId);
-            fd.append('chunk_index', String(chunkIndex));
-            fd.append('chunk_total', String(chunkTotal));
-            fd.append('total_size', String(file.size));
-            fd.append('original_name', file.name || 'photo');
-            fd.append('mime_type', file.type || 'application/octet-stream');
-            fd.append('chunk', blob);
-            var xhr = new XMLHttpRequest();
-            xhr.open('POST', 'upload_photo_chunk.php');
-            xhr.upload.onprogress = function (evt) {
-              if (evt.lengthComputable) {
-                var pct = ((start + evt.loaded) / file.size) * 100;
-                updateProgress(fileIndex, pct);
-              }
-            };
-            xhr.onreadystatechange = function () {
-              if (xhr.readyState === 4) {
-                var ok = xhr.status >= 200 && xhr.status < 300;
-                if (!ok) {
-                  onError('Status ' + xhr.status);
-                  return;
-                }
-                var resp = {};
-                try {
-                  resp = JSON.parse(xhr.responseText || '{}');
-                } catch (e) {
-                  onError('Bad JSON response');
-                  return;
-                }
-                if (resp.status !== 'ok') {
-                  onError(resp.message || 'Upload failed');
-                  return;
-                }
-                if (chunkIndex + 1 < chunkTotal) {
-                  sendChunk(chunkIndex + 1);
-                } else {
-                  updateProgress(fileIndex, 100);
-                  onDone();
-                }
-              }
-            };
-            xhr.onerror = function () {
-              onError('Network error');
-            };
-            xhr.send(fd);
-          };
-          sendChunk(0);
-        };
-
-        var uploadNext = function () {
-          if (i >= total) {
-            if (submitButton) {
-              submitButton.textContent = 'Save Intake Item';
-              submitButton.disabled = false;
-            }
+        var next = function () {
+          if (idx >= total) {
             isUploading = false;
-            form.submit();
+            if (submitButton) {
+              submitButton.disabled = false;
+              submitButton.textContent = 'Save Intake Item';
+            }
+            // reload to show freshly saved photos
+            location.reload();
             return;
           }
-          var entry = photoQueue[i];
-          uploadFileChunked(entry, i, function () {
-            i += 1;
-            uploadNext();
+          var entry = photoQueue[idx];
+          uploadFileChunked(entry, idx, function () {
+            idx += 1;
+            next();
           }, function (msg) {
             isUploading = false;
             if (submitButton) {
@@ -1473,7 +1465,7 @@ function checked(string $name, string $value, array $formData): string
             alert('Photo upload failed for ' + (entry.file.name || 'photo') + ': ' + msg);
           });
         };
-        uploadNext();
+        next();
       };
       var addFilesToQueue = function (fileList) {
         Array.prototype.forEach.call(fileList || [], function (file) {
@@ -1485,6 +1477,7 @@ function checked(string $name, string $value, array $formData): string
         });
         syncInputFromQueue();
         renderPreview();
+        processQueue();
       };
       if (photoDropzone) {
         var dz = photoDropzone;

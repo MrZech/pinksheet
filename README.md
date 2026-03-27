@@ -46,8 +46,9 @@ SKU photo uploads are stored in `data/sku_photos/<SKU_NORMALIZED>/` and indexed 
 
 ## SKU photos
 
- - Use the “SKU Photos” section on `index.php` to upload up to 8 images per save (JPG/PNG/WEBP/GIF, max 8MB each).
+ - Drag/drop/paste or click in the “SKU Photos” section to queue multiple images (JPG/PNG/WEBP/GIF). Files upload automatically in 512KB chunks (bypasses 2MB PHP limits) and attach to the current SKU; progress bars show status.
  - Photos are attached by normalized SKU, so each SKU has its own independent gallery and does not share photos with other SKUs.
+ - “Download all as ZIP” above the photo grid bundles every saved photo for that SKU; if ZipArchive isn’t available, a pure-PHP fallback builds a store-only zip.
  - `photo.php?id=...` streams photo files by DB record so intake pages can render thumbnails safely.
 
 ## Printing
