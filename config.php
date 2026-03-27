@@ -5,6 +5,10 @@ declare(strict_types=1);
 ini_set('display_errors', '1');
 ini_set('display_startup_errors', '1');
 error_reporting(E_ALL);
+// Increase upload limits for photo handling (may be overridden by server config).
+@ini_set('upload_max_filesize', '16M');
+@ini_set('post_max_size', '64M');
+@ini_set('max_file_uploads', '50');
 
 const MAINTENANCE_MODE = false;
 const MAINTENANCE_MESSAGE = 'The intake system is temporarily offline for maintenance.';

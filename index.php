@@ -13,7 +13,7 @@ const LOOKUP_LOG_PATH = LOOKUP_LOG_DIR . '/lookup.csv';
 const CLEAR_DRAFT_PARAM = 'clear_draft';
 const PHOTO_UPLOAD_DIR = DB_DIR . '/sku_photos';
 const MAX_SKU_PHOTOS_PER_UPLOAD = 8;
-const MAX_SKU_PHOTO_BYTES = 8 * 1024 * 1024;
+const MAX_SKU_PHOTO_BYTES = 16 * 1024 * 1024;
 const ALLOWED_PHOTO_MIME_TYPES = [
     'image/jpeg' => 'jpg',
     'image/png' => 'png',
@@ -95,6 +95,38 @@ $pdo->exec("UPDATE intake_items SET sku_normalized = UPPER(TRIM(COALESCE(sku, ''
 function normalizeSku(string $sku): string
 {
     return strtoupper(trim($sku));
+}
+
+function iniBytes(string $value): int
+{
+    $value = trim($value);
+    if ($value === '') {
+        return 0;
+    }
+    $last = strtolower(substr($value, -1));
+    $num = (float)$value;
+    switch ($last) {
+        case 'g':
+            $num *= 1024;
+            // no break
+        case 'm':
+            $num *= 1024;
+            // no break
+        case 'k':
+            $num *= 1024;
+    }
+    return (int)$num;
+}
+
+function humanBytes(int $bytes): string
+{
+    if ($bytes >= 1024 * 1024) {
+        return round($bytes / (1024 * 1024), 1) . ' MB';
+    }
+    if ($bytes >= 1024) {
+        return round($bytes / 1024, 1) . ' KB';
+    }
+    return $bytes . ' B';
 }
 
 function normalizeUploadedFiles(array $uploaded): array
@@ -197,6 +229,11 @@ $clearDraft = isset($_GET[CLEAR_DRAFT_PARAM]);
 logLookup($lookupSku, $lookupStatus);
 $currentItem = null;
 $duplicateCount = 0;
+$serverUploadLimitBytes = min(
+    iniBytes((string)ini_get('upload_max_filesize')) ?: MAX_SKU_PHOTO_BYTES,
+    iniBytes((string)ini_get('post_max_size')) ?: MAX_SKU_PHOTO_BYTES
+);
+$effectivePhotoLimitBytes = min(MAX_SKU_PHOTO_BYTES, $serverUploadLimitBytes);
 
 if ($lookupSkuNormalized !== '') {
     $stmt = $pdo->prepare('SELECT * FROM intake_items WHERE sku_normalized = :sku_normalized ORDER BY id DESC LIMIT 1');
@@ -318,8 +355,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $photoWarnings[] = $originalDisplayName . ' failed to upload and was skipped (upload error).';
                     continue;
                 }
-                if (($upload['size'] ?? 0) <= 0 || ($upload['size'] ?? 0) > MAX_SKU_PHOTO_BYTES) {
-                    $photoWarnings[] = $originalDisplayName . ' is outside the size limit and was skipped.';
+                if (($upload['size'] ?? 0) <= 0 || ($upload['size'] ?? 0) > $effectivePhotoLimitBytes) {
+                    $photoWarnings[] = $originalDisplayName . ' is outside the size limit (' . humanBytes($effectivePhotoLimitBytes) . ') and was skipped.';
                     continue;
                 }
                 if (!is_uploaded_file((string)($upload['tmp_name'] ?? ''))) {
@@ -756,6 +793,7 @@ function checked(string $name, string $value, array $formData): string
               <div class="sku-photo-grid" id="sku-photo-preview-list" aria-live="polite"></div>
             </div>
             <p class="hint">Photos are attached to this SKU only after you click Save Intake Item.</p>
+            <p class="hint">Per-photo limit: <?php echo h(humanBytes($effectivePhotoLimitBytes)); ?>.</p>
             <?php if ($activeSkuNormalized === ''): ?>
               <p class="hint">Enter a SKU first to keep photos grouped with that specific item.</p>
             <?php elseif (!$skuPhotos): ?>
