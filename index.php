@@ -772,15 +772,9 @@ function checked(string $name, string $value, array $formData): string
                       <?php endif; ?>
                     </div>
                     <div class="sku-photo-actions">
-                      <button type="submit"
-                              class="ghost danger"
-                              form="photo-delete-form"
-                              formaction="index.php"
-                              formmethod="post"
-                              formnovalidate
-                              name="delete_photo_id"
-                              value="<?php echo isset($photo['id']) ? (int)$photo['id'] : 0; ?>"
-                              onclick="return confirm('Delete this photo?');">
+                      <button type="button"
+                              class="ghost danger js-delete-photo"
+                              data-photo-id="<?php echo isset($photo['id']) ? (int)$photo['id'] : 0; ?>">
                         Delete
                       </button>
                     </div>
@@ -1218,6 +1212,9 @@ function checked(string $name, string $value, array $formData): string
       var photoInput = document.querySelector('input[name="sku_photos[]"]');
       var previewContainer = document.getElementById('sku-photo-preview');
       var previewList = document.getElementById('sku-photo-preview-list');
+      var deleteForm = document.getElementById('photo-delete-form');
+      var deleteInput = document.getElementById('delete-photo-id');
+      var skuField = document.querySelector('input[name="sku"]');
       var previewUrls = [];
       var clearPreview = function () {
         previewUrls.forEach(function (url) {
@@ -1273,6 +1270,22 @@ function checked(string $name, string $value, array $formData): string
       if (photoInput) {
         photoInput.addEventListener('change', function () {
           renderPreview(photoInput.files);
+        });
+      }
+      var deleteButtons = document.querySelectorAll('.js-delete-photo');
+      if (deleteButtons.length && deleteForm && deleteInput) {
+        deleteButtons.forEach(function (btn) {
+          btn.addEventListener('click', function () {
+            var id = btn.getAttribute('data-photo-id');
+            if (!id) return;
+            var ok = confirm('Delete this photo?');
+            if (!ok) return;
+            deleteInput.value = id;
+            if (skuField) {
+              deleteForm.querySelector('input[name="sku"]').value = skuField.value;
+            }
+            deleteForm.submit();
+          });
         });
       }
       if (form) {
