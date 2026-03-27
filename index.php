@@ -208,6 +208,38 @@ if ($lookupSkuNormalized !== '') {
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (isset($_POST['delete_photo_id'])) {
+        $photoId = (int)$_POST['delete_photo_id'];
+        $photo = null;
+        if ($photoId > 0) {
+            $stmt = $pdo->prepare('SELECT sku_normalized, stored_name FROM sku_photos WHERE id = :id LIMIT 1');
+            $stmt->execute(['id' => $photoId]);
+            $photo = $stmt->fetch(PDO::FETCH_ASSOC) ?: null;
+        }
+        if ($photo) {
+            $skuDir = normalizedSkuDirectory((string)($photo['sku_normalized'] ?? ''));
+            $storedName = basename((string)($photo['stored_name'] ?? ''));
+            $filePath = PHOTO_UPLOAD_DIR . '/' . $skuDir . '/' . $storedName;
+            $pdo->prepare('DELETE FROM sku_photos WHERE id = :id')->execute(['id' => $photoId]);
+            if (is_file($filePath)) {
+                @unlink($filePath);
+            }
+            $photoWarnings[] = 'Photo deleted.';
+        } else {
+            $photoWarnings[] = 'Photo could not be found to delete.';
+        }
+        $redirect = $_SERVER['PHP_SELF'];
+        $redirectSku = trim((string)($_POST['sku'] ?? ''));
+        if ($redirectSku !== '') {
+            $redirect .= '?sku=' . urlencode($redirectSku);
+        }
+        if ($photoWarnings) {
+            $redirect .= ($redirectSku === '' ? '?' : '&') . 'photo_notice=' . urlencode($photoWarnings[0]);
+        }
+        header('Location: ' . $redirect);
+        exit;
+    }
+
     if (isset($_POST['bulk_update'])) {
         $bulkStatus = trim($_POST['bulk_status'] ?? '');
         $bulkIds = array_values(array_unique(array_map('intval', (array)($_POST['bulk_ids'] ?? []))));
@@ -444,6 +476,9 @@ $toastMessage = '';
 if ($saved) {
     $toastMessage = $saveMode === 'created' ? 'Saved as new SKU record.' : 'Saved and synced to this SKU.';
 }
+if (isset($_GET['photo_notice']) && trim((string)$_GET['photo_notice']) !== '') {
+    $photoWarnings[] = trim((string)$_GET['photo_notice']);
+}
 
 function h(?string $value): string
 {
@@ -549,6 +584,11 @@ function checked(string $name, string $value, array $formData): string
       <?php endif; ?>
 
       <p class="error client-error" id="client-error" hidden>Please fill in SKU before saving.</p>
+
+      <form id="photo-delete-form" method="post" class="visually-hidden">
+        <input type="hidden" name="delete_photo_id" id="delete-photo-id">
+        <input type="hidden" name="sku" value="<?php echo h($activeSkuNormalized); ?>">
+      </form>
 
           <form id="intake-form" method="post" enctype="multipart/form-data" class="form-grid">
             <input type="hidden" id="clear-draft" value="<?php echo $clearDraft ? '1' : '0'; ?>">
@@ -721,10 +761,30 @@ function checked(string $name, string $value, array $formData): string
             <?php else: ?>
               <div class="sku-photo-grid">
                 <?php foreach ($skuPhotos as $photo): ?>
-                  <a class="sku-photo-item" href="photo.php?id=<?php echo isset($photo['id']) ? (int)$photo['id'] : 0; ?>" target="_blank" rel="noopener">
-                    <img src="photo.php?id=<?php echo isset($photo['id']) ? (int)$photo['id'] : 0; ?>" alt="Photo for SKU <?php echo h($activeSkuNormalized); ?>" loading="lazy">
-                    <span><?php echo h($photo['original_name'] ?? 'Photo'); ?></span>
-                  </a>
+                  <div class="sku-photo-item">
+                    <a class="sku-photo-link" href="photo.php?id=<?php echo isset($photo['id']) ? (int)$photo['id'] : 0; ?>" target="_blank" rel="noopener" title="Open photo in new tab">
+                      <img src="photo.php?id=<?php echo isset($photo['id']) ? (int)$photo['id'] : 0; ?>" alt="Photo for SKU <?php echo h($activeSkuNormalized); ?>" loading="lazy">
+                    </a>
+                    <div class="sku-photo-meta">
+                      <span><?php echo h($photo['original_name'] ?? 'Photo'); ?></span>
+                      <?php if (isset($photo['file_size'])): ?>
+                        <span class="sku-photo-size"><?php echo round(((int)$photo['file_size']) / 1024, 1); ?> KB</span>
+                      <?php endif; ?>
+                    </div>
+                    <div class="sku-photo-actions">
+                      <button type="submit"
+                              class="ghost danger"
+                              form="photo-delete-form"
+                              formaction="index.php"
+                              formmethod="post"
+                              formnovalidate
+                              name="delete_photo_id"
+                              value="<?php echo isset($photo['id']) ? (int)$photo['id'] : 0; ?>"
+                              onclick="return confirm('Delete this photo?');">
+                        Delete
+                      </button>
+                    </div>
+                  </div>
                 <?php endforeach; ?>
               </div>
             <?php endif; ?>
