@@ -794,9 +794,12 @@ function checked(string $name, string $value, array $formData): string
 
           <div class="section sku-photos">
             <h2>SKU Photos</h2>
-            <label>Add photos for this SKU
-              <input type="file" name="sku_photos[]" accept="image/jpeg,image/png,image/webp,image/gif" multiple id="sku-photo-input">
-            </label>
+            <div class="sku-photo-dropzone" id="sku-photo-dropzone">
+              <label>Add photos for this SKU
+                <input type="file" name="sku_photos[]" accept="image/jpeg,image/png,image/webp,image/gif" multiple id="sku-photo-input">
+              </label>
+              <p class="hint">Drop, paste, or click to add images.</p>
+            </div>
             <div class="sku-photo-preview" id="sku-photo-preview" hidden>
               <p class="hint">Preview (not saved until you click Save Intake Item):</p>
               <div class="sku-photo-grid" id="sku-photo-preview-list" aria-live="polite"></div>
@@ -1254,17 +1257,25 @@ function checked(string $name, string $value, array $formData): string
           if (whatError) {
             whatError.hidden = true;
           }
+          if (photoQueue.length) {
+            event.preventDefault();
+            uploadQueueThenSubmit();
+            return;
+          }
           localStorage.removeItem(draftKey);
         });
       }
 
       var photoInput = document.getElementById('sku-photo-input');
+      var photoDropzone = document.getElementById('sku-photo-dropzone');
       var previewContainer = document.getElementById('sku-photo-preview');
       var previewList = document.getElementById('sku-photo-preview-list');
       var deleteForm = document.getElementById('photo-delete-form');
       var deleteInput = document.getElementById('delete-photo-id');
       var deleteSku = document.getElementById('delete-photo-sku');
       var skuField = document.querySelector('input[name="sku"]');
+      var isUploading = false;
+      var submitButton = document.querySelector('button[type="submit"]');
       var clearPreview = function () {
         photoQueue.forEach(function (entry) {
           URL.revokeObjectURL(entry.url);
@@ -1330,6 +1341,13 @@ function checked(string $name, string $value, array $formData): string
           });
           card.appendChild(deleteBtn);
 
+          var progressBar = document.createElement('div');
+          progressBar.className = 'sku-photo-progress';
+          var progressInner = document.createElement('span');
+          progressInner.dataset.photoIdx = String(index);
+          progressBar.appendChild(progressInner);
+          card.appendChild(progressBar);
+
           previewList.appendChild(card);
         });
         previewContainer.hidden = previewList.children.length === 0;
@@ -1356,6 +1374,120 @@ function checked(string $name, string $value, array $formData): string
           });
           syncInputFromQueue();
           renderPreview();
+        });
+      }
+      var updateProgress = function (idx, percent) {
+        var bar = previewList.querySelector('.sku-photo-progress span[data-photo-idx="' + idx + '"]');
+        if (bar) {
+          bar.style.width = Math.min(100, Math.max(0, percent)) + '%';
+        }
+      };
+      var uploadQueueThenSubmit = function () {
+        if (isUploading) return;
+        var sku = (skuField && skuField.value || '').trim();
+        if (!sku) {
+          alert('Enter a SKU before saving so photos can attach.');
+          return;
+        }
+        if (!photoQueue.length) {
+          form.submit();
+          return;
+        }
+        isUploading = true;
+        if (submitButton) {
+          submitButton.disabled = true;
+          submitButton.textContent = 'Uploading photos...';
+        }
+        // prevent files from posting again with the form
+        if (photoInput && photoInput.value !== '') {
+          photoInput.value = '';
+        }
+        var i = 0;
+        var total = photoQueue.length;
+        var uploadNext = function () {
+          if (i >= total) {
+            if (submitButton) {
+              submitButton.textContent = 'Save Intake Item';
+              submitButton.disabled = false;
+            }
+            isUploading = false;
+            form.submit();
+            return;
+          }
+          var entry = photoQueue[i];
+          updateProgress(i, 5);
+          var fd = new FormData();
+          fd.append('sku', sku);
+          fd.append('photo', entry.file);
+          var xhr = new XMLHttpRequest();
+          xhr.open('POST', 'upload_photo.php');
+          xhr.upload.onprogress = function (evt) {
+            if (evt.lengthComputable) {
+              var pct = (evt.loaded / evt.total) * 100;
+              updateProgress(i, pct);
+            }
+          };
+          xhr.onreadystatechange = function () {
+            if (xhr.readyState === 4) {
+              var ok = xhr.status >= 200 && xhr.status < 300;
+              if (ok) {
+                updateProgress(i, 100);
+                i += 1;
+                uploadNext();
+              } else {
+                isUploading = false;
+                if (submitButton) {
+                  submitButton.disabled = false;
+                  submitButton.textContent = 'Save Intake Item';
+                }
+                alert('Photo upload failed for ' + (entry.file.name || 'photo') + '. Status ' + xhr.status);
+              }
+            }
+          };
+          xhr.onerror = function () {
+            isUploading = false;
+            if (submitButton) {
+              submitButton.disabled = false;
+              submitButton.textContent = 'Save Intake Item';
+            }
+            alert('Network error while uploading ' + (entry.file.name || 'photo') + '.');
+          };
+          xhr.send(fd);
+        };
+        uploadNext();
+      };
+      var addFilesToQueue = function (fileList) {
+        Array.prototype.forEach.call(fileList || [], function (file) {
+          if (!file || !file.type || !file.type.startsWith('image/')) {
+            return;
+          }
+          var url = URL.createObjectURL(file);
+          photoQueue.push({ file: file, url: url, progress: 0 });
+        });
+        syncInputFromQueue();
+        renderPreview();
+      };
+      if (photoDropzone) {
+        var dz = photoDropzone;
+        ['dragenter', 'dragover'].forEach(function (evtName) {
+          dz.addEventListener(evtName, function (evt) {
+            evt.preventDefault();
+            dz.classList.add('is-hover');
+          });
+        });
+        ['dragleave', 'drop'].forEach(function (evtName) {
+          dz.addEventListener(evtName, function (evt) {
+            evt.preventDefault();
+            dz.classList.remove('is-hover');
+          });
+        });
+        dz.addEventListener('drop', function (evt) {
+          addFilesToQueue(evt.dataTransfer ? evt.dataTransfer.files : []);
+        });
+        dz.addEventListener('paste', function (evt) {
+          if (!evt.clipboardData) return;
+          var items = evt.clipboardData.files;
+          addFilesToQueue(items);
         });
       }
       var deleteButtons = document.querySelectorAll('.js-delete-photo');

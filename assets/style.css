@@ -912,6 +912,20 @@ button:active,
   grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
 }
 
+.sku-photo-dropzone {
+  border: 1px dashed var(--line);
+  border-radius: var(--radius-sm);
+  padding: 10px;
+  margin-top: 10px;
+  background: rgba(255, 255, 255, 0.4);
+  transition: border-color 120ms ease, background 120ms ease;
+}
+
+.sku-photo-dropzone.is-hover {
+  border-color: var(--accent-strong);
+  background: rgba(255, 243, 247, 0.7);
+}
+
 .sku-photo-preview {
   margin-top: 10px;
 }
@@ -964,6 +978,22 @@ button:active,
 
 .sku-photo-size {
   font-variant-numeric: tabular-nums;
+}
+
+.sku-photo-progress {
+  height: 6px;
+  background: rgba(0, 0, 0, 0.06);
+  border-radius: 999px;
+  overflow: hidden;
+  margin-top: 6px;
+}
+
+.sku-photo-progress span {
+  display: block;
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, #ff6f91, #ff9671);
+  transition: width 120ms linear;
 }
 
 .sku-photo-actions {
