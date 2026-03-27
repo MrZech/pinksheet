@@ -1543,6 +1543,13 @@ function checked(string $name, string $value, array $formData): string
         });
       }
 
+      // Light auto-refresh to keep listings/photos current without manual Save press
+      setInterval(function () {
+        if (!document.body.classList.contains('has-open-menu') && !isUploading) {
+          location.reload();
+        }
+      }, 60000);
+
       var toastElement = document.getElementById('save-toast');
       var toastTimer = null;
       if (toastElement && toastElement.dataset.active === '1') {
