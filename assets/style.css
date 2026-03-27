@@ -1001,6 +1001,10 @@ button:active,
   justify-content: flex-end;
 }
 
+.inline-form {
+  margin: 10px 0;
+}
+
 .sku-photo-actions .ghost {
   border: 1px solid var(--line);
   background: transparent;
