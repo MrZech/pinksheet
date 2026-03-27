@@ -587,7 +587,7 @@ function checked(string $name, string $value, array $formData): string
 
       <form id="photo-delete-form" method="post" class="visually-hidden">
         <input type="hidden" name="delete_photo_id" id="delete-photo-id">
-        <input type="hidden" name="sku" value="<?php echo h($activeSkuNormalized); ?>">
+        <input type="hidden" name="sku" id="delete-photo-sku" value="<?php echo h($activeSkuNormalized); ?>">
       </form>
 
           <form id="intake-form" method="post" enctype="multipart/form-data" class="form-grid">
@@ -763,7 +763,7 @@ function checked(string $name, string $value, array $formData): string
                 <?php foreach ($skuPhotos as $photo): ?>
                   <div class="sku-photo-item">
                     <a class="sku-photo-link" href="photo.php?id=<?php echo isset($photo['id']) ? (int)$photo['id'] : 0; ?>" target="_blank" rel="noopener" title="Open photo in new tab">
-                      <img src="photo.php?id=<?php echo isset($photo['id']) ? (int)$photo['id'] : 0; ?>" alt="Photo for SKU <?php echo h($activeSkuNormalized); ?>" loading="lazy">
+                      <img src="photo.php?id=<?php echo isset($photo['id']) ? (int)$photo['id'] : 0; ?>" alt="Photo for SKU <?php echo h($activeSkuNormalized); ?>">
                     </a>
                     <div class="sku-photo-meta">
                       <span><?php echo h($photo['original_name'] ?? 'Photo'); ?></span>
@@ -1214,6 +1214,7 @@ function checked(string $name, string $value, array $formData): string
       var previewList = document.getElementById('sku-photo-preview-list');
       var deleteForm = document.getElementById('photo-delete-form');
       var deleteInput = document.getElementById('delete-photo-id');
+      var deleteSku = document.getElementById('delete-photo-sku');
       var skuField = document.querySelector('input[name="sku"]');
       var previewUrls = [];
       var clearPreview = function () {
@@ -1254,7 +1255,6 @@ function checked(string $name, string $value, array $formData): string
           var img = document.createElement('img');
           img.src = url;
           img.alt = file.name || 'Selected photo';
-          img.loading = 'lazy';
 
           var caption = document.createElement('span');
           var label = file.name || 'Photo';
@@ -1282,7 +1282,7 @@ function checked(string $name, string $value, array $formData): string
             if (!ok) return;
             deleteInput.value = id;
             if (skuField) {
-              deleteForm.querySelector('input[name="sku"]').value = skuField.value;
+              deleteSku.value = skuField.value;
             }
             deleteForm.submit();
           });
