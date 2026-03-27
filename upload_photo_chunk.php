@@ -46,6 +46,11 @@ function errorResponse(string $message, int $code = 400): void
     exit;
 }
 
+function infoLog(string $message): void
+{
+    @file_put_contents(__DIR__ . '/logs/upload_chunk.log', '[' . date('c') . '] ' . $message . PHP_EOL, FILE_APPEND);
+}
+
 $sku = normalizeSku((string)($_POST['sku'] ?? ''));
 if ($sku === '') {
     errorResponse('SKU is required to attach photos.');
@@ -57,6 +62,8 @@ $chunkTotal = (int)($_POST['chunk_total'] ?? 0);
 $totalSize = (int)($_POST['total_size'] ?? 0);
 $originalName = (string)($_POST['original_name'] ?? 'photo');
 $mimeType = (string)($_POST['mime_type'] ?? '');
+
+infoLog("recv chunk upload_id=$uploadId idx=$chunkIndex/$chunkTotal size=" . ($chunk['size'] ?? 0) . " total=$totalSize sku=$sku");
 
 if ($uploadId === '' || $chunkIndex < 0 || $chunkTotal <= 0 || $chunkIndex >= $chunkTotal) {
     errorResponse('Invalid chunk metadata.');
@@ -178,6 +185,8 @@ SQL);
         @unlink($destination);
         errorResponse('Database error: ' . $e->getMessage(), 500);
     }
+
+    infoLog("assembled upload_id=$uploadId stored=$storedName size=$finalSize sku=$sku");
 
     // cleanup chunks
     $files = glob($chunkFolder . '/*.part') ?: [];
