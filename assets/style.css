@@ -971,6 +971,15 @@ button:active,
   justify-content: flex-end;
 }
 
+.sku-photo-actions .ghost {
+  border: 1px solid var(--line);
+  background: transparent;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+
 .sku-photo-actions .ghost.danger {
   color: #b02a37;
   border: 1px solid rgba(176, 42, 55, 0.35);

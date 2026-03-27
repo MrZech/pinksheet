@@ -795,13 +795,13 @@ function checked(string $name, string $value, array $formData): string
           <div class="section sku-photos">
             <h2>SKU Photos</h2>
             <label>Add photos for this SKU
-              <input type="file" name="sku_photos[]" accept="image/jpeg,image/png,image/webp,image/gif" multiple>
+              <input type="file" name="sku_photos[]" accept="image/jpeg,image/png,image/webp,image/gif" multiple id="sku-photo-input">
             </label>
             <div class="sku-photo-preview" id="sku-photo-preview" hidden>
               <p class="hint">Preview (not saved until you click Save Intake Item):</p>
               <div class="sku-photo-grid" id="sku-photo-preview-list" aria-live="polite"></div>
             </div>
-            <p class="hint">Photos are attached to this SKU only after you click Save Intake Item.</p>
+            <p class="hint">Photos upload immediately per file (no need to click Save for them).</p>
             <p class="hint">Per-photo limit: <?php echo h(humanBytes($effectivePhotoLimitBytes)); ?>.</p>
             <?php if ($activeSkuNormalized === ''): ?>
               <p class="hint">Enter a SKU first to keep photos grouped with that specific item.</p>
@@ -1258,7 +1258,7 @@ function checked(string $name, string $value, array $formData): string
         });
       }
 
-      var photoInput = document.querySelector('input[name="sku_photos[]"]');
+      var photoInput = document.getElementById('sku-photo-input');
       var previewContainer = document.getElementById('sku-photo-preview');
       var previewList = document.getElementById('sku-photo-preview-list');
       var deleteForm = document.getElementById('photo-delete-form');
@@ -1316,9 +1316,54 @@ function checked(string $name, string $value, array $formData): string
         });
         previewContainer.hidden = previewList.children.length === 0;
       };
+      var uploadFile = function (file, onDone) {
+        var sku = (skuField && skuField.value || '').trim();
+        if (!sku) {
+          alert('Enter a SKU before uploading photos.');
+          return;
+        }
+        var formData = new FormData();
+        formData.append('sku', sku);
+        formData.append('photo', file);
+        fetch('upload_photo.php', {
+          method: 'POST',
+          body: formData
+        }).then(function (res) {
+          return res.json().catch(function () {
+            return { status: 'error', message: 'Upload failed (bad response).' };
+          });
+        }).then(function (data) {
+          if (data.status !== 'ok') {
+            alert(data.message || 'Upload failed.');
+          }
+          if (typeof onDone === 'function') {
+            onDone();
+          }
+        }).catch(function () {
+          alert('Network error while uploading photo.');
+          if (typeof onDone === 'function') {
+            onDone();
+          }
+        });
+      };
       if (photoInput) {
         photoInput.addEventListener('change', function () {
-          renderPreview(photoInput.files);
+          var files = photoInput.files;
+          if (!files || !files.length) {
+            clearPreview();
+            return;
+          }
+          renderPreview(files);
+          var remaining = files.length;
+          Array.prototype.forEach.call(files, function (file) {
+            uploadFile(file, function () {
+              remaining -= 1;
+              if (remaining <= 0) {
+                // Refresh to show the new photos in the saved list
+                window.location.reload();
+              }
+            });
+          });
         });
       }
       var deleteButtons = document.querySelectorAll('.js-delete-photo');
