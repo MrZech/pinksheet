@@ -51,6 +51,11 @@ SKU photo uploads are stored in `data/sku_photos/<SKU_NORMALIZED>/` and indexed 
  - “Download all as ZIP” above the photo grid bundles every saved photo for that SKU; if ZipArchive isn’t available, a pure-PHP fallback builds a store-only zip.
  - `photo.php?id=...` streams photo files by DB record so intake pages can render thumbnails safely.
 
+## Maintenance / fixes
+
+ - Run `php scripts/migrate.php` to ensure directories exist (`data/`, `data/sku_photos/`, `data/chunks/`, `logs/`) and that required tables/columns/indexes are present in `data/intake.sqlite`.
+ - To keep the live DB out of git conflicts: `git update-index --skip-worktree data/intake.sqlite` (and `--no-skip-worktree` to re-track later).
+
 ## Printing
 
  - Use the new “Print” button in the sheet headers to trigger `window.print()` whenever you want a paper copy; the media styles already hide UI elements like the menu, breadcrumbs, and toast so the output stays clean.
