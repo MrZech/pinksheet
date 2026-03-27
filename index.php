@@ -804,10 +804,9 @@ function checked(string $name, string $value, array $formData): string
             <?php elseif (!$skuPhotos): ?>
               <p class="hint">No photos saved for SKU <?php echo h($activeSkuNormalized); ?> yet.</p>
             <?php else: ?>
-              <form method="get" action="download_photos.php" class="inline-form">
-                <input type="hidden" name="sku" value="<?php echo h($activeSkuNormalized); ?>">
-                <button type="submit" class="ghost">Download all as ZIP</button>
-              </form>
+              <div class="inline-actions">
+                <a class="ghost button" href="download_photos.php?sku=<?php echo urlencode($activeSkuNormalized); ?>">Download all as ZIP</a>
+              </div>
               <div class="sku-photo-grid">
                 <?php foreach ($skuPhotos as $photo): ?>
                   <div class="sku-photo-item">

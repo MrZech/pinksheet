@@ -1005,6 +1005,26 @@ button:active,
   margin: 10px 0;
 }
 
+.inline-actions {
+  margin: 10px 0;
+}
+
+.ghost.button {
+  display: inline-block;
+  border: 1px solid var(--line);
+  background: transparent;
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  font-size: 0.85rem;
+  text-decoration: none;
+  color: inherit;
+}
+
+.ghost.button:hover {
+  text-decoration: none;
+  border-color: var(--line-strong);
+}
+
 .sku-photo-actions .ghost {
   border: 1px solid var(--line);
   background: transparent;

@@ -90,9 +90,13 @@ if ($added === 0) {
 }
 
 $downloadName = 'sku_' . $sku . '_photos.zip';
+$size = (int)filesize($zipPath);
 header('Content-Type: application/zip');
 header('Content-Disposition: attachment; filename="' . $downloadName . '"');
-header('Content-Length: ' . (string)filesize($zipPath));
+header('Content-Length: ' . (string)$size);
+header('Cache-Control: no-cache, no-store, must-revalidate');
+header('Pragma: no-cache');
+header('Expires: 0');
 readfile($zipPath);
 @unlink($zipPath);
 exit;
