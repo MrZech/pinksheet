@@ -306,35 +306,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($uploadedPhotos) {
             if (count($uploadedPhotos) > MAX_SKU_PHOTOS_PER_UPLOAD) {
                 $photoWarnings[] = 'You can upload up to ' . MAX_SKU_PHOTOS_PER_UPLOAD . ' photos at once; extra files were ignored.';
+                $uploadedPhotos = array_slice($uploadedPhotos, 0, MAX_SKU_PHOTOS_PER_UPLOAD);
             }
             $finfo = finfo_open(FILEINFO_MIME_TYPE);
             foreach ($uploadedPhotos as $upload) {
+                $originalDisplayName = (string)($upload['name'] ?? 'photo');
                 if (($upload['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_NO_FILE) {
                     continue;
                 }
                 if (($upload['error'] ?? UPLOAD_ERR_OK) !== UPLOAD_ERR_OK) {
-                    $photoWarnings[] = 'One of the selected photos failed to upload and was skipped.';
+                    $photoWarnings[] = $originalDisplayName . ' failed to upload and was skipped (upload error).';
                     continue;
                 }
                 if (($upload['size'] ?? 0) <= 0 || ($upload['size'] ?? 0) > MAX_SKU_PHOTO_BYTES) {
-                    $photoWarnings[] = 'A selected photo was outside the size limit and was skipped.';
+                    $photoWarnings[] = $originalDisplayName . ' is outside the size limit and was skipped.';
                     continue;
                 }
                 if (!is_uploaded_file((string)($upload['tmp_name'] ?? ''))) {
-                    $photoWarnings[] = 'A selected photo looked invalid and was skipped.';
+                    $photoWarnings[] = $originalDisplayName . ' looked invalid and was skipped.';
                     continue;
                 }
                 $mimeType = (string)finfo_file($finfo, (string)$upload['tmp_name']);
                 $extension = ALLOWED_PHOTO_MIME_TYPES[$mimeType] ?? null;
                 if ($extension === null) {
-                    $photoWarnings[] = 'Only JPG, PNG, WEBP, or GIF photos are allowed; other files were skipped.';
+                    $photoWarnings[] = $originalDisplayName . ' is not JPG/PNG/WEBP/GIF and was skipped.';
                     continue;
                 }
                 $pendingPhotoUploads[] = [
                     'tmp_name' => (string)$upload['tmp_name'],
                     'mime_type' => $mimeType,
                     'extension' => $extension,
-                    'original_name' => sanitizeFilename((string)$upload['name']),
+                    'original_name' => sanitizeFilename($originalDisplayName),
                     'file_size' => (int)$upload['size'],
                 ];
             }
