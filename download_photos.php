@@ -24,9 +24,78 @@ if ($sku === '') {
     exit('SKU is required.');
 }
 
-if (!class_exists('ZipArchive')) {
-    http_response_code(500);
-    exit('Zip support is not available on this server.');
+function dosTime(int $timestamp): int
+{
+    $dt = getdate($timestamp);
+    return (($dt['year'] - 1980) << 25) | ($dt['mon'] << 21) | ($dt['mday'] << 16) | ($dt['hours'] << 11) | ($dt['minutes'] << 5) | ($dt['seconds'] >> 1);
+}
+
+function buildStoreOnlyZip(array $files): string
+{
+    // $files: array of ['name' => path inside zip, 'path' => source file]
+    $zipData = '';
+    $central = '';
+    $offset = 0;
+    foreach ($files as $file) {
+        $name = $file['name'];
+        $path = $file['path'];
+        $data = file_get_contents($path);
+        if ($data === false) {
+            continue;
+        }
+        $crc = crc32($data);
+        $size = strlen($data);
+        $time = dosTime(filemtime($path) ?: time());
+
+        $localHeader = pack(
+            'VvvvVVVvv',
+            0x04034b50, // signature
+            20, // version needed
+            0,  // general flags
+            0,  // compression 0 = store
+            $time, // dos time/date
+            $crc,
+            $size,
+            $size,
+            strlen($name),
+            0 // extra length
+        );
+        $zipData .= $localHeader . $name . $data;
+
+        $centralHeader = pack(
+            'VvvvvVVVvvvvvVV',
+            0x02014b50, // central file header signature
+            0, // version made
+            20, // version needed
+            0, // flags
+            0, // compression
+            $time,
+            $crc,
+            $size,
+            $size,
+            strlen($name),
+            0, // extra
+            0, // comment len
+            0, // disk start
+            0, // internal attrs
+            0, // external attrs
+            $offset
+        );
+        $central .= $centralHeader . $name;
+        $offset += strlen($localHeader) + strlen($name) + $size;
+    }
+    $end = pack(
+        'VvvvvVVv',
+        0x06054b50, // end of central dir
+        0, // disk number
+        0, // disk with central start
+        count($files),
+        count($files),
+        strlen($central),
+        strlen($zipData),
+        0 // comment length
+    );
+    return $zipData . $central . $end;
 }
 
 $pdo = new PDO('sqlite:' . DB_PATH, null, null, [
@@ -52,12 +121,7 @@ if (!$photos) {
 }
 
 $skuDir = PHOTO_UPLOAD_DIR . '/' . normalizedSkuDirectory($sku);
-$zipPath = tempnam(sys_get_temp_dir(), 'sku_zip_');
-$zip = new ZipArchive();
-if ($zip->open($zipPath, ZipArchive::OVERWRITE) !== true) {
-    http_response_code(500);
-    exit('Could not create zip file.');
-}
+$zipFiles = [];
 $added = 0;
 foreach ($photos as $idx => $photo) {
     $stored = basename((string)($photo['stored_name'] ?? ''));
@@ -66,7 +130,6 @@ foreach ($photos as $idx => $photo) {
     if ($safeOrig === '') {
         $safeOrig = 'photo';
     }
-    // ensure unique inside zip
     $pathInZip = $safeOrig;
     if (strpos($pathInZip, '.') === false) {
         $pathInZip .= '.jpg';
@@ -78,25 +141,42 @@ foreach ($photos as $idx => $photo) {
     if (!is_file($filePath)) {
         continue;
     }
-    $zip->addFile($filePath, $pathInZip);
+    $zipFiles[] = ['name' => $pathInZip, 'path' => $filePath];
     $added++;
 }
-$zip->close();
 
 if ($added === 0) {
-    @unlink($zipPath);
     http_response_code(404);
     exit('No photo files found to download.');
 }
 
 $downloadName = 'sku_' . $sku . '_photos.zip';
-$size = (int)filesize($zipPath);
 header('Content-Type: application/zip');
 header('Content-Disposition: attachment; filename="' . $downloadName . '"');
-header('Content-Length: ' . (string)$size);
 header('Cache-Control: no-cache, no-store, must-revalidate');
 header('Pragma: no-cache');
 header('Expires: 0');
-readfile($zipPath);
-@unlink($zipPath);
+
+if (class_exists('ZipArchive')) {
+    $zipPath = tempnam(sys_get_temp_dir(), 'sku_zip_');
+    $zip = new ZipArchive();
+    if ($zip->open($zipPath, ZipArchive::OVERWRITE) !== true) {
+        http_response_code(500);
+        exit('Could not create zip file.');
+    }
+    foreach ($zipFiles as $file) {
+        $zip->addFile($file['path'], $file['name']);
+    }
+    $zip->close();
+    $size = (int)filesize($zipPath);
+    header('Content-Length: ' . (string)$size);
+    readfile($zipPath);
+    @unlink($zipPath);
+    exit;
+}
+
+// Fallback: build a store-only zip manually (no compression)
+$zipData = buildStoreOnlyZip($zipFiles);
+header('Content-Length: ' . strlen($zipData));
+echo $zipData;
 exit;
