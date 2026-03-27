@@ -36,6 +36,7 @@ function buildStoreOnlyZip(array $files): string
     $zipData = '';
     $central = '';
     $offset = 0;
+    $added = 0;
     foreach ($files as $file) {
         $name = $file['name'];
         $path = $file['path'];
@@ -43,6 +44,7 @@ function buildStoreOnlyZip(array $files): string
         if ($data === false) {
             continue;
         }
+        $added++;
         $crc = crc32($data);
         $size = strlen($data);
         $time = dosTime(filemtime($path) ?: time());
@@ -84,13 +86,16 @@ function buildStoreOnlyZip(array $files): string
         $central .= $centralHeader . $name;
         $offset += strlen($localHeader) + strlen($name) + $size;
     }
+    if ($added === 0) {
+        return '';
+    }
     $end = pack(
         'VvvvvVVv',
         0x06054b50, // end of central dir
         0, // disk number
         0, // disk with central start
-        count($files),
-        count($files),
+        $added,
+        $added,
         strlen($central),
         strlen($zipData),
         0 // comment length
@@ -177,6 +182,10 @@ if (class_exists('ZipArchive')) {
 
 // Fallback: build a store-only zip manually (no compression)
 $zipData = buildStoreOnlyZip($zipFiles);
+if ($zipData === '') {
+    http_response_code(404);
+    exit('No photo files found to download.');
+}
 header('Content-Length: ' . strlen($zipData));
 echo $zipData;
 exit;
