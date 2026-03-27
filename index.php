@@ -801,7 +801,7 @@ function checked(string $name, string $value, array $formData): string
               <p class="hint">Preview (not saved until you click Save Intake Item):</p>
               <div class="sku-photo-grid" id="sku-photo-preview-list" aria-live="polite"></div>
             </div>
-            <p class="hint">Photos upload immediately per file (no need to click Save for them).</p>
+            <p class="hint">Photos are attached when you click Save Intake Item.</p>
             <p class="hint">Per-photo limit: <?php echo h(humanBytes($effectivePhotoLimitBytes)); ?>.</p>
             <?php if ($activeSkuNormalized === ''): ?>
               <p class="hint">Enter a SKU first to keep photos grouped with that specific item.</p>
@@ -1265,12 +1265,11 @@ function checked(string $name, string $value, array $formData): string
       var deleteInput = document.getElementById('delete-photo-id');
       var deleteSku = document.getElementById('delete-photo-sku');
       var skuField = document.querySelector('input[name="sku"]');
-      var previewUrls = [];
       var clearPreview = function () {
-        previewUrls.forEach(function (url) {
-          URL.revokeObjectURL(url);
+        photoQueue.forEach(function (entry) {
+          URL.revokeObjectURL(entry.url);
         });
-        previewUrls = [];
+        photoQueue = [];
         if (previewList) {
           previewList.innerHTML = '';
         }
@@ -1283,19 +1282,24 @@ function checked(string $name, string $value, array $formData): string
         if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
         return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
       };
-      var renderPreview = function (fileList) {
-        clearPreview();
-        if (!previewContainer || !previewList || !fileList || !fileList.length) {
+      var photoQueue = [];
+      var renderPreview = function () {
+        if (!previewContainer || !previewList) {
           return;
         }
-        Array.prototype.forEach.call(fileList, function (file) {
-          if (!file || !file.type || !file.type.startsWith('image/')) {
-            return;
-          }
-          var url = URL.createObjectURL(file);
-          previewUrls.push(url);
+        previewList.innerHTML = '';
+        if (!photoQueue.length) {
+          previewContainer.hidden = true;
+          return;
+        }
+        photoQueue.forEach(function (entry, index) {
+          var file = entry.file;
+          var url = entry.url;
+          var card = document.createElement('div');
+          card.className = 'sku-photo-item is-preview';
+
           var link = document.createElement('a');
-          link.className = 'sku-photo-item is-preview';
+          link.className = 'sku-photo-link';
           link.href = url;
           link.target = '_blank';
           link.rel = 'noopener';
@@ -1311,59 +1315,47 @@ function checked(string $name, string $value, array $formData): string
           caption.textContent = label + size;
 
           link.appendChild(img);
-          link.appendChild(caption);
-          previewList.appendChild(link);
+          card.appendChild(link);
+          card.appendChild(caption);
+
+          var deleteBtn = document.createElement('button');
+          deleteBtn.type = 'button';
+          deleteBtn.className = 'ghost danger';
+          deleteBtn.textContent = 'Remove';
+          deleteBtn.addEventListener('click', function () {
+            URL.revokeObjectURL(url);
+            photoQueue.splice(index, 1);
+            syncInputFromQueue();
+            renderPreview();
+          });
+          card.appendChild(deleteBtn);
+
+          previewList.appendChild(card);
         });
         previewContainer.hidden = previewList.children.length === 0;
       };
-      var uploadFile = function (file, onDone) {
-        var sku = (skuField && skuField.value || '').trim();
-        if (!sku) {
-          alert('Enter a SKU before uploading photos.');
+      var syncInputFromQueue = function () {
+        if (!photoInput || !window.DataTransfer) {
           return;
         }
-        var formData = new FormData();
-        formData.append('sku', sku);
-        formData.append('photo', file);
-        fetch('upload_photo.php', {
-          method: 'POST',
-          body: formData
-        }).then(function (res) {
-          return res.json().catch(function () {
-            return { status: 'error', message: 'Upload failed (bad response).' };
-          });
-        }).then(function (data) {
-          if (data.status !== 'ok') {
-            alert(data.message || 'Upload failed.');
-          }
-          if (typeof onDone === 'function') {
-            onDone();
-          }
-        }).catch(function () {
-          alert('Network error while uploading photo.');
-          if (typeof onDone === 'function') {
-            onDone();
-          }
+        var dt = new DataTransfer();
+        photoQueue.forEach(function (entry) {
+          dt.items.add(entry.file);
         });
+        photoInput.files = dt.files;
       };
       if (photoInput) {
         photoInput.addEventListener('change', function () {
-          var files = photoInput.files;
-          if (!files || !files.length) {
-            clearPreview();
-            return;
-          }
-          renderPreview(files);
-          var remaining = files.length;
+          var files = photoInput.files || [];
           Array.prototype.forEach.call(files, function (file) {
-            uploadFile(file, function () {
-              remaining -= 1;
-              if (remaining <= 0) {
-                // Refresh to show the new photos in the saved list
-                window.location.reload();
-              }
-            });
+            if (!file || !file.type || !file.type.startsWith('image/')) {
+              return;
+            }
+            var url = URL.createObjectURL(file);
+            photoQueue.push({ file: file, url: url });
           });
+          syncInputFromQueue();
+          renderPreview();
         });
       }
       var deleteButtons = document.querySelectorAll('.js-delete-photo');
@@ -1380,11 +1372,6 @@ function checked(string $name, string $value, array $formData): string
             }
             deleteForm.submit();
           });
-        });
-      }
-      if (form) {
-        form.addEventListener('submit', function () {
-          clearPreview();
         });
       }
       window.addEventListener('beforeunload', clearPreview);
