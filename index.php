@@ -811,10 +811,12 @@ function checked(string $name, string $value, array $formData): string
                 <?php foreach ($skuPhotos as $photo): ?>
                   <div class="sku-photo-item">
                     <a class="sku-photo-link" href="photo.php?id=<?php echo isset($photo['id']) ? (int)$photo['id'] : 0; ?>" target="_blank" rel="noopener" title="Open photo in new tab">
-                      <img src="photo.php?id=<?php echo isset($photo['id']) ? (int)$photo['id'] : 0; ?>" alt="Photo for SKU <?php echo h($activeSkuNormalized); ?>">
+                      <span class="sku-photo-badge">SKU <?php echo h($activeSkuNormalized); ?></span>
+                      <img src="photo.php?id=<?php echo isset($photo['id']) ? (int)$photo['id'] : 0; ?>"
+                           alt="Photo for SKU <?php echo h($activeSkuNormalized); ?> — <?php echo h($photo['original_name'] ?? 'Photo'); ?>">
                     </a>
                     <div class="sku-photo-meta">
-                      <span><?php echo h($photo['original_name'] ?? 'Photo'); ?></span>
+                      <span class="sku-photo-name"><?php echo h($photo['original_name'] ?? 'Photo'); ?></span>
                       <?php if (isset($photo['file_size'])): ?>
                         <span class="sku-photo-size"><?php echo round(((int)$photo['file_size']) / 1024, 1); ?> KB</span>
                       <?php endif; ?>

@@ -954,8 +954,20 @@ button:active,
   background: rgba(255, 255, 255, 0.5);
 }
 
+.sku-photo-badge {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  background: rgba(0, 0, 0, 0.65);
+  color: #fff;
+  padding: 2px 6px;
+  border-radius: 6px;
+  font-size: 0.72rem;
+}
+
 .sku-photo-link {
   display: block;
+  position: relative;
 }
 
 .sku-photo-item.is-preview {
@@ -978,6 +990,11 @@ button:active,
 
 .sku-photo-size {
   font-variant-numeric: tabular-nums;
+}
+
+.sku-photo-name {
+  font-weight: 600;
+  color: #2f1e2c;
 }
 
 .sku-photo-progress {
