@@ -1,0 +1,20 @@
+#!/bin/sh
+# Auto-backup the intake database before any commit so changes to the repo never lose data.
+set -e
+
+HOOK_DIR="$(cd "$(dirname "$0")" && pwd -P)"
+REPO_ROOT="$(cd "$HOOK_DIR/.." && pwd -P)"
+
+POWERSHELL="pwsh"
+if ! command -v "$POWERSHELL" >/dev/null 2>&1; then
+  POWERSHELL="powershell.exe"
+fi
+
+BACKUP_SCRIPT="$REPO_ROOT/scripts/backup.ps1"
+if command -v cygpath >/dev/null 2>&1; then
+  BACKUP_SCRIPT=$(cygpath -w "$BACKUP_SCRIPT")
+fi
+
+echo "Running autosave backup (no pruning)..."
+"$POWERSHELL" -NoProfile -ExecutionPolicy Bypass -File "$BACKUP_SCRIPT" -RetentionDays 0 -SleepIfIdleMinutes 0
+
