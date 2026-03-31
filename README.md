@@ -30,11 +30,11 @@ Then open `http://localhost:8000`.
 - Print button triggers print styles; optional pink background toggle.
 
 ## Backups & safety
-- `scripts/backup.ps1` (retention defaults to **no pruning**) snapshots the DB to `data/backups/` and rotates `logs/lookup.csv` to `logs/archive/`; optional `-CopyTo \\path\\to\\share` mirrors backups off-box.
-- `scripts/verify_backup.ps1` + `scripts/check_db.php` run `PRAGMA integrity_check` on the live DB and newest backup; can email on failure if you copy `scripts/alert.config.sample.ps1` to `scripts/alert.config.ps1` and fill SMTP.
-- Hooks: `.githooks/pre-commit` blocks staging DB/backups/logs and runs a backup; `.githooks/pre-push` runs a backup before every push. `core.hooksPath` is set to `.githooks`; on a fresh clone run `git config core.hooksPath .githooks`.
-- Scheduled task helper: `scripts/register_backup_task.ps1 -Hour 0 -Minute 15 -RetentionDays 0 -SleepIfIdleMinutes 0` (run elevated) to chain backup + verify nightly.
-- `backup_now.php` provides the local-only “Run backup now” button on Home.
+  - `scripts/backup.ps1` (retention defaults to **no pruning**) snapshots the DB to `data/backups/` and rotates `logs/lookup.csv` to `logs/archive/`; optional `-CopyTo \\path\\to\\share` mirrors backups off-box.
+  - `scripts/verify_backup.ps1` + `scripts/check_db.php` run `PRAGMA integrity_check` on the live DB and newest backup; with `-NotifyAlways` it emails nightly successes (and all failures) when `scripts/alert.config.ps1` is configured from the sample.
+  - Hooks: `.githooks/pre-commit` blocks staging DB/backups/logs and runs a backup; `.githooks/pre-push` runs a backup before every push. `core.hooksPath` is set to `.githooks`; on a fresh clone run `git config core.hooksPath .githooks`.
+  - Scheduled task helper: `scripts/register_backup_task.ps1 -Hour 0 -Minute 15 -RetentionDays 0 -SleepIfIdleMinutes 0` (run elevated) to chain backup + verify nightly (with success emails).
+  - `backup_now.php` provides the local-only “Run backup now” button on Home.
 
 ## Maintenance / fixes
 - Run `php scripts/migrate.php` to ensure required dirs/tables, set WAL (`journal_mode=WAL`, `synchronous=NORMAL`), and add indexes (`sku_normalized`, `(status, updated_at)`).

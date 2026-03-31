@@ -17,12 +17,12 @@ if (-not (Test-Path $backupScript)) {
     throw "Cannot find backup script at $backupScript"
 }
 
-# Build actions: backup then integrity check.
+# Build actions: backup then integrity check (with success email).
 $verifyScript = Join-Path $PSScriptRoot 'verify_backup.ps1'
 $actions = @()
 $actions += New-ScheduledTaskAction -Execute 'powershell.exe' -Argument "-NoProfile -ExecutionPolicy Bypass -File `"$backupScript`" -RetentionDays $RetentionDays -SleepIfIdleMinutes $SleepIfIdleMinutes"
 if (Test-Path $verifyScript) {
-    $actions += New-ScheduledTaskAction -Execute 'powershell.exe' -Argument "-NoProfile -ExecutionPolicy Bypass -File `"$verifyScript`" -Quiet"
+    $actions += New-ScheduledTaskAction -Execute 'powershell.exe' -Argument "-NoProfile -ExecutionPolicy Bypass -File `"$verifyScript`" -Quiet -NotifyAlways"
 }
 
 # Trigger: daily at the requested time (defaults to 12:15 AM).

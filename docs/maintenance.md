@@ -2,7 +2,7 @@
 
 ## Backups & logs
 - Script: `scripts/backup.ps1` copies `data/intake.sqlite` to `data/backups/` and rotates `logs/lookup.csv` into `logs/archive/`. Retention defaults to **0** (no pruning); pass `-RetentionDays N` only if you really want old backups trimmed.
-- Integrity check + alerts: `scripts/verify_backup.ps1` runs `PRAGMA integrity_check` against the live DB and the newest backup. To email on failure, copy `scripts/alert.config.sample.ps1` to `scripts/alert.config.ps1`, fill SMTP settings, and rerun/schedule. The scheduled task will send an email only on failure.
+- Integrity check + alerts: `scripts/verify_backup.ps1` runs `PRAGMA integrity_check` against the live DB and the newest backup. To email on failure or success, copy `scripts/alert.config.sample.ps1` to `scripts/alert.config.ps1`, fill SMTP settings. The scheduled task passes `-NotifyAlways` so you get a nightly success email plus failures.
 - Scheduled task helper: `scripts/register_backup_task.ps1 -Hour 0 -Minute 15 -RetentionDays 0 -SleepIfIdleMinutes 5` (run elevated). It now chains backup then integrity check. Task name defaults to `PinksheetNightlyBackup`.
 - Sleep option: `-SleepIfIdleMinutes` will put the machine to sleep after the backup if idle at least that many minutes; set to `0` to disable.
 - Restore: stop the app, pick a backup from `data/backups/`, copy over `data/intake.sqlite`, then start the app.

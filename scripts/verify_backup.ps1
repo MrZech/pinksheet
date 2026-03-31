@@ -1,5 +1,7 @@
 param(
-    [switch]$Quiet
+    [switch]$Quiet,
+    # Send a success email even when integrity checks pass.
+    [switch]$NotifyAlways
 )
 
 $ErrorActionPreference = 'Stop'
@@ -78,11 +80,17 @@ try {
         $latest = Get-ChildItem -Path $backupDir -File | Sort-Object LastWriteTime -Descending | Select-Object -First 1
         if ($latest) {
             Check-DbIntegrity -path $latest.FullName -label "Latest backup ($($latest.Name))"
+            $lastBackupName = $latest.Name
         } elseif (-not $Quiet) {
             Write-Warning "No backup files found in $backupDir"
         }
     } elseif (-not $Quiet) {
         Write-Warning "Backup directory not found at $backupDir"
+    }
+    if ($NotifyAlways) {
+        $subject = "[Pinksheet] Backup OK"
+        $body = "Backup verification succeeded.`nLatest backup: $($lastBackupName ?? 'n/a')"
+        Send-Alert -subject $subject -body $body
     }
 } catch {
     $lastFailure = $_.Exception.Message

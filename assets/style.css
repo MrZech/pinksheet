@@ -1568,18 +1568,19 @@ th {
     padding: 0;
     max-width: none;
     width: 100%;
-    height: 100%;
+    height: auto;
   }
 
   .sheet {
     width: 100% !important;
-    height: 100% !important;
-    padding: 8px 10px 10px;
+    height: auto !important;
+    min-height: auto !important;
+    padding: 10px 12px 12px;
     border: 1px solid #000;
     border-radius: 0;
     box-shadow: none;
     background: #ffffff;
-    overflow: hidden;
+    overflow: visible;
     backdrop-filter: none;
   }
 
@@ -1598,6 +1599,7 @@ th {
     margin: 0 !important;
     display: flex;
     flex-direction: column;
+    width: 100%;
   }
 
   .sheet-header {
@@ -1625,6 +1627,7 @@ th {
     border-width: 1px;
     break-inside: avoid;
     page-break-inside: avoid;
+    page-break-after: avoid;
     background: transparent;
   }
 
@@ -1636,6 +1639,8 @@ th {
   .row {
     gap: 6px;
     grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    break-inside: avoid;
+    page-break-inside: avoid;
   }
 
   label {
@@ -1657,6 +1662,7 @@ textarea {
   color: #000;
   background: #fff;
   overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 input[type="text"]:focus,
@@ -1690,6 +1696,7 @@ textarea:focus {
     background: transparent;
     break-inside: avoid;
     page-break-inside: avoid;
+    page-break-after: avoid;
   }
 
   fieldset label {
@@ -1726,6 +1733,22 @@ td {
 tbody tr:nth-child(even) {
   background: rgba(0, 0, 0, 0.025);
 }
+
+  table {
+    page-break-inside: auto;
+    width: 100%;
+  }
+
+  tr,
+  td,
+  th {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+
+  .table-wrap {
+    page-break-inside: avoid;
+  }
 
   .recent-items,
   .actions,
