@@ -2,7 +2,8 @@ param(
     [string]$TaskName = 'PinksheetNightlyBackup',
     [int]$Hour = 0,
     [int]$Minute = 15,
-    [int]$RetentionDays = 14,
+    # Default to 0 so we never prune backups unless explicitly requested.
+    [int]$RetentionDays = 0,
     [int]$SleepIfIdleMinutes = 5
 )
 

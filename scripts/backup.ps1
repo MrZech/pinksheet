@@ -1,5 +1,6 @@
 param(
-    [int]$RetentionDays = 14,
+    # Retention of 0 (default) keeps every backup and log archive forever. Set >0 only if you explicitly want pruning.
+    [int]$RetentionDays = 0,
     # If >0, attempt to sleep the machine after backup when user idle at least this many minutes.
     [int]$SleepIfIdleMinutes = 0
 )
@@ -43,22 +44,26 @@ if (Test-Path $logFile) {
     Write-Warning "Lookup log not found at $logFile"
 }
 
-# Prune old backups and archived logs beyond retention.
-$cutoff = (Get-Date).AddDays(-$RetentionDays)
+# Prune old backups and archived logs only when explicitly requested.
+if ($RetentionDays -gt 0) {
+    $cutoff = (Get-Date).AddDays(-$RetentionDays)
 
-Get-ChildItem -Path $backupDir -File |
-    Where-Object { $_.LastWriteTime -lt $cutoff } |
-    ForEach-Object {
-        Write-Host "Removing old backup $($_.FullName)"
-        Remove-Item $_.FullName -Force
-    }
+    Get-ChildItem -Path $backupDir -File |
+        Where-Object { $_.LastWriteTime -lt $cutoff } |
+        ForEach-Object {
+            Write-Host "Removing old backup $($_.FullName)"
+            Remove-Item $_.FullName -Force
+        }
 
-Get-ChildItem -Path $logArchiveDir -File |
-    Where-Object { $_.LastWriteTime -lt $cutoff } |
-    ForEach-Object {
-        Write-Host "Removing old archived log $($_.FullName)"
-        Remove-Item $_.FullName -Force
-    }
+    Get-ChildItem -Path $logArchiveDir -File |
+        Where-Object { $_.LastWriteTime -lt $cutoff } |
+        ForEach-Object {
+            Write-Host "Removing old archived log $($_.FullName)"
+            Remove-Item $_.FullName -Force
+        }
+} else {
+    Write-Host "Retention set to 0; keeping all backups and archived logs."
+}
 
 # Put machine to sleep if idle long enough and requested.
 if ($SleepIfIdleMinutes -gt 0) {
