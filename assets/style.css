@@ -618,6 +618,42 @@ label select {
   font-size: 0.82rem;
 }
 
+.filter-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 8px 0;
+}
+
+.filter-chips button {
+  border: 1px solid var(--line);
+  background: #fff;
+  border-radius: 999px;
+  padding: 6px 12px;
+  cursor: pointer;
+  font-weight: 600;
+  color: #3c1327;
+  transition: all 0.15s ease;
+}
+
+.filter-chips button:hover {
+  border-color: var(--accent-strong);
+}
+
+.filter-chips button.is-active {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent-strong);
+  box-shadow: 0 6px 14px rgba(65, 8, 34, 0.25);
+}
+
+.draft-restore-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 6px 0;
+}
+
 .bulk-actions {
   display: flex;
   flex-wrap: wrap;

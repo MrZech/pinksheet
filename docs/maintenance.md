@@ -15,6 +15,7 @@
 ## Database care
 - Optional: run `VACUUM; ANALYZE;` occasionally via `sqlite3 data/intake.sqlite` if the DB grows/shrinks a lot.
 - Off-box copy: after backups, consider copying `data/backups/` to a NAS/OneDrive/SharePoint location (e.g., `robocopy data\\backups \\path\\to\\share /MIR`).
+- WAL mode: `scripts/migrate.php` sets `PRAGMA journal_mode=WAL` and `synchronous=NORMAL`; rerun it if you move the DB to re-apply settings and indexes (`status, updated_at`).
 
 ## Space management
 - Backups/log archives older than retention are pruned in the backup script. Tight on space? Lower `RetentionDays` when scheduling.

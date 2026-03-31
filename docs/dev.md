@@ -8,6 +8,7 @@
 - `scripts/backup.ps1` — DB/log backup (no pruning by default).
 - `scripts/verify_backup.ps1` + `scripts/check_db.php` — integrity checks and optional email alerts (reads `scripts/alert.config.ps1`).
 - `scripts/register_backup_task.ps1` — schedule nightly backup + verify.
+- `scripts/migrate.php` — ensures dirs/tables, sets WAL + `synchronous=NORMAL`, adds indexes on `sku_normalized` and `(status, updated_at)`.
 - `.githooks/pre-commit` / `.githooks/pre-push` — run backups; pre-commit blocks DB/backups/logs from staging.
 
 ## Run locally

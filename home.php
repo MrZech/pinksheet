@@ -231,6 +231,15 @@ if (is_dir($backupDir)) {
               </label>
             </div>
             <p class="error client-error" id="lookup-error" hidden>Enter a SKU or pick a status to search.</p>
+            <div class="filter-chips" id="lookup-chips">
+              <button type="button" data-lookup-status="">Any</button>
+              <button type="button" data-lookup-status="Intake">Intake</button>
+              <button type="button" data-lookup-status="Description">Description</button>
+              <button type="button" data-lookup-status="Tested">Tested</button>
+              <button type="button" data-lookup-status="Listed">Listed</button>
+              <button type="button" data-lookup-status="SOLD">Sold</button>
+              <button type="button" data-lookup-stale="7">Stale >7d</button>
+            </div>
             <div class="actions lookup-actions">
               <button type="submit">Open in intake</button>
               <button type="button" id="lookup-preview-refresh" class="ghost">Refresh preview</button>
@@ -357,6 +366,8 @@ if (is_dir($backupDir)) {
         var previewMessage = document.getElementById('lookup-preview-message');
         var statusSelect = lookupForm.querySelector('[name="status"]');
         var refreshBtn = document.getElementById('lookup-preview-refresh');
+        var chipRow = document.getElementById('lookup-chips');
+        var filterState = { staleDays: 0 };
         if (skuInput && suggestionList && window.fetch && typeof AbortController !== 'undefined') {
           var suggestionTimer = null;
           var suggestionController = null;
@@ -422,8 +433,20 @@ if (is_dir($backupDir)) {
           if (!previewBody) {
             return;
           }
+          var filtered = items;
+          if (filterState.staleDays > 0) {
+            var cutoff = Date.now() - (filterState.staleDays * 86400000);
+            filtered = items.filter(function (entry) {
+              var t = Date.parse((entry.updated_at || '').replace(' ', 'T'));
+              return !isNaN(t) && t < cutoff;
+            });
+          }
           previewBody.innerHTML = '';
-          items.forEach(function (entry) {
+          if (!filtered.length) {
+            previewBody.innerHTML = '<tr><td colspan="4">No matches found.</td></tr>';
+            return;
+          }
+          filtered.forEach(function (entry) {
             var row = document.createElement('tr');
             row.appendChild(createCell(entry.sku));
             row.appendChild(createCell(entry.status));
@@ -431,7 +454,7 @@ if (is_dir($backupDir)) {
             row.appendChild(createCell(entry.updated_at));
             previewBody.appendChild(row);
           });
-          previewMessage.textContent = 'Showing the most recent matches.';
+          previewMessage.textContent = 'Showing the most recent matches' + (filterState.staleDays > 0 ? ' (stale filter applied)' : '') + '.';
           previewMessage.classList.remove('hint-warning');
         };
         var requestPreview = function () {
@@ -500,6 +523,22 @@ if (is_dir($backupDir)) {
         if (refreshBtn) {
           refreshBtn.addEventListener('click', function () {
             requestPreview();
+          });
+        }
+        if (chipRow) {
+          chipRow.addEventListener('click', function (event) {
+            if (!event.target || event.target.tagName !== 'BUTTON') return;
+            var btn = event.target;
+            var status = btn.getAttribute('data-lookup-status');
+            var stale = parseInt(btn.getAttribute('data-lookup-stale') || '0', 10) || 0;
+            if (status !== null && statusSelect) {
+              statusSelect.value = status;
+            }
+            filterState.staleDays = stale;
+            Array.prototype.forEach.call(chipRow.querySelectorAll('button'), function (b) {
+              b.classList.toggle('is-active', b === btn);
+            });
+            schedulePreview();
           });
         }
         if (skuInput) {

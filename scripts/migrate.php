@@ -25,6 +25,9 @@ $pdo = new PDO('sqlite:' . DB_PATH, null, null, [
     PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
 ]);
 
+$pdo->exec("PRAGMA journal_mode=WAL");
+$pdo->exec("PRAGMA synchronous=NORMAL");
+
 $pdo->exec(<<<'SQL'
 CREATE TABLE IF NOT EXISTS intake_items (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -73,6 +76,7 @@ if (!in_array('os', $names, true)) {
 }
 
 $pdo->exec("CREATE INDEX IF NOT EXISTS idx_intake_items_sku_normalized ON intake_items (sku_normalized)");
+$pdo->exec("CREATE INDEX IF NOT EXISTS idx_intake_items_status_updated ON intake_items (status, updated_at)");
 $pdo->exec(<<<'SQL'
 CREATE TABLE IF NOT EXISTS sku_photos (
     id INTEGER PRIMARY KEY AUTOINCREMENT,

@@ -637,7 +637,10 @@ function checked(string $name, string $value, array $formData): string
         <input type="hidden" id="draft-dismiss" value="<?php echo $saved ? '1' : '0'; ?>">
         <input type="hidden" id="has-server-record" value="<?php echo $currentItem ? '1' : '0'; ?>">
         <input type="hidden" id="has-lookup-sku" value="<?php echo $lookupSkuNormalized !== '' ? '1' : '0'; ?>">
-        <button type="button" class="button-link subtle" id="restore-draft-button" hidden>Restore last draft</button>
+        <div class="draft-restore-wrap">
+          <button type="button" class="button-link subtle" id="restore-draft-button" hidden>Restore last draft</button>
+          <span class="hint" id="restore-hint" hidden>Appears after a clear if a draft is saved locally.</span>
+        </div>
         <input type="hidden" name="id" value="<?php echo h(isset($formData['id']) ? (string)$formData['id'] : ''); ?>">
         <div class="form-columns">
         <div class="row">
@@ -1151,6 +1154,7 @@ function checked(string $name, string $value, array $formData): string
         var hasLookup = document.getElementById('has-lookup-sku');
         var clearDraft = document.getElementById('clear-draft');
         var restoreBtn = document.getElementById('restore-draft-button');
+        var restoreHint = document.getElementById('restore-hint');
         // Track last serialized draft to avoid writing identical data over and over.
         var lastSavedDraft = null;
         var applyDraft = function (raw) {
@@ -1227,11 +1231,14 @@ function checked(string $name, string $value, array $formData): string
             var backupDraft = localStorage.getItem(backupKey);
             if (backupDraft && formLooksEmpty()) {
               restoreBtn.hidden = false;
+              if (restoreHint) { restoreHint.hidden = false; }
               restoreBtn.addEventListener('click', function () {
                 applyDraft(backupDraft);
                 localStorage.setItem(draftKey, backupDraft);
                 lastSavedDraft = backupDraft;
                 restoreBtn.hidden = true;
+                if (restoreHint) { restoreHint.hidden = true; }
+                showToast('Draft restored');
             });
             }
           } catch (e) {}
@@ -1280,6 +1287,14 @@ function checked(string $name, string $value, array $formData): string
             if (errorEl) {
               errorEl.hidden = true;
             }
+            var upper = (event.target.value || '').toUpperCase();
+            if (event.target.value !== upper) {
+              var pos = event.target.selectionStart;
+              event.target.value = upper;
+              if (typeof pos === 'number') {
+                event.target.selectionStart = event.target.selectionEnd = pos;
+              }
+            }
           }
           if (event.target === whatInput && whatError) {
             whatError.hidden = true;
@@ -1290,10 +1305,14 @@ function checked(string $name, string $value, array $formData): string
           var sku = ((form.querySelector('[name="sku"]') || {}).value || '').trim();
           var missingSku = sku === '';
           applyRequiredState('sku', missingSku);
-          if (missingSku) {
+          var whatVal = (whatInput && whatInput.value.trim()) || '';
+          if (missingSku || whatVal === '') {
             event.preventDefault();
             if (errorEl) {
               errorEl.hidden = false;
+            }
+            if (whatError && whatVal === '') {
+              whatError.hidden = false;
             }
             return;
           }
@@ -1609,20 +1628,22 @@ function checked(string $name, string $value, array $formData): string
 
       var toastElement = document.getElementById('save-toast');
       var toastTimer = null;
+      var showToast = function (msg) {
+        if (!toastElement || !msg) return;
+        toastElement.textContent = msg;
+        toastElement.classList.add('toast-visible');
+        if (toastTimer) {
+          clearTimeout(toastTimer);
+        }
+        toastTimer = setTimeout(function () {
+          toastElement.classList.remove('toast-visible');
+        }, 4200);
+      };
       if (toastElement && toastElement.dataset.active === '1') {
         var toastMessage = (toastElement.dataset.message || '').trim();
         if (toastMessage !== '') {
-          toastElement.textContent = toastMessage;
-          var showToast = function () {
-            toastElement.classList.add('toast-visible');
-            if (toastTimer) {
-              clearTimeout(toastTimer);
-            }
-            toastTimer = setTimeout(function () {
-              toastElement.classList.remove('toast-visible');
-            }, 4200);
-          };
-          showToast();
+          toastElement.dataset.active = '0';
+          showToast(toastMessage);
         }
       }
 
