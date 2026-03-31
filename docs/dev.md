@@ -9,6 +9,7 @@
 - `scripts/verify_backup.ps1` + `scripts/check_db.php` — integrity checks and optional email alerts (reads `scripts/alert.config.ps1`).
 - `scripts/register_backup_task.ps1` — schedule nightly backup + verify.
 - `scripts/migrate.php` — ensures dirs/tables, sets WAL + `synchronous=NORMAL`, adds indexes on `sku_normalized` and `(status, updated_at)`.
+- `backup_now.php` — local-only endpoint to trigger `scripts/backup.ps1` (used by the Home “Run backup now” button).
 - `.githooks/pre-commit` / `.githooks/pre-push` — run backups; pre-commit blocks DB/backups/logs from staging.
 
 ## Run locally

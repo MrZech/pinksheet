@@ -17,6 +17,7 @@ $alerts = [];
 $latestBackup = null;
 $latestBackupAgeHours = null;
 $latestBackupSize = null;
+$backupBadge = null;
 // Provision a short list of the most recently updated SKUs so the home lookup can show instant suggestions.
 if (is_readable(HOME_DB_PATH)) {
     try {
@@ -75,6 +76,7 @@ if (is_dir($backupDir)) {
         $latestBackup = $latestFile->getFilename();
         $latestBackupAgeHours = (time() - $latestFile->getMTime()) / 3600;
         $latestBackupSize = $latestFile->getSize();
+        $backupBadge = 'Backup ' . number_format($latestBackupAgeHours, 1) . 'h ago';
         if ($latestBackupAgeHours !== null && $latestBackupAgeHours > 36) {
             $alerts[] = 'Latest backup is older than 36 hours.';
         }
@@ -113,6 +115,9 @@ if (is_dir($backupDir)) {
       <header class="sheet-header">
         <div class="updated">Dispo.Tech Intake</div>
         <div class="sheet-header-right">
+          <?php if ($backupBadge): ?>
+            <span class="badge" title="Latest backup"><?php echo htmlspecialchars($backupBadge, ENT_QUOTES, 'UTF-8'); ?></span>
+          <?php endif; ?>
           <button type="button" class="print-button" id="print-button">Print</button>
           <button type="button" class="theme-toggle" id="theme-toggle">Dark mode</button>
           <a class="button-link new-intake-cta" href="index.php?clear_draft=1" data-new-intake>New Intake</a>
@@ -201,6 +206,7 @@ if (is_dir($backupDir)) {
           <a class="button-link" href="#sku-lookup-shell">Search SKUs</a>
           <a class="button-link" href="upload_photo.php">Upload photos</a>
           <a class="button-link" href="docs/maintenance.md">Maintenance docs</a>
+          <button type="button" class="button-link ghost" id="run-backup-now">Run backup now</button>
         </div>
       </section>
     </section>
@@ -252,7 +258,10 @@ if (is_dir($backupDir)) {
               <h2>Preview matches</h2>
               <p class="hint" id="lookup-preview-message">Type two characters or select a status to see recent entries.</p>
             </div>
-            <a class="button-link subtle" href="lookup_preview.php">Preview API</a>
+            <div class="lookup-results-actions">
+              <button type="button" class="ghost" id="lookup-load-more">Load more</button>
+              <a class="button-link subtle" href="lookup_preview.php">Preview API</a>
+            </div>
           </div>
           <div class="table-wrap">
             <table class="lookup-table">
@@ -368,6 +377,9 @@ if (is_dir($backupDir)) {
         var refreshBtn = document.getElementById('lookup-preview-refresh');
         var chipRow = document.getElementById('lookup-chips');
         var filterState = { staleDays: 0 };
+        var runBackupBtn = document.getElementById('run-backup-now');
+        var loadMoreBtn = document.getElementById('lookup-load-more');
+        var previewLimit = 20;
         if (skuInput && suggestionList && window.fetch && typeof AbortController !== 'undefined') {
           var suggestionTimer = null;
           var suggestionController = null;
@@ -429,6 +441,18 @@ if (is_dir($backupDir)) {
           td.textContent = value || ' - ';
           return td;
         };
+        var relativeTime = function (dateString) {
+          var t = Date.parse((dateString || '').replace(' ', 'T'));
+          if (isNaN(t)) return dateString || '—';
+          var diff = Date.now() - t;
+          var mins = Math.round(diff / 60000);
+          if (mins < 1) return 'just now';
+          if (mins < 60) return mins + 'm ago';
+          var hrs = Math.round(mins / 60);
+          if (hrs < 24) return hrs + 'h ago';
+          var days = Math.round(hrs / 24);
+          return days + 'd ago';
+        };
         var renderPreviewRows = function (items) {
           if (!previewBody) {
             return;
@@ -448,10 +472,26 @@ if (is_dir($backupDir)) {
           }
           filtered.forEach(function (entry) {
             var row = document.createElement('tr');
-            row.appendChild(createCell(entry.sku));
-            row.appendChild(createCell(entry.status));
+            var skuTd = createCell(entry.sku);
+            if (entry.photo_url) {
+              var img = document.createElement('img');
+              img.src = entry.photo_url;
+              img.alt = 'thumb';
+              img.className = 'preview-thumb';
+              var wrap = document.createElement('div');
+              wrap.className = 'thumb-wrap';
+              wrap.appendChild(img);
+              skuTd.appendChild(wrap);
+            }
+            row.appendChild(skuTd);
+            var statusTd = document.createElement('td');
+            var statusSpan = document.createElement('span');
+            statusSpan.className = 'status-chip';
+            statusSpan.textContent = entry.status || '—';
+            statusTd.appendChild(statusSpan);
+            row.appendChild(statusTd);
             row.appendChild(createCell(entry.what_is_it));
-            row.appendChild(createCell(entry.updated_at));
+            row.appendChild(createCell(relativeTime(entry.updated_at)));
             previewBody.appendChild(row);
           });
           previewMessage.textContent = 'Showing the most recent matches' + (filterState.staleDays > 0 ? ' (stale filter applied)' : '') + '.';
@@ -480,12 +520,15 @@ if (is_dir($backupDir)) {
           if (statusValue !== '') {
             params.set('status', statusValue);
           }
+          params.set('limit', previewLimit);
           if (!params.toString()) {
             resetPreview();
             return;
           }
           previewMessage.textContent = 'Loading preview...';
           previewMessage.classList.remove('hint-warning');
+          var tableEl = previewBody ? previewBody.closest('table') : null;
+          if (tableEl) tableEl.classList.add('loading');
           if (previewController && typeof previewController.abort === 'function') {
             previewController.abort();
           }
@@ -511,6 +554,9 @@ if (is_dir($backupDir)) {
             .catch(function () {
               previewMessage.textContent = 'Could not load preview right now.';
               previewMessage.classList.add('hint-warning');
+            })
+            .finally(function () {
+              if (tableEl) tableEl.classList.remove('loading');
             });
         };
         var schedulePreview = function () {
@@ -523,6 +569,26 @@ if (is_dir($backupDir)) {
         if (refreshBtn) {
           refreshBtn.addEventListener('click', function () {
             requestPreview();
+          });
+        }
+        if (runBackupBtn) {
+          runBackupBtn.addEventListener('click', function () {
+            runBackupBtn.disabled = true;
+            runBackupBtn.textContent = 'Running...';
+            fetch('backup_now.php', { method: 'POST' })
+              .then(function (r) { return r.json(); })
+              .then(function (data) {
+                if (data.ok) {
+                  alert('Backup finished.');
+                } else {
+                  alert('Backup failed: ' + (data.error || ('exit ' + data.exit)));
+                }
+              })
+              .catch(function () { alert('Backup failed.'); })
+              .finally(function () {
+                runBackupBtn.disabled = false;
+                runBackupBtn.textContent = 'Run backup now';
+              });
           });
         }
         if (chipRow) {
@@ -548,6 +614,12 @@ if (is_dir($backupDir)) {
         }
         if (statusSelect) {
           statusSelect.addEventListener('change', function () {
+            schedulePreview();
+          });
+        }
+        if (loadMoreBtn) {
+          loadMoreBtn.addEventListener('click', function () {
+            previewLimit = Math.min(previewLimit + 20, 100);
             schedulePreview();
           });
         }

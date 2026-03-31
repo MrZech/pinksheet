@@ -11,6 +11,9 @@ header('Content-Type: application/json; charset=utf-8');
 
 $sku = trim((string)($_GET['sku'] ?? ''));
 $status = trim((string)($_GET['status'] ?? ''));
+$limit = (int)($_GET['limit'] ?? PREVIEW_LIMIT);
+if ($limit < 1) { $limit = PREVIEW_LIMIT; }
+if ($limit > 100) { $limit = 100; }
 if (mb_strlen($sku) > MAX_QUERY_LENGTH) {
     $sku = mb_substr($sku, 0, MAX_QUERY_LENGTH);
 }
@@ -49,15 +52,48 @@ try {
     if ($conditions) {
         $sql .= ' WHERE ' . implode(' AND ', $conditions);
     }
-    $sql .= ' ORDER BY updated_at DESC, id DESC LIMIT ' . PREVIEW_LIMIT;
+    $sql .= ' ORDER BY updated_at DESC, id DESC LIMIT ' . (int)$limit;
     $stmt = $pdo->prepare($sql);
     $stmt->execute($params);
-    $results = array_map(static fn (array $row): array => [
-        'sku' => trim((string)($row['sku'] ?? '')),
-        'status' => trim((string)($row['status'] ?? '')),
-        'what_is_it' => trim((string)($row['what_is_it'] ?? '')),
-        'updated_at' => trim((string)($row['updated_at'] ?? '')),
-    ], $stmt->fetchAll());
+    $rows = $stmt->fetchAll();
+
+    // Optional thumbnail: pick most recent photo per normalized SKU.
+    $thumbs = [];
+    $skus = array_filter(array_map(static fn($r) => trim((string)($r['sku'] ?? '')), $rows));
+    if ($skus) {
+        $norms = array_map(static fn($s) => strtoupper(trim($s)), $skus);
+        $placeholders = implode(',', array_fill(0, count($norms), '?'));
+        $photoStmt = $pdo->prepare("
+            SELECT sku_normalized, stored_name
+            FROM sku_photos
+            WHERE sku_normalized IN ($placeholders)
+            ORDER BY created_at DESC
+        ");
+        $photoStmt->execute($norms);
+        foreach ($photoStmt->fetchAll() as $p) {
+            $norm = trim((string)$p['sku_normalized']);
+            if ($norm && !isset($thumbs[$norm])) {
+                $thumbs[$norm] = $p['stored_name'];
+            }
+        }
+    }
+
+    $results = array_map(static function (array $row) use ($thumbs): array {
+        $sku = trim((string)($row['sku'] ?? ''));
+        $norm = strtoupper(trim($sku));
+        $photoName = $thumbs[$norm] ?? null;
+        $photoUrl = null;
+        if ($photoName && $norm !== '') {
+            $photoUrl = 'data/sku_photos/' . rawurlencode($norm) . '/' . rawurlencode($photoName);
+        }
+        return [
+            'sku' => $sku,
+            'status' => trim((string)($row['status'] ?? '')),
+            'what_is_it' => trim((string)($row['what_is_it'] ?? '')),
+            'updated_at' => trim((string)($row['updated_at'] ?? '')),
+            'photo_url' => $photoUrl,
+        ];
+    }, $rows);
     echo json_encode($results, JSON_THROW_ON_ERROR);
 } catch (Throwable $error) {
     echo '[]';

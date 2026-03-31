@@ -659,8 +659,10 @@ function checked(string $name, string $value, array $formData): string
               <input type="text"
                      id="what-is-it-input"
                      name="what_is_it"
+                     maxlength="120"
                      value="<?php echo h($currentWhat); ?>"
                      placeholder="Describe the item">
+              <div class="what-counter" id="what-counter">0 / 120</div>
               <div class="what-menu">
                 <button type="button" class="what-menu-toggle" id="what-menu-toggle" aria-expanded="false" aria-haspopup="listbox" aria-label="Open item type list">▼</button>
                 <div class="what-menu-list" id="what-menu-list" role="listbox" hidden>
@@ -1047,6 +1049,7 @@ function checked(string $name, string $value, array $formData): string
       var whatError = document.getElementById('what-error');
       var whatMenuToggle = document.getElementById('what-menu-toggle');
       var whatMenuList = document.getElementById('what-menu-list');
+      var whatCounter = document.getElementById('what-counter');
       var isProtectedWhat = function (value) {
         return baseWhatOptions.indexOf(value) !== -1;
       };
@@ -1097,6 +1100,18 @@ function checked(string $name, string $value, array $formData): string
             closeWhatMenu();
           }
         });
+        // Counter + open menu on focus
+        if (whatInput) {
+          var updateCounter = function () {
+            if (!whatCounter) return;
+            var len = (whatInput.value || '').length;
+            whatCounter.textContent = len + ' / 120';
+          };
+          whatInput.addEventListener('focus', openWhatMenu);
+          whatInput.addEventListener('blur', function () { setTimeout(closeWhatMenu, 120); });
+          whatInput.addEventListener('input', updateCounter);
+          updateCounter();
+        }
       }
 
       var intakeLinks = document.querySelectorAll('[data-new-intake]');
@@ -1302,7 +1317,11 @@ function checked(string $name, string $value, array $formData): string
         });
         form.addEventListener('change', queueDraftSave);
         form.addEventListener('submit', function (event) {
-          var sku = ((form.querySelector('[name="sku"]') || {}).value || '').trim();
+          var skuField = form.querySelector('[name="sku"]');
+          var sku = ((skuField || {}).value || '').trim().toUpperCase();
+          if (skuField) {
+            skuField.value = sku;
+          }
           var missingSku = sku === '';
           applyRequiredState('sku', missingSku);
           var whatVal = (whatInput && whatInput.value.trim()) || '';
@@ -1314,6 +1333,7 @@ function checked(string $name, string $value, array $formData): string
             if (whatError && whatVal === '') {
               whatError.hidden = false;
             }
+            showToast('Fill SKU and "What is it?" before saving.');
             return;
           }
           localStorage.removeItem(draftKey);

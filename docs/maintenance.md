@@ -7,6 +7,7 @@
 - Sleep option: `-SleepIfIdleMinutes` will put the machine to sleep after the backup if idle at least that many minutes; set to `0` to disable.
 - Restore: stop the app, pick a backup from `data/backups/`, copy over `data/intake.sqlite`, then start the app.
 - Git hooks: `.githooks/pre-commit` blocks staging DB/backups/logs and runs a backup; `.githooks/pre-push` runs a backup before every push. `core.hooksPath` is already set here; on a fresh clone run `git config core.hooksPath .githooks` to enable them.
+- Run-now button: Home page “Run backup now” calls `backup_now.php` (local-only) which invokes `scripts/backup.ps1`.
 
 ## Health
 - `health.php` reports maintenance flag and limit values for probes.
@@ -16,6 +17,7 @@
 - Optional: run `VACUUM; ANALYZE;` occasionally via `sqlite3 data/intake.sqlite` if the DB grows/shrinks a lot.
 - Off-box copy: after backups, consider copying `data/backups/` to a NAS/OneDrive/SharePoint location (e.g., `robocopy data\\backups \\path\\to\\share /MIR`).
 - WAL mode: `scripts/migrate.php` sets `PRAGMA journal_mode=WAL` and `synchronous=NORMAL`; rerun it if you move the DB to re-apply settings and indexes (`status, updated_at`).
+- Off-box option: `scripts/backup.ps1 -CopyTo <path>` mirrors `data/backups` to a share; check exit code in console output.
 
 ## Space management
 - Backups/log archives older than retention are pruned in the backup script. Tight on space? Lower `RetentionDays` when scheduling.

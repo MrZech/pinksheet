@@ -2,7 +2,9 @@ param(
     # Retention of 0 (default) keeps every backup and log archive forever. Set >0 only if you explicitly want pruning.
     [int]$RetentionDays = 0,
     # If >0, attempt to sleep the machine after backup when user idle at least this many minutes.
-    [int]$SleepIfIdleMinutes = 0
+    [int]$SleepIfIdleMinutes = 0,
+    # Optional: copy the backups folder to this destination (e.g., \\server\share\pinksheet-backups).
+    [string]$CopyTo = ''
 )
 
 $ErrorActionPreference = 'Stop'
@@ -63,6 +65,24 @@ if ($RetentionDays -gt 0) {
         }
 } else {
     Write-Host "Retention set to 0; keeping all backups and archived logs."
+}
+
+# Optional off-box copy for redundancy.
+if ($CopyTo) {
+    try {
+        if (-not (Test-Path $CopyTo)) {
+            New-Item -ItemType Directory -Force -Path $CopyTo | Out-Null
+        }
+        Write-Host "Copying backups to $CopyTo ..."
+        $robocopy = Start-Process -FilePath "robocopy.exe" -ArgumentList @("$backupDir", "$CopyTo", "*.*", "/MIR") -NoNewWindow -PassThru -Wait
+        if ($robocopy.ExitCode -gt 8) {
+            Write-Warning "Robocopy reported errors (exit $($robocopy.ExitCode))."
+        } else {
+            Write-Host "Off-box copy completed (exit $($robocopy.ExitCode))."
+        }
+    } catch {
+        Write-Warning "Off-box copy failed: $_"
+    }
 }
 
 # Put machine to sleep if idle long enough and requested.
