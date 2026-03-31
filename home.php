@@ -6,6 +6,17 @@ $currentPage = 'home';
 const HOME_DB_PATH = __DIR__ . '/data/intake.sqlite';
 $statusOptions = ['Intake', 'Description', 'Tested', 'Listed', 'SOLD'];
 $lookupSuggestions = [];
+$counts = [
+    'total' => null,
+    'today' => null,
+    'in_progress' => null,
+    'sold' => null,
+];
+$recentActivity = [];
+$alerts = [];
+$latestBackup = null;
+$latestBackupAgeHours = null;
+$latestBackupSize = null;
 // Provision a short list of the most recently updated SKUs so the home lookup can show instant suggestions.
 if (is_readable(HOME_DB_PATH)) {
     try {
@@ -22,9 +33,56 @@ if (is_readable(HOME_DB_PATH)) {
         ");
         $values = array_unique(array_map('trim', $stmt->fetchAll(PDO::FETCH_COLUMN)));
         $lookupSuggestions = array_values(array_filter($values, static fn ($value): bool => $value !== ''));
+
+        // Dashboard metrics
+        $counts['total'] = (int) $pdo->query("SELECT COUNT(*) FROM intake_items")->fetchColumn();
+        $today = (new DateTime('now'))->format('Y-m-d');
+        $stmtToday = $pdo->prepare("SELECT COUNT(*) FROM intake_items WHERE date(created_at) = :today");
+        $stmtToday->execute([':today' => $today]);
+        $counts['today'] = (int) $stmtToday->fetchColumn();
+        $counts['sold'] = (int) $pdo->query("SELECT COUNT(*) FROM intake_items WHERE status = 'SOLD'")->fetchColumn();
+        $counts['in_progress'] = (int) $pdo->query("SELECT COUNT(*) FROM intake_items WHERE status != 'SOLD'")->fetchColumn();
+
+        // Recent activity list
+        $stmtRecent = $pdo->query("
+            SELECT sku, status, what_is_it, updated_at
+            FROM intake_items
+            WHERE sku IS NOT NULL AND TRIM(sku) <> ''
+            ORDER BY updated_at DESC, id DESC
+            LIMIT 10
+        ");
+        $recentActivity = $stmtRecent->fetchAll(PDO::FETCH_ASSOC);
     } catch (Exception $e) {
         // suggestions optional
+        $alerts[] = 'Database is unreadable right now; metrics unavailable.';
     }
+} else {
+    $alerts[] = 'Database file is missing or not readable.';
+}
+
+// Latest backup metadata
+$backupDir = __DIR__ . '/data/backups';
+if (is_dir($backupDir)) {
+    $latestFile = null;
+    foreach (new DirectoryIterator($backupDir) as $fileInfo) {
+        if ($fileInfo->isFile()) {
+            if ($latestFile === null || $fileInfo->getMTime() > $latestFile->getMTime()) {
+                $latestFile = $fileInfo;
+            }
+        }
+    }
+    if ($latestFile) {
+        $latestBackup = $latestFile->getFilename();
+        $latestBackupAgeHours = (time() - $latestFile->getMTime()) / 3600;
+        $latestBackupSize = $latestFile->getSize();
+        if ($latestBackupAgeHours !== null && $latestBackupAgeHours > 36) {
+            $alerts[] = 'Latest backup is older than 36 hours.';
+        }
+    } else {
+        $alerts[] = 'No backups found in data/backups.';
+    }
+} else {
+    $alerts[] = 'Backup directory missing (data/backups).';
 }
 ?>
 <!doctype html>
@@ -60,59 +118,151 @@ if (is_readable(HOME_DB_PATH)) {
           <a class="button-link new-intake-cta" href="index.php?clear_draft=1" data-new-intake>New Intake</a>
         </div>
       </header>
-      <h1>Dispo.Tech Intake Lookup</h1>
+      <h1>Ops Home</h1>
       <nav class="breadcrumbs" aria-label="Breadcrumb">
         <a href="home.php">Home</a>
-        <span>Lookup</span>
+        <span>Dashboard</span>
       </nav>
-      <p>Look up by SKU or by current status to find items quickly.</p>
-      <form class="form-grid" method="get" action="index.php" id="sku-lookup">
-        <div class="row">
-          <label>SKU
-            <input type="text" name="sku" list="suggested-skus" autofocus>
-          </label>
-          <!-- Datalist seeded from latest SKUs, replaced dynamically when the user types. -->
-          <datalist id="suggested-skus">
-            <?php foreach ($lookupSuggestions as $option): ?>
-              <option value="<?php echo htmlspecialchars($option, ENT_QUOTES, 'UTF-8'); ?>">
+      <p class="lead">Snapshot of intake health plus a focused SKU search workspace.</p>
+
+      <?php if (!empty($alerts)): ?>
+        <div class="alert-block" role="status">
+          <?php foreach ($alerts as $alert): ?>
+            <div class="alert-item"><?php echo htmlspecialchars($alert, ENT_QUOTES, 'UTF-8'); ?></div>
+          <?php endforeach; ?>
+        </div>
+      <?php endif; ?>
+
+      <section class="section dashboard">
+        <h2>Ops Snapshot</h2>
+        <div class="dashboard-grid">
+          <div class="dash-card">
+            <p class="dash-label">Total items</p>
+            <p class="dash-value"><?php echo $counts['total'] ?? '—'; ?></p>
+            <p class="dash-sub">All records in intake_items</p>
+          </div>
+          <div class="dash-card">
+            <p class="dash-label">Updated today</p>
+            <p class="dash-value"><?php echo $counts['today'] ?? '—'; ?></p>
+            <p class="dash-sub">Created today</p>
+          </div>
+          <div class="dash-card">
+            <p class="dash-label">In progress</p>
+            <p class="dash-value"><?php echo $counts['in_progress'] ?? '—'; ?></p>
+            <p class="dash-sub">Not yet SOLD</p>
+          </div>
+          <div class="dash-card">
+            <p class="dash-label">Sold</p>
+            <p class="dash-value"><?php echo $counts['sold'] ?? '—'; ?></p>
+            <p class="dash-sub">Marked SOLD</p>
+          </div>
+          <div class="dash-card dash-wide">
+            <p class="dash-label">Latest backup</p>
+            <p class="dash-value">
+              <?php echo $latestBackup ? htmlspecialchars($latestBackup, ENT_QUOTES, 'UTF-8') : 'None'; ?>
+            </p>
+            <p class="dash-sub">
+              <?php if ($latestBackup): ?>
+                <?php echo 'Age: ~' . number_format($latestBackupAgeHours ?? 0, 1) . 'h · Size: ' . number_format(($latestBackupSize ?? 0) / 1024, 1) . ' KB'; ?>
+              <?php else: ?>
+                Backups will display here once created.
+              <?php endif; ?>
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section class="section activity">
+        <h2>Recent activity</h2>
+        <?php if (!empty($recentActivity)): ?>
+          <ul class="activity-list">
+            <?php foreach ($recentActivity as $row): ?>
+              <li>
+                <div class="activity-main">
+                  <span class="sku"><?php echo htmlspecialchars($row['sku'] ?: 'Unknown', ENT_QUOTES, 'UTF-8'); ?></span>
+                  <span class="status-chip"><?php echo htmlspecialchars($row['status'] ?: '—', ENT_QUOTES, 'UTF-8'); ?></span>
+                  <span class="what"><?php echo htmlspecialchars($row['what_is_it'] ?: '—', ENT_QUOTES, 'UTF-8'); ?></span>
+                </div>
+                <div class="activity-meta">
+                  <span><?php echo htmlspecialchars($row['updated_at'] ?: '', ENT_QUOTES, 'UTF-8'); ?></span>
+                </div>
+              </li>
             <?php endforeach; ?>
-          </datalist>
-          <label>Current Status
-            <select name="status">
-              <option value="">Any status</option>
-              <?php foreach ($statusOptions as $opt): ?>
-                <option value="<?php echo htmlspecialchars($opt, ENT_QUOTES, 'UTF-8'); ?>"><?php echo htmlspecialchars($opt, ENT_QUOTES, 'UTF-8'); ?></option>
-              <?php endforeach; ?>
-            </select>
-          </label>
-        </div>
-        <p class="error client-error" id="lookup-error" hidden>Enter a SKU or pick a status to search.</p>
-        <p class="hint" id="lookup-inline-hint">Type at least two characters for live matches; suggestions include SKU plus "What is it?" text.</p>
-        <div class="actions">
-          <button type="submit">Continue</button>
+          </ul>
+        <?php else: ?>
+          <p class="hint">No recent activity to show.</p>
+        <?php endif; ?>
+      </section>
+
+      <section class="section quick-actions">
+        <h2>Quick actions</h2>
+        <div class="quick-links">
           <a class="button-link" href="index.php?clear_draft=1" data-new-intake>New Intake</a>
+          <a class="button-link" href="#sku-lookup-shell">Search SKUs</a>
+          <a class="button-link" href="upload_photo.php">Upload photos</a>
+          <a class="button-link" href="docs/maintenance.md">Maintenance docs</a>
         </div>
-      </form>
+      </section>
     </section>
-    <section class="section lookup-preview" aria-live="polite">
-      <h2>Preview matches</h2>
-      <p class="hint" id="lookup-preview-message">Type two characters or select a status to see recent entries.</p>
-      <div class="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>SKU</th>
-              <th>Status</th>
-              <th>What is it?</th>
-              <th>Updated</th>
-            </tr>
-          </thead>
-          <tbody id="lookup-preview-body">
-            <tr>
-              <td colspan="4">No lookup terms yet.</td>
-            </tr>
-          </tbody>
-        </table>
+
+    <section class="section lookup-shell" aria-live="polite" id="sku-lookup-shell">
+      <div class="lookup-grid">
+        <div class="lookup-card">
+          <h2>SKU Lookup</h2>
+          <p class="hint">Search by SKU or filter by status. Results preview live as you type.</p>
+          <form class="form-grid" method="get" action="index.php" id="sku-lookup">
+            <div class="row">
+              <label>SKU
+                <input type="text" name="sku" list="suggested-skus" autofocus>
+              </label>
+              <!-- Datalist seeded from latest SKUs, replaced dynamically when the user types. -->
+              <datalist id="suggested-skus">
+                <?php foreach ($lookupSuggestions as $option): ?>
+                  <option value="<?php echo htmlspecialchars($option, ENT_QUOTES, 'UTF-8'); ?>">
+                <?php endforeach; ?>
+              </datalist>
+              <label>Current Status
+                <select name="status">
+                  <option value="">Any status</option>
+                  <?php foreach ($statusOptions as $opt): ?>
+                    <option value="<?php echo htmlspecialchars($opt, ENT_QUOTES, 'UTF-8'); ?>"><?php echo htmlspecialchars($opt, ENT_QUOTES, 'UTF-8'); ?></option>
+                  <?php endforeach; ?>
+                </select>
+              </label>
+            </div>
+            <p class="error client-error" id="lookup-error" hidden>Enter a SKU or pick a status to search.</p>
+            <div class="actions lookup-actions">
+              <button type="submit">Open in intake</button>
+              <button type="button" id="lookup-preview-refresh" class="ghost">Refresh preview</button>
+            </div>
+          </form>
+        </div>
+        <div class="lookup-card lookup-results">
+          <div class="lookup-results-header">
+            <div>
+              <h2>Preview matches</h2>
+              <p class="hint" id="lookup-preview-message">Type two characters or select a status to see recent entries.</p>
+            </div>
+            <a class="button-link subtle" href="lookup_preview.php">Preview API</a>
+          </div>
+          <div class="table-wrap">
+            <table class="lookup-table">
+              <thead>
+                <tr>
+                  <th>SKU</th>
+                  <th>Status</th>
+                  <th>What is it?</th>
+                  <th>Updated</th>
+                </tr>
+              </thead>
+              <tbody id="lookup-preview-body">
+                <tr>
+                  <td colspan="4">No lookup terms yet.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
     </section>
   </main>
@@ -206,6 +356,7 @@ if (is_readable(HOME_DB_PATH)) {
         var previewBody = document.getElementById('lookup-preview-body');
         var previewMessage = document.getElementById('lookup-preview-message');
         var statusSelect = lookupForm.querySelector('[name="status"]');
+        var refreshBtn = document.getElementById('lookup-preview-refresh');
         if (skuInput && suggestionList && window.fetch && typeof AbortController !== 'undefined') {
           var suggestionTimer = null;
           var suggestionController = null;
@@ -346,6 +497,11 @@ if (is_readable(HOME_DB_PATH)) {
           clearTimeout(previewTimer);
           previewTimer = setTimeout(requestPreview, 220);
         };
+        if (refreshBtn) {
+          refreshBtn.addEventListener('click', function () {
+            requestPreview();
+          });
+        }
         if (skuInput) {
           skuInput.addEventListener('input', function () {
             schedulePreview();

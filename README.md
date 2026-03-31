@@ -1,6 +1,6 @@
-﻿# Dispo.Tech Intake Sheet Template
+# Dispo.Tech Intake Sheet Template
 
-This is a simple PHP + SQLite intake sheet that mirrors the physical form.
+Simple PHP + SQLite intake sheet with autosave, backups, and SKU lookup.
 
 ## Run locally
 
@@ -11,60 +11,38 @@ php -S localhost:8000
 Then open `http://localhost:8000`.
 
 ## Data storage
+- Records live in `data/intake.sqlite`.
+- SKU photos live in `data/sku_photos/<SKU_NORMALIZED>/`; indexed in `sku_photos` table.
 
-Records are stored in `data/intake.sqlite`.
-SKU photo uploads are stored in `data/sku_photos/<SKU_NORMALIZED>/` and indexed in a new `sku_photos` table.
+## Home & lookup
+- `home.php` shows an ops dashboard (totals, today’s count, in-progress vs. sold, latest backup age/size), recent activity, quick actions, and a dedicated lookup pane.
+- `suggestions.php?q=...` streams live SKU + “What is it?” suggestions; `lookup_preview.php` powers the live results table.
+- Open `index.php?clear_draft=1` for a blank intake.
 
-## Lookup suggestions
-
-- `home.php` loads recent SKUs via SQLite to seed the lookup datalist for fast matches.
-- `suggestions.php?q=...` lets the front-end fetch live SKU/description pairs while the user types, so the dropdown always shows relevant choices.
-- `lookup_preview.php` backs the preview table on the home lookup so you can see the 5–7 most recent matches for the typed SKU + status combo before opening the intake sheet.
-- The home lookup also surfaces inline guidance/hints and breadcrumb cues so users know they are searching by SKU or status before continuing.
-- Appending `?clear_draft=1` when opening `index.php` clears the local draft state so “New Intake” always shows a blank form without leftover presets.
+## Intake/drafts
+- Intake autosaves locally while you type. If you clear via “New Intake,” the last draft is stashed; a “Restore last draft” button appears when the form is empty to bring it back.
+- Bulk status: select rows in the intake table, choose a status, click “Apply to selected.”
 
 ## Appearance
+- Dark mode toggle in headers (preference stored).
+- Print button triggers print styles; optional pink background toggle.
 
- - The new “Dark mode” toggle in the headers switches the whole UI into a deeper pink-on-charcoal palette while keeping the existing aesthetic, and the preference is remembered per browser session.
-
-## Navigation & logging
-
- - The hamburger menu now highlights the current section and each page includes breadcrumbs so users can tell where they are before opening a record.
- - Each lookup (SKU/status) writing to `logs/lookup.csv` records timestamp, SKU, status, and source IP for trend analysis.
-
-## Maintenance & health
-
- - `config.php` centralizes `MAINTENANCE_MODE`, input size limits, and API limits; every endpoint checks this flag so you can temporarily disable the app without editing each file.
- - Both the suggestions and preview APIs cap `q`/`sku` to 50 characters (status to 30 characters) and obey `SUGGESTION_LIMIT`/`PREVIEW_LIMIT` to keep remote use predictable.
- - `health.php` reports the current maintenance state plus the configured length/limit values in JSON, making it easy to hook into a monitoring or uptime probe before exposing the app remotely.
- - Backups: run `powershell -File scripts/backup.ps1` (retention defaults to **no pruning**; pass `-RetentionDays N` only if you want trimming) to snapshot `data/intake.sqlite` to `data/backups/` and rotate `logs/lookup.csv` into `logs/archive/`. `scripts/verify_backup.ps1` sanity-checks the live DB and newest backup with `PRAGMA integrity_check` and can email on failure if you copy `scripts/alert.config.sample.ps1` to `scripts/alert.config.ps1` and fill SMTP settings.
- - Git safety: repo-scoped hooks in `.githooks/` call the backup script before commits and pushes, and block committing live data/backups/logs. `core.hooksPath` is set to `.githooks` here; if you clone fresh, run `git config core.hooksPath .githooks` to re-enable them.
-
-## Bulk status updates
-
- - Select the checkboxes in the “Recent SKUs” table, choose a new status, and click “Apply to selected”; the server updates those rows and reports how many SKUs moved into the chosen stage.
- - Bulk updates obey the same status list as the intake form, and feedback messages appear above the table so you always know the result.
-
-## SKU photos
-
- - Drag/drop/paste or click in the “SKU Photos” section to queue multiple images (JPG/PNG/WEBP/GIF). Files upload automatically in 512KB chunks (bypasses 2MB PHP limits) and attach to the current SKU; progress bars show status.
- - Photos are attached by normalized SKU, so each SKU has its own independent gallery and does not share photos with other SKUs.
- - “Download all as ZIP” above the photo grid bundles every saved photo for that SKU; if ZipArchive isn’t available, a pure-PHP fallback builds a store-only zip.
- - `photo.php?id=...` streams photo files by DB record so intake pages can render thumbnails safely.
+## Backups & safety
+- `scripts/backup.ps1` (retention defaults to **no pruning**) snapshots the DB to `data/backups/` and rotates `logs/lookup.csv` to `logs/archive/`.
+- `scripts/verify_backup.ps1` + `scripts/check_db.php` run `PRAGMA integrity_check` on the live DB and newest backup; can email on failure if you copy `scripts/alert.config.sample.ps1` to `scripts/alert.config.ps1` and fill SMTP.
+- Hooks: `.githooks/pre-commit` blocks staging DB/backups/logs and runs a backup; `.githooks/pre-push` runs a backup before every push. `core.hooksPath` is set to `.githooks`; on a fresh clone run `git config core.hooksPath .githooks`.
+- Scheduled task helper: `scripts/register_backup_task.ps1 -Hour 0 -Minute 15 -RetentionDays 0 -SleepIfIdleMinutes 0` (run elevated) to chain backup + verify nightly.
 
 ## Maintenance / fixes
+- Run `php scripts/migrate.php` to ensure required directories/tables.
+- Keep live DB out of git: `git update-index --skip-worktree data/intake.sqlite` (undo with `--no-skip-worktree`).
 
- - Run `php scripts/migrate.php` to ensure directories exist (`data/`, `data/sku_photos/`, `data/chunks/`, `logs/`) and that required tables/columns/indexes are present in `data/intake.sqlite`.
- - To keep the live DB out of git conflicts: `git update-index --skip-worktree data/intake.sqlite` (and `--no-skip-worktree` to re-track later).
-
-## Printing
-
- - Use the new “Print” button in the sheet headers to trigger `window.print()` whenever you want a paper copy; the media styles already hide UI elements like the menu, breadcrumbs, and toast so the output stays clean.
+## SKU photos
+- Drag/drop/paste or click to queue; uploads chunked at 512KB. Download-all as ZIP; `photo.php?id=...` streams individual files.
 
 ## Docs
-
 - `docs/usage.md` — core flows, themes, print guidance.
 - `docs/schema.md` — intake_items columns and notes.
-- `docs/maintenance.md` — backups, scheduled task helper, restore steps.
-- `docs/dev.md` — file map, run instructions, quick smoke test.
+- `docs/maintenance.md` — backups, hooks, alerts, restore steps.
+- `docs/dev.md` — file map, run instructions, smoke test.
 - `CHANGELOG.md` — noteworthy UI/ops changes.

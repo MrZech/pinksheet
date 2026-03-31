@@ -6,7 +6,7 @@
 - Scheduled task helper: `scripts/register_backup_task.ps1 -Hour 0 -Minute 15 -RetentionDays 0 -SleepIfIdleMinutes 5` (run elevated). It now chains backup then integrity check. Task name defaults to `PinksheetNightlyBackup`.
 - Sleep option: `-SleepIfIdleMinutes` will put the machine to sleep after the backup if idle at least that many minutes; set to `0` to disable.
 - Restore: stop the app, pick a backup from `data/backups/`, copy over `data/intake.sqlite`, then start the app.
-- Git commits run the backup automatically via `.githooks/pre-commit` (core.hooksPath is already set in this clone). If you re-clone elsewhere, set `git config core.hooksPath .githooks` to keep autosave-on-commit behavior.
+- Git hooks: `.githooks/pre-commit` blocks staging DB/backups/logs and runs a backup; `.githooks/pre-push` runs a backup before every push. `core.hooksPath` is already set here; on a fresh clone run `git config core.hooksPath .githooks` to enable them.
 
 ## Health
 - `health.php` reports maintenance flag and limit values for probes.
@@ -14,6 +14,7 @@
 
 ## Database care
 - Optional: run `VACUUM; ANALYZE;` occasionally via `sqlite3 data/intake.sqlite` if the DB grows/shrinks a lot.
+- Off-box copy: after backups, consider copying `data/backups/` to a NAS/OneDrive/SharePoint location (e.g., `robocopy data\\backups \\path\\to\\share /MIR`).
 
 ## Space management
 - Backups/log archives older than retention are pruned in the backup script. Tight on space? Lower `RetentionDays` when scheduling.

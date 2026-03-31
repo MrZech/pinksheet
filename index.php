@@ -637,6 +637,7 @@ function checked(string $name, string $value, array $formData): string
         <input type="hidden" id="draft-dismiss" value="<?php echo $saved ? '1' : '0'; ?>">
         <input type="hidden" id="has-server-record" value="<?php echo $currentItem ? '1' : '0'; ?>">
         <input type="hidden" id="has-lookup-sku" value="<?php echo $lookupSkuNormalized !== '' ? '1' : '0'; ?>">
+        <button type="button" class="button-link subtle" id="restore-draft-button" hidden>Restore last draft</button>
         <input type="hidden" name="id" value="<?php echo h(isset($formData['id']) ? (string)$formData['id'] : ''); ?>">
         <div class="form-columns">
         <div class="row">
@@ -1143,15 +1144,45 @@ function checked(string $name, string $value, array $formData): string
       var form = document.getElementById('intake-form');
       if (form) {
         var draftKey = 'intakeDraftV1';
+        var backupKey = 'intakeDraftBackupV1';
         var errorEl = document.getElementById('client-error');
         var dismissDraft = document.getElementById('draft-dismiss');
         var hasRecord = document.getElementById('has-server-record');
         var hasLookup = document.getElementById('has-lookup-sku');
         var clearDraft = document.getElementById('clear-draft');
+        var restoreBtn = document.getElementById('restore-draft-button');
         // Track last serialized draft to avoid writing identical data over and over.
         var lastSavedDraft = null;
+        var applyDraft = function (raw) {
+          if (!raw) return;
+          var draft = JSON.parse(raw);
+          Object.keys(draft).forEach(function (name) {
+            var value = draft[name];
+            var fields = form.querySelectorAll('[name="' + name + '"]');
+            fields.forEach(function (field) {
+              if (field.type === 'radio') {
+                field.checked = (field.value === value);
+                return;
+              }
+              if (field.type === 'checkbox') {
+                field.checked = !!value;
+                return;
+              }
+              if (field.type === 'file') {
+                return;
+              }
+              field.value = value;
+            });
+          });
+        };
         if (clearDraft && clearDraft.value === '1') {
-          localStorage.removeItem(draftKey);
+          try {
+            var existingDraft = localStorage.getItem(draftKey);
+            if (existingDraft) {
+              localStorage.setItem(backupKey, existingDraft);
+            }
+            localStorage.removeItem(draftKey);
+          } catch (e) {}
         }
         var shouldRestore = dismissDraft && dismissDraft.value !== '1'
           && hasRecord && hasRecord.value !== '1'
@@ -1171,26 +1202,37 @@ function checked(string $name, string $value, array $formData): string
           try {
             var raw = localStorage.getItem(draftKey);
             if (raw) {
-              var draft = JSON.parse(raw);
+              applyDraft(raw);
               lastSavedDraft = raw;
-              Object.keys(draft).forEach(function (name) {
-                var value = draft[name];
-                var fields = form.querySelectorAll('[name="' + name + '"]');
-                fields.forEach(function (field) {
-                  if (field.type === 'radio') {
-                    field.checked = (field.value === value);
-                    return;
-                  }
-                  if (field.type === 'checkbox') {
-                    field.checked = !!value;
-                    return;
-                  }
-                  if (field.type === 'file') {
-                    return;
-                  }
-                  field.value = value;
-                });
-              });
+            }
+          } catch (e) {}
+        }
+
+        // Offer restore if we have a backup and the form is mostly empty.
+        var formLooksEmpty = function () {
+          var fields = form.querySelectorAll('input[name], select[name], textarea[name]');
+          for (var i = 0; i < fields.length; i++) {
+            var f = fields[i];
+            if (f.type === 'radio' || f.type === 'checkbox') {
+              if (f.checked) return false;
+              continue;
+            }
+            if (f.type === 'file') continue;
+            if ((f.value || '').trim() !== '') return false;
+          }
+          return true;
+        };
+        if (restoreBtn) {
+          try {
+            var backupDraft = localStorage.getItem(backupKey);
+            if (backupDraft && formLooksEmpty()) {
+              restoreBtn.hidden = false;
+              restoreBtn.addEventListener('click', function () {
+                applyDraft(backupDraft);
+                localStorage.setItem(draftKey, backupDraft);
+                lastSavedDraft = backupDraft;
+                restoreBtn.hidden = true;
+            });
             }
           } catch (e) {}
         }
