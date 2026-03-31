@@ -17,8 +17,13 @@ if (-not (Test-Path $backupScript)) {
     throw "Cannot find backup script at $backupScript"
 }
 
-# Build the action to run the backup with the configured retention and sleep policy.
-$action = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument "-NoProfile -ExecutionPolicy Bypass -File `"$backupScript`" -RetentionDays $RetentionDays -SleepIfIdleMinutes $SleepIfIdleMinutes"
+# Build actions: backup then integrity check.
+$verifyScript = Join-Path $PSScriptRoot 'verify_backup.ps1'
+$actions = @()
+$actions += New-ScheduledTaskAction -Execute 'powershell.exe' -Argument "-NoProfile -ExecutionPolicy Bypass -File `"$backupScript`" -RetentionDays $RetentionDays -SleepIfIdleMinutes $SleepIfIdleMinutes"
+if (Test-Path $verifyScript) {
+    $actions += New-ScheduledTaskAction -Execute 'powershell.exe' -Argument "-NoProfile -ExecutionPolicy Bypass -File `"$verifyScript`" -Quiet"
+}
 
 # Trigger: daily at the requested time (defaults to 12:15 AM).
 $runTime = [DateTime]::Today.AddHours($Hour).AddMinutes($Minute)
@@ -28,7 +33,7 @@ $trigger = New-ScheduledTaskTrigger -Daily -At $runTime
 $principal = New-ScheduledTaskPrincipal -UserId $env:USERNAME -LogonType Interactive -RunLevel Highest
 
 $settings = New-ScheduledTaskSettingsSet -StartWhenAvailable -AllowStartIfOnBatteries -WakeToRun
-$task = New-ScheduledTask -Action $action -Trigger $trigger -Principal $principal -Settings $settings
+$task = New-ScheduledTask -Action $actions -Trigger $trigger -Principal $principal -Settings $settings
 
 # Register or replace existing.
 Register-ScheduledTask -TaskName $TaskName -InputObject $task -Force

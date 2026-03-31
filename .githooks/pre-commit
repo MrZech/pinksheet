@@ -15,6 +15,13 @@ if command -v cygpath >/dev/null 2>&1; then
   BACKUP_SCRIPT=$(cygpath -w "$BACKUP_SCRIPT")
 fi
 
+# Block commits that try to track live data or backups.
+BLOCKED="$(git diff --cached --name-only -- data/intake.sqlite data/backups/ data/chunks/ data/sku_photos/ logs/lookup.csv logs/archive/ | tr -d '\r')"
+if [ -n "$BLOCKED" ]; then
+  echo "Live data/backups must stay out of git. Remove from the commit:" >&2
+  echo "$BLOCKED" >&2
+  exit 1
+fi
+
 echo "Running autosave backup (no pruning)..."
 "$POWERSHELL" -NoProfile -ExecutionPolicy Bypass -File "$BACKUP_SCRIPT" -RetentionDays 0 -SleepIfIdleMinutes 0
-

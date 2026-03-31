@@ -37,8 +37,8 @@ SKU photo uploads are stored in `data/sku_photos/<SKU_NORMALIZED>/` and indexed 
  - `config.php` centralizes `MAINTENANCE_MODE`, input size limits, and API limits; every endpoint checks this flag so you can temporarily disable the app without editing each file.
  - Both the suggestions and preview APIs cap `q`/`sku` to 50 characters (status to 30 characters) and obey `SUGGESTION_LIMIT`/`PREVIEW_LIMIT` to keep remote use predictable.
  - `health.php` reports the current maintenance state plus the configured length/limit values in JSON, making it easy to hook into a monitoring or uptime probe before exposing the app remotely.
- - Backups: run `powershell -File scripts/backup.ps1` (retention defaults to **no pruning**; pass `-RetentionDays N` only if you want trimming) to snapshot `data/intake.sqlite` to `data/backups/` and rotate `logs/lookup.csv` into `logs/archive/`. Schedule this nightly via Task Scheduler or cron to keep the DB and logs tidy without deleting history.
- - Git safety: a repo-scoped pre-commit hook in `.githooks/` calls the backup script automatically so every commit snapshots the DB first. `core.hooksPath` is set to `.githooks` in this repo; if you clone fresh, run `git config core.hooksPath .githooks` to re-enable it.
+ - Backups: run `powershell -File scripts/backup.ps1` (retention defaults to **no pruning**; pass `-RetentionDays N` only if you want trimming) to snapshot `data/intake.sqlite` to `data/backups/` and rotate `logs/lookup.csv` into `logs/archive/`. `scripts/verify_backup.ps1` sanity-checks the live DB and newest backup with `PRAGMA integrity_check`.
+ - Git safety: repo-scoped hooks in `.githooks/` call the backup script before commits and pushes, and block committing live data/backups/logs. `core.hooksPath` is set to `.githooks` here; if you clone fresh, run `git config core.hooksPath .githooks` to re-enable them.
 
 ## Bulk status updates
 
