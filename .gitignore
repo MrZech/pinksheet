@@ -7,3 +7,6 @@ data/sku_photos/
 # Logs
 logs/lookup.csv
 logs/archive/
+
+# Alerts config (contains secrets if created)
+scripts/alert.config.ps1
