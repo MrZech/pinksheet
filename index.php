@@ -1148,6 +1148,8 @@ function checked(string $name, string $value, array $formData): string
         var hasRecord = document.getElementById('has-server-record');
         var hasLookup = document.getElementById('has-lookup-sku');
         var clearDraft = document.getElementById('clear-draft');
+        // Track last serialized draft to avoid writing identical data over and over.
+        var lastSavedDraft = null;
         if (clearDraft && clearDraft.value === '1') {
           localStorage.removeItem(draftKey);
         }
@@ -1170,6 +1172,7 @@ function checked(string $name, string $value, array $formData): string
             var raw = localStorage.getItem(draftKey);
             if (raw) {
               var draft = JSON.parse(raw);
+              lastSavedDraft = raw;
               Object.keys(draft).forEach(function (name) {
                 var value = draft[name];
                 var fields = form.querySelectorAll('[name="' + name + '"]');
@@ -1212,11 +1215,17 @@ function checked(string $name, string $value, array $formData): string
             }
             payload[field.name] = field.value;
           });
-          localStorage.setItem(draftKey, JSON.stringify(payload));
+          var serialized = JSON.stringify(payload);
+          if (serialized === lastSavedDraft) {
+            return;
+          }
+          lastSavedDraft = serialized;
+          localStorage.setItem(draftKey, serialized);
         };
         var queueDraftSave = function () {
           clearTimeout(saveTimer);
-          saveTimer = setTimeout(saveDraft, 250);
+          // Debounce a bit longer to avoid rapid-fire saves while typing.
+          saveTimer = setTimeout(saveDraft, 800);
         };
 
         form.addEventListener('input', function (event) {
