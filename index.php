@@ -539,6 +539,7 @@ function checked(string $name, string $value, array $formData): string
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Dispo.Tech Intake Sheet</title>
   <link rel="stylesheet" href="assets/style.css">
+  <link rel="stylesheet" media="print" href="assets/print.css">
   <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
 </head>
 <body>
