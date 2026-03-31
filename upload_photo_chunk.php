@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/config.php';
 checkMaintenance(true);
+ensureStorageWritable();
 
 const DB_PATH = __DIR__ . '/data/intake.sqlite';
 const PHOTO_UPLOAD_DIR = __DIR__ . '/data/sku_photos';
