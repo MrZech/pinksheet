@@ -1,0 +1,9 @@
+# App data and backups (kept outside git)
+data/intake.sqlite
+data/backups/
+data/chunks/
+data/sku_photos/
+
+# Logs
+logs/lookup.csv
+logs/archive/
