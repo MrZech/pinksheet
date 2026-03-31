@@ -39,14 +39,14 @@ body.print-pink .sheet { background: #f4a4bb !important; }
 
 .sheet-content { transform: none !important; margin: 0 !important; }
 .sheet-header { font-size: 9pt; margin-bottom: 6pt; page-break-after: avoid; }
-.sheet h1 { font-size: 13pt; margin-bottom: 6pt; }
+.sheet h1 { font-size: 0; margin: 0; padding: 0; }
 
-.form-grid { gap: 6pt; }
+.form-grid { gap: 4pt; }
 .sheet.intake .form-columns { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 
 .section {
-  padding: 6pt 8pt 8pt;
-  margin-top: 8pt;
+  padding: 4pt 6pt 6pt;
+  margin-top: 6pt;
   border: 1px solid #000;
   break-inside: avoid;
   page-break-inside: avoid;
@@ -57,13 +57,13 @@ body.print-pink .sheet { background: #f4a4bb !important; }
 .section h2 { font-size: 9pt; margin-bottom: 4pt; }
 
 .row {
-  gap: 6pt;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 4pt;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
   break-inside: avoid;
   page-break-inside: avoid;
 }
 
-label { gap: 4pt; font-size: 9pt; color: #000; }
+label { gap: 3pt; font-size: 9pt; color: #000; }
 
 input[type="text"],
 input[type="date"],
@@ -82,7 +82,7 @@ textarea {
 }
 
 textarea {
-  min-height: 46px;
+  min-height: 36px;
   color: #000;
   overflow: visible;
   white-space: pre-wrap;
@@ -90,7 +90,7 @@ textarea {
 }
 
 fieldset {
-  padding: 5pt 7pt 7pt;
+  padding: 4pt 6pt 6pt;
   min-height: 0;
   border: 1px solid #000;
   background: transparent !important;
@@ -127,6 +127,7 @@ tbody tr:nth-child(even) { background: rgba(0, 0, 0, 0.025); }
 .table-wrap { page-break-inside: avoid; }
 
 /* Hide on print */
-.app-menu, .menu-panel, .success, .warning, .client-error, .error-box, .print-button, .theme-toggle, .toast, .actions .button-link {
+.app-menu, .menu-panel, .success, .warning, .client-error, .error-box, .print-button, .theme-toggle, .toast, .actions .button-link,
+.sheet-header, .breadcrumbs, .draft-restore-wrap, .new-intake-cta, .quick-actions, .quick-links, .badge {
   display: none !important;
 }
