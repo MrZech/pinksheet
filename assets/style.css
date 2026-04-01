@@ -241,6 +241,43 @@ body.dark-mode .badge {
   margin: 0;
 }
 
+/* Pre-print preview state (used by JS before window.print) */
+body.printing {
+  background: #ffffff;
+  color: #000000;
+}
+body.printing .page {
+  padding: 0;
+  margin: 0;
+}
+body.printing .sheet {
+  border-radius: 0;
+  box-shadow: none;
+  padding: 10px 12px 12px;
+  background: #ffffff;
+}
+body.printing .app-menu,
+body.printing .menu-panel,
+body.printing .success,
+body.printing .warning,
+body.printing .client-error,
+body.printing .error-box,
+body.printing .print-toggle,
+body.printing .print-button,
+body.printing .theme-toggle,
+body.printing .toast,
+body.printing .sheet-header,
+body.printing .breadcrumbs,
+body.printing .draft-restore-wrap,
+body.printing .new-intake-cta,
+body.printing .quick-actions,
+body.printing .quick-links,
+body.printing .badge,
+body.printing .recent-items,
+body.printing .actions {
+  display: none !important;
+}
+
 a {
   color: var(--accent-strong);
   text-decoration: none;

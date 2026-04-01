@@ -1033,10 +1033,11 @@ function checked(string $name, string $value, array $formData): string
         sheet.style.width = '';
         var printableWidth = (PRINT_PAGE_WIDTH_IN - PRINT_MARGIN_IN * 2) * PRINT_DPI;
         var printableHeight = (PRINT_PAGE_HEIGHT_IN - PRINT_MARGIN_IN * 2) * PRINT_DPI;
+        var rect = sheet.getBoundingClientRect();
         var scale = Math.min(
           1,
-          printableWidth / sheet.offsetWidth,
-          printableHeight / sheet.offsetHeight
+          printableWidth / rect.width,
+          printableHeight / rect.height
         );
         sheet.dataset.printScale = scale.toFixed(3);
         sheet.style.transformOrigin = 'top left';
@@ -1051,12 +1052,16 @@ function checked(string $name, string $value, array $formData): string
         sheet.removeAttribute('data-print-scale');
       };
       var prepareForPrint = function () {
+        document.body.classList.add('printing');
         resizeTextareasForPrint();
-        applyPrintScale();
+        requestAnimationFrame(function () {
+          applyPrintScale();
+        });
       };
       var cleanupAfterPrint = function () {
         resetTextareaHeights();
         resetPrintScale();
+        document.body.classList.remove('printing');
       };
       window.addEventListener('beforeprint', prepareForPrint);
       window.addEventListener('afterprint', cleanupAfterPrint);
