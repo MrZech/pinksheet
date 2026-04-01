@@ -1,8 +1,11 @@
-@page { size: auto; margin: 0.5in; }
+@page {
+  size: letter portrait;
+  margin: 0.35in;
+}
 
 * { box-shadow: none !important; text-shadow: none !important; }
 
-html, body { width: auto; height: auto; }
+html, body { width: auto; height: auto; min-height: 0; }
 
 body {
   background: #fff !important;
@@ -15,24 +18,28 @@ body {
 
 a { color: #000; text-decoration: none; }
 
-.page {
-  margin: 0;
-  padding: 0;
-  width: auto;
-  max-width: none;
-}
+.page { margin: 0; padding: 0; width: auto; max-width: none; min-height: 0; }
 
 .sheet {
   width: 100% !important;
   max-width: 7.5in;
   margin: 0 auto;
   height: auto !important;
+  min-height: 0 !important;
   padding: 12pt;
   border: 1px solid #000;
   border-radius: 0;
   background: #fff !important;
   overflow: visible;
   backdrop-filter: none;
+  transform-origin: top left;
+}
+
+.sheet.intake,
+.sheet-scale,
+.sheet-content {
+  height: auto !important;
+  min-height: 0 !important;
 }
 
 body.print-pink .sheet { background: #f4a4bb !important; }

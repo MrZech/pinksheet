@@ -1008,6 +1008,10 @@ function checked(string $name, string $value, array $formData): string
         });
       }
 
+      var PRINT_MARGIN_IN = 0.35;
+      var PRINT_PAGE_WIDTH_IN = 8.5;
+      var PRINT_PAGE_HEIGHT_IN = 11;
+      var PRINT_DPI = 96;
       var resizeTextareasForPrint = function () {
         var textareas = document.querySelectorAll('textarea');
         textareas.forEach(function (ta) {
@@ -1022,16 +1026,48 @@ function checked(string $name, string $value, array $formData): string
           ta.style.minHeight = '';
         });
       };
-      window.addEventListener('beforeprint', resizeTextareasForPrint);
-      window.addEventListener('afterprint', resetTextareaHeights);
+      var applyPrintScale = function () {
+        var sheet = document.querySelector('.sheet');
+        if (!sheet) return;
+        sheet.style.transform = '';
+        sheet.style.width = '';
+        var printableWidth = (PRINT_PAGE_WIDTH_IN - PRINT_MARGIN_IN * 2) * PRINT_DPI;
+        var printableHeight = (PRINT_PAGE_HEIGHT_IN - PRINT_MARGIN_IN * 2) * PRINT_DPI;
+        var scale = Math.min(
+          1,
+          printableWidth / sheet.offsetWidth,
+          printableHeight / sheet.offsetHeight
+        );
+        sheet.dataset.printScale = scale.toFixed(3);
+        sheet.style.transformOrigin = 'top left';
+        sheet.style.transform = 'scale(' + scale + ')';
+        sheet.style.width = (100 / scale) + '%';
+      };
+      var resetPrintScale = function () {
+        var sheet = document.querySelector('.sheet');
+        if (!sheet) return;
+        sheet.style.transform = '';
+        sheet.style.width = '';
+        sheet.removeAttribute('data-print-scale');
+      };
+      var prepareForPrint = function () {
+        resizeTextareasForPrint();
+        applyPrintScale();
+      };
+      var cleanupAfterPrint = function () {
+        resetTextareaHeights();
+        resetPrintScale();
+      };
+      window.addEventListener('beforeprint', prepareForPrint);
+      window.addEventListener('afterprint', cleanupAfterPrint);
       if (window.matchMedia) {
         var printWatcher = window.matchMedia('print');
         if (printWatcher && printWatcher.addListener) {
           printWatcher.addListener(function (mql) {
             if (mql.matches) {
-              resizeTextareasForPrint();
+              prepareForPrint();
             } else {
-              resetTextareaHeights();
+              cleanupAfterPrint();
             }
           });
         }
@@ -1040,7 +1076,7 @@ function checked(string $name, string $value, array $formData): string
       var printButton = document.getElementById('print-button');
       if (printButton) {
         printButton.addEventListener('click', function () {
-          resizeTextareasForPrint();
+          prepareForPrint();
           window.print();
         });
       }
