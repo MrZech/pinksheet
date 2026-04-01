@@ -1,6 +1,8 @@
+:root { --print-scale: 0.6; }
+
 @page {
   size: letter portrait;
-  margin: 0.35in;
+  margin: 0.3in;
 }
 
 * { box-shadow: none !important; text-shadow: none !important; }
@@ -10,8 +12,8 @@ html, body { width: auto; height: auto; min-height: 0; }
 body {
   background: #fff !important;
   color: #000 !important;
-  font-size: 11pt;
-  line-height: 1.25;
+  font-size: 10pt;
+  line-height: 1.15;
   -webkit-print-color-adjust: exact;
   print-color-adjust: exact;
 }
@@ -21,18 +23,21 @@ a { color: #000; text-decoration: none; }
 .page { margin: 0; padding: 0; width: auto; max-width: none; min-height: 0; }
 
 .sheet {
-  width: 100% !important;
-  max-width: 7.5in;
+  width: calc(100% / var(--print-scale)) !important;
+  max-width: none;
   margin: 0 auto;
   height: auto !important;
   min-height: 0 !important;
-  padding: 12pt;
+  padding: 8pt;
   border: 1px solid #000;
   border-radius: 0;
   background: #fff !important;
   overflow: visible;
   backdrop-filter: none;
   transform-origin: top left;
+  transform: scale(var(--print-scale)) !important;
+  page-break-inside: avoid;
+  page-break-after: avoid;
 }
 
 .sheet.intake,
@@ -52,8 +57,8 @@ body.print-pink .sheet { background: #f4a4bb !important; }
 .sheet.intake .form-columns { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 
 .section {
-  padding: 4pt 6pt 6pt;
-  margin-top: 6pt;
+  padding: 4pt 5pt;
+  margin-top: 5pt;
   border: 1px solid #000;
   break-inside: avoid;
   page-break-inside: avoid;
@@ -65,7 +70,7 @@ body.print-pink .sheet { background: #f4a4bb !important; }
 
 .row {
   gap: 4pt;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
   break-inside: avoid;
   page-break-inside: avoid;
 }
@@ -77,11 +82,11 @@ input[type="date"],
 input[type="number"],
 select,
 textarea {
-  padding: 4pt 6pt;
+  padding: 3pt 5pt;
   border-radius: 0;
   border: 1px solid #000;
   box-shadow: none;
-  font-size: 9.5pt;
+  font-size: 9pt;
   color: #000;
   background: #fff !important;
   overflow-wrap: anywhere;
@@ -89,7 +94,7 @@ textarea {
 }
 
 textarea {
-  min-height: 36px;
+  min-height: 30px;
   color: #000;
   overflow: visible;
   white-space: pre-wrap;
@@ -97,7 +102,7 @@ textarea {
 }
 
 fieldset {
-  padding: 4pt 6pt 6pt;
+  padding: 4pt 5pt 5pt;
   min-height: 0;
   border: 1px solid #000;
   background: transparent !important;
@@ -129,7 +134,7 @@ legend { font-size: 8pt; color: #000; }
 }
 
 table { width: 100%; border-collapse: collapse; page-break-inside: auto; }
-th, td { border: 1px solid #000; padding: 4pt 6pt; page-break-inside: avoid; break-inside: avoid; }
+th, td { border: 1px solid #000; padding: 3pt 5pt; page-break-inside: avoid; break-inside: avoid; }
 tbody tr:nth-child(even) { background: rgba(0, 0, 0, 0.025); }
 .table-wrap { page-break-inside: avoid; }
 

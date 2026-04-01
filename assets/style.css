@@ -1,4 +1,4 @@
-﻿:root {
+:root {
   --page-bg: #eaaed6;
   --page-bg-alt: #e29ccf;
   --sheet-bg: rgba(245, 223, 238, 0.92);
@@ -1577,7 +1577,7 @@ th {
 
   @page {
     size: letter portrait;
-    margin: 0.35in;
+    margin: 0.3in;
   }
 
   html,
