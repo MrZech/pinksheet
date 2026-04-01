@@ -1030,15 +1030,17 @@ function checked(string $name, string $value, array $formData): string
       var applyPrintScale = function () {
         var sheet = document.querySelector('.sheet');
         if (!sheet) return;
+        // reset first to get natural size
         sheet.style.transform = '';
         sheet.style.width = '';
         var printableWidth = (PRINT_PAGE_WIDTH_IN - PRINT_MARGIN_IN * 2) * PRINT_DPI;
         var printableHeight = (PRINT_PAGE_HEIGHT_IN - PRINT_MARGIN_IN * 2) * PRINT_DPI;
-        var rect = sheet.getBoundingClientRect();
+        var width = sheet.scrollWidth;
+        var height = sheet.scrollHeight;
         var scale = Math.min(
           1,
-          printableWidth / rect.width,
-          printableHeight / rect.height
+          printableWidth / width,
+          printableHeight / height
         );
         if (scale < MIN_PRINT_SCALE) {
           scale = MIN_PRINT_SCALE;
@@ -1087,8 +1089,17 @@ function checked(string $name, string $value, array $formData): string
         printButton.addEventListener('click', function () {
           prepareForPrint();
           window.print();
+          // Fallback cleanup in case afterprint doesn't fire (some browsers)
+          setTimeout(cleanupAfterPrint, 500);
         });
       }
+
+      // Extra guard: if visibility returns and printing class stuck, clean up
+      document.addEventListener('visibilitychange', function () {
+        if (document.visibilityState === 'visible' && document.body.classList.contains('printing')) {
+          cleanupAfterPrint();
+        }
+      });
 
       // "What is it?" select with custom entry support
       var whatInput = document.getElementById('what-is-it-input');
