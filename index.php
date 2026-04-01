@@ -1089,14 +1089,23 @@ function checked(string $name, string $value, array $formData): string
         printButton.addEventListener('click', function () {
           prepareForPrint();
           window.print();
-          // Fallback cleanup in case afterprint doesn't fire (some browsers)
-          setTimeout(cleanupAfterPrint, 500);
+          // Immediately restore layout after print dialog closes
+          cleanupAfterPrint();
+          // Extra fallback in case browsers delay cleanup events
+          setTimeout(cleanupAfterPrint, 300);
         });
       }
 
       // Extra guard: if visibility returns and printing class stuck, clean up
       document.addEventListener('visibilitychange', function () {
         if (document.visibilityState === 'visible' && document.body.classList.contains('printing')) {
+          cleanupAfterPrint();
+        }
+      });
+
+      // Also clean up on window focus (covers some Safari/Chrome cases)
+      window.addEventListener('focus', function () {
+        if (document.body.classList.contains('printing')) {
           cleanupAfterPrint();
         }
       });
