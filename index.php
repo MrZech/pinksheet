@@ -1012,7 +1012,7 @@ function checked(string $name, string $value, array $formData): string
       var PRINT_PAGE_WIDTH_IN = 8.5;
       var PRINT_PAGE_HEIGHT_IN = 11;
       var PRINT_DPI = 96;
-      var MIN_PRINT_SCALE = 0.85;
+      var MIN_PRINT_SCALE = 0.9;
       var resizeTextareas = function (root) {
         (root || document).querySelectorAll('textarea').forEach(function (ta) {
           ta.style.height = 'auto';
