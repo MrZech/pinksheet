@@ -1039,18 +1039,25 @@ function checked(string $name, string $value, array $formData): string
           }
         });
       };
-      var buildPrintWindow = function () {
+      var buildPrintIframe = function () {
         var sheet = document.querySelector('.sheet');
         if (!sheet) return null;
-        var originPath = window.location.href.replace(/[^/]*$/, '');
-        var win = window.open('', '_blank', 'noopener,noreferrer');
-        if (!win) return null;
-        var doc = win.document;
+        var iframe = document.createElement('iframe');
+        iframe.id = 'print-frame';
+        iframe.style.position = 'fixed';
+        iframe.style.right = '0';
+        iframe.style.bottom = '0';
+        iframe.style.width = '0';
+        iframe.style.height = '0';
+        iframe.style.border = '0';
+        iframe.setAttribute('aria-hidden', 'true');
+        document.body.appendChild(iframe);
+        var doc = iframe.contentDocument || iframe.contentWindow.document;
         doc.open();
         doc.write(
           '<!doctype html><html><head><title>Print</title>' +
-          '<link rel="stylesheet" href="' + originPath + 'assets/style.css">' +
-          '<link rel="stylesheet" href="' + originPath + 'assets/print.css">' +
+          '<link rel="stylesheet" href="assets/style.css">' +
+          '<link rel="stylesheet" href="assets/print.css">' +
           '</head><body' + (document.body.classList.contains('print-pink') ? ' class=\"print-pink\"' : '') + '>' +
           '<div id=\"print-root\"></div>' +
           '</body></html>'
@@ -1058,45 +1065,43 @@ function checked(string $name, string $value, array $formData): string
         doc.close();
         var clone = sheet.cloneNode(true);
         copyFormValues(sheet, clone);
+        var printableWidth = (PRINT_PAGE_WIDTH_IN - PRINT_MARGIN_IN * 2) * PRINT_DPI;
+        var printableHeight = (PRINT_PAGE_HEIGHT_IN - PRINT_MARGIN_IN * 2) * PRINT_DPI;
         var attachAndPrint = function () {
           var root = doc.getElementById('print-root');
           if (!root) return;
           root.appendChild(clone);
           resizeTextareas(doc);
-          // scale inside print window to fit one page
-          var printableWidth = (PRINT_PAGE_WIDTH_IN - PRINT_MARGIN_IN * 2) * PRINT_DPI;
-          var printableHeight = (PRINT_PAGE_HEIGHT_IN - PRINT_MARGIN_IN * 2) * PRINT_DPI;
-          var measureAndScale = function () {
+          // measure after layout
+          setTimeout(function () {
             var rect = clone.getBoundingClientRect();
             var scale = Math.min(1, printableWidth / rect.width, printableHeight / rect.height);
             if (scale < MIN_PRINT_SCALE) scale = MIN_PRINT_SCALE;
             clone.style.transformOrigin = 'top left';
             clone.style.transform = 'scale(' + scale + ')';
             clone.style.width = (100 / scale) + '%';
-          };
-          // wait for layout and fonts
-          setTimeout(function () {
-            measureAndScale();
-            try { win.focus(); } catch (e) {}
-            win.print();
-            setTimeout(function () { try { win.close(); } catch (e) {} }, 300);
-          }, 80);
+            try { iframe.contentWindow.focus(); } catch (e) {}
+            iframe.contentWindow.print();
+            setTimeout(function () {
+              try { iframe.remove(); } catch (e) {}
+            }, 400);
+          }, 60);
         };
         if (doc.readyState === 'complete') {
           attachAndPrint();
         } else {
-          win.addEventListener('load', attachAndPrint);
+          iframe.addEventListener('load', attachAndPrint);
         }
-        return win;
+        return iframe;
       };
-      var printViaWindow = function () {
-        buildPrintWindow();
+      var printViaIframe = function () {
+        buildPrintIframe();
       };
 
       var printButton = document.getElementById('print-button');
       if (printButton) {
         printButton.addEventListener('click', function () {
-          printViaWindow();
+          printViaIframe();
         });
       }
 
