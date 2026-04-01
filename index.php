@@ -1008,11 +1008,11 @@ function checked(string $name, string $value, array $formData): string
         });
       }
 
-      var PRINT_MARGIN_IN = 0.2;
+      var PRINT_MARGIN_IN = 0.18;
       var PRINT_PAGE_WIDTH_IN = 8.5;
       var PRINT_PAGE_HEIGHT_IN = 11;
       var PRINT_DPI = 96;
-      var MIN_PRINT_SCALE = 0.95;
+      var MIN_PRINT_SCALE = 0.98;
       var resizeTextareas = function (root) {
         (root || document).querySelectorAll('textarea').forEach(function (ta) {
           ta.style.height = 'auto';
