@@ -1042,30 +1042,55 @@ function checked(string $name, string $value, array $formData): string
       var buildPrintWindow = function () {
         var sheet = document.querySelector('.sheet');
         if (!sheet) return null;
-        var win = window.open('', 'printWindow', 'noopener,noreferrer');
+        var originPath = window.location.href.replace(/[^/]*$/, '');
+        var win = window.open('', '_blank', 'noopener,noreferrer');
         if (!win) return null;
         var doc = win.document;
         doc.open();
-        doc.write('<!doctype html><html><head><title>Print</title><link rel="stylesheet" href="assets/style.css"><link rel="stylesheet" href="assets/print.css"></head><body' + (document.body.classList.contains('print-pink') ? ' class=\"print-pink\"' : '') + '></body></html>');
+        doc.write(
+          '<!doctype html><html><head><title>Print</title>' +
+          '<link rel="stylesheet" href="' + originPath + 'assets/style.css">' +
+          '<link rel="stylesheet" href="' + originPath + 'assets/print.css">' +
+          '</head><body' + (document.body.classList.contains('print-pink') ? ' class=\"print-pink\"' : '') + '>' +
+          '<div id=\"print-root\"></div>' +
+          '</body></html>'
+        );
         doc.close();
         var clone = sheet.cloneNode(true);
         copyFormValues(sheet, clone);
-        doc.body.appendChild(clone);
-        resizeTextareas(doc);
+        var attachAndPrint = function () {
+          var root = doc.getElementById('print-root');
+          if (!root) return;
+          root.appendChild(clone);
+          resizeTextareas(doc);
+          // scale inside print window to fit one page
+          var printableWidth = (PRINT_PAGE_WIDTH_IN - PRINT_MARGIN_IN * 2) * PRINT_DPI;
+          var printableHeight = (PRINT_PAGE_HEIGHT_IN - PRINT_MARGIN_IN * 2) * PRINT_DPI;
+          var measureAndScale = function () {
+            var rect = clone.getBoundingClientRect();
+            var scale = Math.min(1, printableWidth / rect.width, printableHeight / rect.height);
+            if (scale < MIN_PRINT_SCALE) scale = MIN_PRINT_SCALE;
+            clone.style.transformOrigin = 'top left';
+            clone.style.transform = 'scale(' + scale + ')';
+            clone.style.width = (100 / scale) + '%';
+          };
+          // wait for layout and fonts
+          setTimeout(function () {
+            measureAndScale();
+            try { win.focus(); } catch (e) {}
+            win.print();
+            setTimeout(function () { try { win.close(); } catch (e) {} }, 300);
+          }, 80);
+        };
+        if (doc.readyState === 'complete') {
+          attachAndPrint();
+        } else {
+          win.addEventListener('load', attachAndPrint);
+        }
         return win;
       };
       var printViaWindow = function () {
-        var win = buildPrintWindow();
-        if (!win) return;
-        // Delay to allow styles to load/render in the new window
-        setTimeout(function () {
-          try { win.focus(); } catch (e) {}
-          win.print();
-          // Close the window shortly after to avoid lingering
-          setTimeout(function () {
-            try { win.close(); } catch (e) {}
-          }, 500);
-        }, 120);
+        buildPrintWindow();
       };
 
       var printButton = document.getElementById('print-button');
