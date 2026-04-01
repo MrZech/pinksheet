@@ -44,6 +44,10 @@ a { color: #000; text-decoration: none; }
   min-height: 0 !important;
 }
 
+.sheet.intake .form-columns {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
 body.print-pink .sheet { background: #f4a4bb !important; }
 
 .sheet-content { transform: none !important; margin: 0 !important; }
@@ -67,7 +71,7 @@ body.print-pink .sheet { background: #f4a4bb !important; }
 
 .row {
   gap: 4pt;
-  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
   break-inside: avoid;
   page-break-inside: avoid;
 }

@@ -1012,6 +1012,7 @@ function checked(string $name, string $value, array $formData): string
       var PRINT_PAGE_WIDTH_IN = 8.5;
       var PRINT_PAGE_HEIGHT_IN = 11;
       var PRINT_DPI = 96;
+      var MIN_PRINT_SCALE = 0.8;
       var resizeTextareasForPrint = function () {
         var textareas = document.querySelectorAll('textarea');
         textareas.forEach(function (ta) {
@@ -1039,6 +1040,7 @@ function checked(string $name, string $value, array $formData): string
           printableWidth / rect.width,
           printableHeight / rect.height
         );
+        if (scale < MIN_PRINT_SCALE) scale = MIN_PRINT_SCALE;
         sheet.dataset.printScale = scale.toFixed(3);
         sheet.style.transformOrigin = 'top left';
         sheet.style.transform = 'scale(' + scale + ')';
