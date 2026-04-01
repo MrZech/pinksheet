@@ -1013,101 +1013,90 @@ function checked(string $name, string $value, array $formData): string
       var PRINT_PAGE_HEIGHT_IN = 11;
       var PRINT_DPI = 96;
       var MIN_PRINT_SCALE = 0.3;
-      var resizeTextareasForPrint = function () {
-        var textareas = document.querySelectorAll('textarea');
-        textareas.forEach(function (ta) {
+      var resizeTextareas = function (root) {
+        (root || document).querySelectorAll('textarea').forEach(function (ta) {
           ta.style.height = 'auto';
           ta.style.minHeight = '0';
           ta.style.height = (ta.scrollHeight + 6) + 'px';
         });
       };
-      var resetTextareaHeights = function () {
-        document.querySelectorAll('textarea').forEach(function (ta) {
-          ta.style.height = '';
-          ta.style.minHeight = '';
-        });
-      };
-      var applyPrintScale = function () {
-        var sheet = document.querySelector('.sheet');
-        if (!sheet) return;
-        // reset first to get natural size
-        sheet.style.transform = '';
-        sheet.style.width = '';
-        var printableWidth = (PRINT_PAGE_WIDTH_IN - PRINT_MARGIN_IN * 2) * PRINT_DPI;
-        var printableHeight = (PRINT_PAGE_HEIGHT_IN - PRINT_MARGIN_IN * 2) * PRINT_DPI;
-        var width = sheet.scrollWidth;
-        var height = sheet.scrollHeight;
-        var scale = Math.min(
-          1,
-          printableWidth / width,
-          printableHeight / height
-        );
-        if (scale < MIN_PRINT_SCALE) {
-          scale = MIN_PRINT_SCALE;
-        }
-        sheet.dataset.printScale = scale.toFixed(3);
-        sheet.style.transformOrigin = 'top left';
-        sheet.style.transform = 'scale(' + scale + ')';
-        sheet.style.width = (100 / scale) + '%';
-      };
-      var resetPrintScale = function () {
-        var sheet = document.querySelector('.sheet');
-        if (!sheet) return;
-        sheet.style.transform = '';
-        sheet.style.width = '';
-        sheet.removeAttribute('data-print-scale');
-      };
-      var prepareForPrint = function () {
-        document.body.classList.add('printing');
-        resizeTextareasForPrint();
-        requestAnimationFrame(function () {
-          applyPrintScale();
-        });
-      };
-      var cleanupAfterPrint = function () {
-        resetTextareaHeights();
-        resetPrintScale();
-        document.body.classList.remove('printing');
-      };
-      window.addEventListener('beforeprint', prepareForPrint);
-      window.addEventListener('afterprint', cleanupAfterPrint);
-      if (window.matchMedia) {
-        var printWatcher = window.matchMedia('print');
-        if (printWatcher && printWatcher.addListener) {
-          printWatcher.addListener(function (mql) {
-            if (mql.matches) {
-              prepareForPrint();
+      var copyFormValues = function (srcRoot, destRoot) {
+        var srcFields = srcRoot.querySelectorAll('input, textarea, select');
+        var destFields = destRoot.querySelectorAll('input, textarea, select');
+        destFields.forEach(function (dest, idx) {
+          var src = srcFields[idx];
+          if (!src) return;
+          if (dest.tagName === 'INPUT') {
+            if (dest.type === 'checkbox' || dest.type === 'radio') {
+              dest.checked = src.checked;
             } else {
-              cleanupAfterPrint();
+              dest.value = src.value;
             }
-          });
-        }
-      }
+          } else if (dest.tagName === 'TEXTAREA') {
+            dest.value = src.value;
+          } else if (dest.tagName === 'SELECT') {
+            dest.value = src.value;
+          }
+        });
+      };
+      var buildPrintFrame = function () {
+        var sheet = document.querySelector('.sheet');
+        if (!sheet) return null;
+        var iframe = document.createElement('iframe');
+        iframe.id = 'print-frame';
+        iframe.style.position = 'fixed';
+        iframe.style.right = '0';
+        iframe.style.bottom = '0';
+        iframe.style.width = '0';
+        iframe.style.height = '0';
+        iframe.style.border = '0';
+        iframe.setAttribute('aria-hidden', 'true');
+        document.body.appendChild(iframe);
+        var doc = iframe.contentDocument || iframe.contentWindow.document;
+        doc.open();
+        doc.write('<!doctype html><html><head><title>Print</title><link rel="stylesheet" href="assets/style.css"><link rel="stylesheet" href="assets/print.css"></head><body' + (document.body.classList.contains('print-pink') ? ' class="print-pink"' : '') + '></body></html>');
+        doc.close();
+        var clone = sheet.cloneNode(true);
+        copyFormValues(sheet, clone);
+        doc.body.appendChild(clone);
+        resizeTextareas(doc);
+        return iframe;
+      };
+      var cleanupFrame = function (iframe) {
+        if (!iframe) return;
+        try {
+          iframe.parentNode.removeChild(iframe);
+        } catch (e) {}
+      };
+      var printViaFrame = function () {
+        var iframe = buildPrintFrame();
+        if (!iframe) return;
+        var win = iframe.contentWindow || iframe;
+        var done = false;
+        var finish = function () {
+          if (done) return;
+          done = true;
+          cleanupFrame(iframe);
+        };
+        win.addEventListener('afterprint', finish);
+        setTimeout(function () {
+          try { win.focus(); } catch (e) {}
+          win.print();
+          setTimeout(finish, 500);
+        }, 50);
+      };
 
       var printButton = document.getElementById('print-button');
       if (printButton) {
         printButton.addEventListener('click', function () {
-          prepareForPrint();
-          window.print();
-          // Immediately restore layout after print dialog closes
-          cleanupAfterPrint();
-          // Extra fallback in case browsers delay cleanup events
-          setTimeout(cleanupAfterPrint, 300);
+          printViaFrame();
         });
       }
 
-      // Extra guard: if visibility returns and printing class stuck, clean up
-      document.addEventListener('visibilitychange', function () {
-        if (document.visibilityState === 'visible' && document.body.classList.contains('printing')) {
-          cleanupAfterPrint();
-        }
-      });
-
-      // Also clean up on window focus (covers some Safari/Chrome cases)
-      window.addEventListener('focus', function () {
-        if (document.body.classList.contains('printing')) {
-          cleanupAfterPrint();
-        }
+      // Clean up orphaned print iframe if user navigates away mid-print
+      window.addEventListener('beforeunload', function () {
+        var orphan = document.getElementById('print-frame');
+        if (orphan) orphan.remove();
       });
 
       // "What is it?" select with custom entry support
