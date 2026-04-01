@@ -1,6 +1,6 @@
 @page {
   size: letter portrait;
-  margin: 0.35in;
+  margin: 0.25in;
 }
 
 * { box-shadow: none !important; text-shadow: none !important; }
@@ -22,7 +22,7 @@ a { color: #000; text-decoration: none; }
 
 .sheet {
   width: 100% !important;
-  max-width: 7.8in;
+  max-width: 8.0in;
   margin: 0 auto;
   height: auto !important;
   min-height: 0 !important;
@@ -32,7 +32,6 @@ a { color: #000; text-decoration: none; }
   background: #fff !important;
   overflow: visible;
   backdrop-filter: none;
-  transform: none !important;
   page-break-inside: avoid;
   page-break-after: avoid;
 }
