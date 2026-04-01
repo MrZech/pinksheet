@@ -1039,65 +1039,43 @@ function checked(string $name, string $value, array $formData): string
           }
         });
       };
-      var buildPrintFrame = function () {
+      var buildPrintWindow = function () {
         var sheet = document.querySelector('.sheet');
         if (!sheet) return null;
-        var iframe = document.createElement('iframe');
-        iframe.id = 'print-frame';
-        iframe.style.position = 'fixed';
-        iframe.style.right = '0';
-        iframe.style.bottom = '0';
-        iframe.style.width = '0';
-        iframe.style.height = '0';
-        iframe.style.border = '0';
-        iframe.setAttribute('aria-hidden', 'true');
-        document.body.appendChild(iframe);
-        var doc = iframe.contentDocument || iframe.contentWindow.document;
+        var win = window.open('', 'printWindow', 'noopener,noreferrer');
+        if (!win) return null;
+        var doc = win.document;
         doc.open();
-        doc.write('<!doctype html><html><head><title>Print</title><link rel="stylesheet" href="assets/style.css"><link rel="stylesheet" href="assets/print.css"></head><body' + (document.body.classList.contains('print-pink') ? ' class="print-pink"' : '') + '></body></html>');
+        doc.write('<!doctype html><html><head><title>Print</title><link rel="stylesheet" href="assets/style.css"><link rel="stylesheet" href="assets/print.css"></head><body' + (document.body.classList.contains('print-pink') ? ' class=\"print-pink\"' : '') + '></body></html>');
         doc.close();
         var clone = sheet.cloneNode(true);
         copyFormValues(sheet, clone);
         doc.body.appendChild(clone);
         resizeTextareas(doc);
-        return iframe;
+        return win;
       };
-      var cleanupFrame = function (iframe) {
-        if (!iframe) return;
-        try {
-          iframe.parentNode.removeChild(iframe);
-        } catch (e) {}
-      };
-      var printViaFrame = function () {
-        var iframe = buildPrintFrame();
-        if (!iframe) return;
-        var win = iframe.contentWindow || iframe;
-        var done = false;
-        var finish = function () {
-          if (done) return;
-          done = true;
-          cleanupFrame(iframe);
-        };
-        win.addEventListener('afterprint', finish);
+      var printViaWindow = function () {
+        var win = buildPrintWindow();
+        if (!win) return;
+        // Delay to allow styles to load/render in the new window
         setTimeout(function () {
           try { win.focus(); } catch (e) {}
           win.print();
-          setTimeout(finish, 500);
-        }, 50);
+          // Close the window shortly after to avoid lingering
+          setTimeout(function () {
+            try { win.close(); } catch (e) {}
+          }, 500);
+        }, 120);
       };
 
       var printButton = document.getElementById('print-button');
       if (printButton) {
         printButton.addEventListener('click', function () {
-          printViaFrame();
+          printViaWindow();
         });
       }
 
-      // Clean up orphaned print iframe if user navigates away mid-print
-      window.addEventListener('beforeunload', function () {
-        var orphan = document.getElementById('print-frame');
-        if (orphan) orphan.remove();
-      });
+      // No main-page mutations during print; nothing to clean up on unload.
 
       // "What is it?" select with custom entry support
       var whatInput = document.getElementById('what-is-it-input');
