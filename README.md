@@ -10,6 +10,11 @@ php -S localhost:8000
 
 Then open `http://localhost:8000`.
 
+Smoke test (needs curl extension for photo upload):
+```bash
+php scripts/smoke.php
+```
+
 ## Data storage
 - Records live in `data/intake.sqlite`.
 - SKU photos live in `data/sku_photos/<SKU_NORMALIZED>/`; indexed in `sku_photos` table.
@@ -21,9 +26,11 @@ Then open `http://localhost:8000`.
 - Open `index.php?clear_draft=1` for a blank intake.
 
 ## Intake/drafts
-- Autosaves while you type; if you clear via “New Intake,” the last draft is stashed and a “Restore last draft” button appears when the form is empty.
+- Autosaves while you type (server + local); if you clear via “New Intake,” the last draft is stashed and a “Restore last draft” button appears when the form is empty.
+- Save & Duplicate: saves, then pre-fills a new form with prior values except SKU/photos.
+- Copy fields from SKU: enter an existing SKU to pull its latest record (excludes SKU/photos).
 - SKU is uppercased client-side on submit; SKU and “What is it?” are required (toast + inline errors). “What is it?” has a live length counter (120 max).
-- Bulk status: select rows in the intake table, choose a status, click “Apply to selected.”
+- Bulk actions: select rows, choose a status, click “Apply to selected,” or use “Delete selected” (double confirmation).
 
 ## Appearance
 - Dark mode uses a modern charcoal/indigo palette with glassy cards; toggle in headers (preference stored).
@@ -41,11 +48,12 @@ Then open `http://localhost:8000`.
 - Keep live DB out of git: `git update-index --skip-worktree data/intake.sqlite` (undo with `--no-skip-worktree`).
 
 ## SKU photos
-- Drag/drop/paste or click to queue; uploads chunked at 512KB. Download-all as ZIP; `photo.php?id=...` streams individual files; thumbnails surface in lookup preview when available.
+- Drag/drop/paste or click to queue; uploads chunked at 512KB. Download-all as ZIP; `photo.php?id=...` streams individual files; thumbnails surface in lookup preview, recent SKUs, and home activity when available (placeholder shown otherwise).
 
 ## Docs
 - `docs/usage.md` — core flows, themes, print guidance.
 - `docs/schema.md` — intake_items columns and notes.
 - `docs/maintenance.md` — backups, hooks, alerts, restore steps.
 - `docs/dev.md` — file map, run instructions, smoke test.
+- `docs/ops.md` — operator SOP: daily/weekly checks, backups, bulk delete safeguards, restore playbook.
 - `CHANGELOG.md` — noteworthy UI/ops changes.
