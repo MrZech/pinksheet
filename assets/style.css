@@ -1582,6 +1582,10 @@ table {
   font-size: 0.85rem;
 }
 
+.table-wrap table td:last-child {
+  white-space: nowrap;
+}
+
 th,
 td {
   padding: 8px 10px;

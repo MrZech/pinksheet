@@ -993,17 +993,18 @@ function checked(string $name, string $value, array $formData): string
             <button type="submit">Apply to selected</button>
             <span class="hint">Check boxes in the table, then update that status in bulk.</span>
           </div>
-          <div class="table-wrap">
+            <div class="table-wrap">
             <table>
               <thead>
                 <tr>
-              <th>Select</th>
-              <th>Photo</th>
-              <th>SKU</th>
-              <th>Status</th>
-              <th>What is it?</th>
-              <th>Updated</th>
-              <th>Open</th>
+                  <th>Select</th>
+                  <th>Photo</th>
+                  <th>SKU</th>
+                  <th>Status</th>
+                  <th>What is it?</th>
+                  <th>Updated</th>
+                  <th>Open</th>
+                  <th>Delete</th>
                 </tr>
               </thead>
               <tbody>
@@ -1038,6 +1039,14 @@ function checked(string $name, string $value, array $formData): string
                       <td><?php echo h($item['what_is_it'] ?? ''); ?></td>
                       <td><?php echo h($item['updated_at'] ?? ''); ?></td>
                       <td><a class="open-link" href="index.php?sku=<?php echo urlencode((string)($item['sku'] ?? '')); ?>">Open</a></td>
+                      <td>
+                        <button type="button"
+                                class="ghost danger js-delete-item"
+                                data-sku="<?php echo h($item['sku'] ?? ''); ?>"
+                                data-id="<?php echo isset($item['id']) ? (int)$item['id'] : 0; ?>">
+                          Delete
+                        </button>
+                      </td>
                     </tr>
                   <?php endforeach; ?>
                 <?php endif; ?>
@@ -1306,10 +1315,32 @@ function checked(string $name, string $value, array $formData): string
         var restoreHint = document.getElementById('restore-hint');
         var autosaveStatus = document.getElementById('autosave-status');
         var serverDraftBanner = document.getElementById('server-draft-banner');
-        var duplicateButton = document.getElementById('save-duplicate');
-        var copySkuInput = document.getElementById('copy-sku-input');
-        var copySkuButton = document.getElementById('copy-sku-button');
-        var copySkuStatus = document.getElementById('copy-sku-status');
+      var duplicateButton = document.getElementById('save-duplicate');
+      var copySkuInput = document.getElementById('copy-sku-input');
+      var copySkuButton = document.getElementById('copy-sku-button');
+      var copySkuStatus = document.getElementById('copy-sku-status');
+      var deleteButtons = document.querySelectorAll('.js-delete-item');
+      var deleteForm = null;
+      var deleteInputId = null;
+      var deleteInputSku = null;
+      var recentDeleteForm = document.createElement('form');
+      recentDeleteForm.method = 'post';
+      recentDeleteForm.action = 'delete_item.php';
+      recentDeleteForm.className = 'visually-hidden';
+      deleteInputId = document.createElement('input');
+      deleteInputId.type = 'hidden';
+      deleteInputId.name = 'id';
+      deleteInputSku = document.createElement('input');
+      deleteInputSku.type = 'hidden';
+      deleteInputSku.name = 'sku';
+      var deleteConfirm = document.createElement('input');
+      deleteConfirm.type = 'hidden';
+      deleteConfirm.name = 'confirm';
+      deleteConfirm.value = 'DELETE';
+      recentDeleteForm.appendChild(deleteInputId);
+      recentDeleteForm.appendChild(deleteInputSku);
+      recentDeleteForm.appendChild(deleteConfirm);
+      document.body.appendChild(recentDeleteForm);
         // Track last serialized draft to avoid writing identical data over and over.
         var lastSavedDraft = null;
         var applyDraftObject = function (draft) {
@@ -1565,6 +1596,26 @@ function checked(string $name, string $value, array $formData): string
               .catch(function () {
                 setCopyStatus('Copy failed', 'err');
               });
+          });
+        }
+
+        if (deleteButtons && deleteButtons.length) {
+          deleteButtons.forEach(function (btn) {
+            btn.addEventListener('click', function () {
+              var id = btn.getAttribute('data-id');
+              var sku = (btn.getAttribute('data-sku') || '').toUpperCase();
+              if (!id || !sku) return;
+              var first = confirm('Delete SKU ' + sku + ' from intake history?');
+              if (!first) return;
+              var second = prompt('Type DELETE to confirm');
+              if (!second || second.toUpperCase() !== 'DELETE') {
+                alert('Delete canceled.');
+                return;
+              }
+              deleteInputId.value = id;
+              deleteInputSku.value = sku;
+              recentDeleteForm.submit();
+            });
           });
         }
 
