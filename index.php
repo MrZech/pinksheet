@@ -306,7 +306,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit;
     }
 
-    if (isset($_POST['bulk_update'])) {
+    if (isset($_POST['bulk_delete'])) {
+        $bulkIds = array_values(array_unique(array_map('intval', (array)($_POST['bulk_ids'] ?? []))));
+        $bulkIds = array_filter($bulkIds, static fn ($id): bool => $id > 0);
+        if (!$bulkIds) {
+            $bulkErrors[] = 'Select at least one SKU from the table.';
+        }
+        if (!$bulkErrors) {
+            $placeholders = implode(',', array_fill(0, count($bulkIds), '?'));
+            $stmt = $pdo->prepare("DELETE FROM intake_items WHERE id IN ($placeholders)");
+            $stmt->execute($bulkIds);
+            $bulkMessage = 'Deleted ' . $stmt->rowCount() . ' record' . ($stmt->rowCount() === 1 ? '' : 's') . '.';
+        }
+        $saved = false;
+        $errors = [];
+    } elseif (isset($_POST['bulk_update'])) {
         $bulkStatus = trim($_POST['bulk_status'] ?? '');
         $bulkIds = array_values(array_unique(array_map('intval', (array)($_POST['bulk_ids'] ?? []))));
         $bulkIds = array_filter($bulkIds, static fn ($id): bool => $id > 0);
@@ -996,7 +1010,9 @@ function checked(string $name, string $value, array $formData): string
                 <?php endforeach; ?>
               </select>
             </label>
-            <button type="submit">Apply to selected</button>
+            <button type="submit" name="bulk_update" value="1">Apply to selected</button>
+            <input type="hidden" name="bulk_delete" id="bulk-delete-flag" value="">
+            <button type="button" class="ghost danger" id="bulk-delete-button">Delete selected</button>
             <span class="hint">Check boxes in the table, then update that status in bulk.</span>
           </div>
             <div class="table-wrap">
@@ -1347,6 +1363,9 @@ function checked(string $name, string $value, array $formData): string
       recentDeleteForm.appendChild(deleteInputSku);
       recentDeleteForm.appendChild(deleteConfirm);
       document.body.appendChild(recentDeleteForm);
+      var bulkDeleteBtn = document.getElementById('bulk-delete-button');
+      var bulkDeleteFlag = document.getElementById('bulk-delete-flag');
+      var bulkForm = document.getElementById('bulk-form');
         // Track last serialized draft to avoid writing identical data over and over.
         var lastSavedDraft = null;
         var applyDraftObject = function (draft) {
@@ -1622,6 +1641,25 @@ function checked(string $name, string $value, array $formData): string
               deleteInputSku.value = sku;
               recentDeleteForm.submit();
             });
+          });
+        }
+
+        if (bulkDeleteBtn && bulkDeleteFlag && bulkForm) {
+          bulkDeleteBtn.addEventListener('click', function () {
+            var checked = bulkForm.querySelectorAll('input[name="bulk_ids[]"]:checked');
+            if (!checked.length) {
+              alert('Select at least one row to delete.');
+              return;
+            }
+            var first = confirm('Delete ' + checked.length + ' record(s)? This will not delete photos.');
+            if (!first) return;
+            var second = prompt('Type DELETE to confirm bulk delete');
+            if (!second || second.toUpperCase() !== 'DELETE') {
+              alert('Bulk delete canceled.');
+              return;
+            }
+            bulkDeleteFlag.value = '1';
+            bulkForm.submit();
           });
         }
 
