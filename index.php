@@ -1352,8 +1352,8 @@ function checked(string $name, string $value, array $formData): string
         };
         var queueDraftSave = function () {
           clearTimeout(saveTimer);
-          // Debounce a bit longer to avoid rapid-fire saves while typing.
-          saveTimer = setTimeout(saveDraft, 800);
+          // Debounce to avoid rapid-fire saves while typing.
+          saveTimer = setTimeout(saveDraft, 400);
         };
 
         form.addEventListener('input', function (event) {
@@ -1703,12 +1703,7 @@ function checked(string $name, string $value, array $formData): string
         });
       }
 
-      // Light auto-refresh to keep listings/photos current without manual Save press
-      setInterval(function () {
-        if (!document.body.classList.contains('has-open-menu') && !isUploading) {
-          location.reload();
-        }
-      }, 60000);
+      // Removed auto-refresh to avoid losing in-progress intake entries.
 
       var toastElement = document.getElementById('save-toast');
       var toastTimer = null;
