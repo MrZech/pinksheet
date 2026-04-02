@@ -248,6 +248,7 @@ if ($lookupStatus !== '' && !in_array($lookupStatus, $statusOptions, true)) {
 }
 $bulkErrors = [];
 $bulkMessage = '';
+$deleteMessage = isset($_GET['deleted']) ? (int)$_GET['deleted'] : null;
 $clearDraft = isset($_GET[CLEAR_DRAFT_PARAM]);
 logLookup($lookupSku, $lookupStatus);
 $currentItem = null;
@@ -656,6 +657,11 @@ function checked(string $name, string $value, array $formData): string
       <p class="error"><?php echo h($error); ?></p>
     <?php endforeach; ?>
   </div>
+<?php endif; ?>
+<?php if ($deleteMessage !== null): ?>
+  <p class="<?php echo $deleteMessage > 0 ? 'success' : 'warning'; ?>">
+    <?php echo $deleteMessage > 0 ? 'Deleted ' . $deleteMessage . ' record(s).' : 'Delete failed.'; ?>
+  </p>
 <?php endif; ?>
 <?php if ($photoWarnings): ?>
   <div class="warning-box">

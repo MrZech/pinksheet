@@ -25,6 +25,10 @@ if ($confirm !== 'DELETE') {
     exit;
 }
 
+// Detect AJAX via header; default to redirect for form posts.
+$isAjax = isset($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower((string)$_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest';
+$acceptsJson = isset($_SERVER['HTTP_ACCEPT']) && stripos((string)$_SERVER['HTTP_ACCEPT'], 'application/json') !== false;
+
 try {
     $pdo = new PDO('sqlite:' . DB_PATH, null, null, [
         PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
@@ -33,8 +37,16 @@ try {
     $stmt = $pdo->prepare('DELETE FROM intake_items WHERE id = :id AND sku_normalized = :sku');
     $stmt->execute(['id' => $id, 'sku' => $sku]);
     $count = $stmt->rowCount();
-    echo json_encode(['status' => 'ok', 'deleted' => $count]);
+    if ($isAjax || $acceptsJson) {
+        echo json_encode(['status' => 'ok', 'deleted' => $count]);
+    } else {
+        header('Location: index.php?deleted=' . (int)$count);
+    }
 } catch (Throwable $e) {
     http_response_code(500);
-    echo json_encode(['status' => 'error', 'message' => 'Server error']);
+    if ($isAjax || $acceptsJson) {
+        echo json_encode(['status' => 'error', 'message' => 'Server error']);
+    } else {
+        header('Location: index.php?deleted=0');
+    }
 }
