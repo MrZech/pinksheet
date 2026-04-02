@@ -697,6 +697,11 @@ function checked(string $name, string $value, array $formData): string
           <label>SKU
               <input type="text" name="sku" value="<?php echo h($formData['sku'] ?? ''); ?>" required autofocus>
           </label>
+          <div class="copy-sku">
+            <input type="text" id="copy-sku-input" placeholder="Copy fields from SKU">
+            <button type="button" class="ghost" id="copy-sku-button">Copy fields</button>
+            <span class="hint" id="copy-sku-status" hidden></span>
+          </div>
           <?php
             $currentWhat = trim((string)($formData['what_is_it'] ?? ''));
             $whatOptionsList = $whatIsItOptions;
@@ -1302,6 +1307,9 @@ function checked(string $name, string $value, array $formData): string
         var autosaveStatus = document.getElementById('autosave-status');
         var serverDraftBanner = document.getElementById('server-draft-banner');
         var duplicateButton = document.getElementById('save-duplicate');
+        var copySkuInput = document.getElementById('copy-sku-input');
+        var copySkuButton = document.getElementById('copy-sku-button');
+        var copySkuStatus = document.getElementById('copy-sku-status');
         // Track last serialized draft to avoid writing identical data over and over.
         var lastSavedDraft = null;
         var applyDraftObject = function (draft) {
@@ -1324,6 +1332,17 @@ function checked(string $name, string $value, array $formData): string
               field.value = value;
             });
           });
+        };
+
+        var applyDataFiltered = function (data) {
+          if (!data) return;
+          var filtered = Object.assign({}, data);
+          delete filtered.id;
+          delete filtered.sku;
+          delete filtered.sku_normalized;
+          delete filtered.created_at;
+          delete filtered.updated_at;
+          applyDraftObject(filtered);
         };
         var applyDraft = function (raw) {
           if (!raw) return;
@@ -1515,6 +1534,37 @@ function checked(string $name, string $value, array $formData): string
               var payload = collectDuplicatePayload();
               sessionStorage.setItem(duplicateKey, JSON.stringify(payload));
             } catch (e) {}
+          });
+        }
+
+        var setCopyStatus = function (text, tone) {
+          if (!copySkuStatus) return;
+          copySkuStatus.hidden = false;
+          copySkuStatus.textContent = text;
+          copySkuStatus.classList.remove('ok', 'warn', 'err');
+          if (tone) copySkuStatus.classList.add(tone);
+        };
+        if (copySkuButton && copySkuInput) {
+          copySkuButton.addEventListener('click', function () {
+            var copySku = (copySkuInput.value || '').trim().toUpperCase();
+            if (!copySku) {
+              setCopyStatus('Enter a SKU to copy from', 'warn');
+              return;
+            }
+            setCopyStatus('Copying...', 'warn');
+            fetch('copy_item.php?sku=' + encodeURIComponent(copySku))
+              .then(function (resp) { return resp.json(); })
+              .then(function (data) {
+                if (!data || data.status !== 'ok' || !data.data) {
+                  setCopyStatus('No record found for that SKU', 'err');
+                  return;
+                }
+                applyDataFiltered(data.data);
+                setCopyStatus('Fields copied; enter new SKU and adjust as needed', 'ok');
+              })
+              .catch(function () {
+                setCopyStatus('Copy failed', 'err');
+              });
           });
         }
 

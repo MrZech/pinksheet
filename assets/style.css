@@ -983,6 +983,19 @@ label {
   align-items: center;
 }
 
+.copy-sku {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.copy-sku input[type="text"] {
+  width: 180px;
+}
+.copy-sku .hint {
+  font-size: 0.8rem;
+}
+
 .what-menu {
   position: static;
   flex: 1;
