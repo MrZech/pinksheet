@@ -13,6 +13,7 @@ $counts = [
     'sold' => null,
 ];
 $recentActivity = [];
+$recentThumbs = [];
 $alerts = [];
 $latestBackup = null;
 $latestBackupAgeHours = null;
@@ -53,6 +54,26 @@ if (is_readable(HOME_DB_PATH)) {
             LIMIT 10
         ");
         $recentActivity = $stmtRecent->fetchAll(PDO::FETCH_ASSOC);
+        // Attach latest photo id per SKU for quick thumbnails.
+        $recentSkus = array_values(array_filter(array_map(static fn($r) => trim((string)($r['sku'] ?? '')), $recentActivity)));
+        $recentThumbs = [];
+        if ($recentSkus) {
+            $norms = array_map(static fn($s) => strtoupper($s), $recentSkus);
+            $placeholders = implode(',', array_fill(0, count($norms), '?'));
+            $photoStmt = $pdo->prepare("
+                SELECT sku_normalized, id
+                FROM sku_photos
+                WHERE sku_normalized IN ($placeholders)
+                ORDER BY id DESC
+            ");
+            $photoStmt->execute($norms);
+            foreach ($photoStmt->fetchAll(PDO::FETCH_ASSOC) as $photoRow) {
+                $norm = trim((string)$photoRow['sku_normalized']);
+                if ($norm !== '' && !isset($recentThumbs[$norm])) {
+                    $recentThumbs[$norm] = (int)$photoRow['id'];
+                }
+            }
+        }
     } catch (Exception $e) {
         // suggestions optional
         $alerts[] = 'Database is unreadable right now; metrics unavailable.';
@@ -185,7 +206,13 @@ if (is_dir($backupDir)) {
             <?php foreach ($recentActivity as $row): ?>
               <li>
                 <div class="activity-main">
-                  <span class="sku"><?php echo htmlspecialchars($row['sku'] ?: 'Unknown', ENT_QUOTES, 'UTF-8'); ?></span>
+                  <?php $skuVal = trim((string)($row['sku'] ?? '')); $thumbId = $recentThumbs[strtoupper($skuVal)] ?? null; ?>
+                  <?php if ($thumbId): ?>
+                    <a class="thumb" href="photo.php?id=<?php echo $thumbId; ?>" target="_blank" rel="noopener">
+                      <img src="photo.php?id=<?php echo $thumbId; ?>" alt="Photo for <?php echo htmlspecialchars($skuVal ?: 'SKU', ENT_QUOTES, 'UTF-8'); ?>">
+                    </a>
+                  <?php endif; ?>
+                  <span class="sku"><?php echo htmlspecialchars($skuVal ?: 'Unknown', ENT_QUOTES, 'UTF-8'); ?></span>
                   <span class="status-chip"><?php echo htmlspecialchars($row['status'] ?: '—', ENT_QUOTES, 'UTF-8'); ?></span>
                   <span class="what"><?php echo htmlspecialchars($row['what_is_it'] ?: '—', ENT_QUOTES, 'UTF-8'); ?></span>
                 </div>
@@ -442,6 +469,18 @@ if (is_dir($backupDir)) {
           td.textContent = value || ' - ';
           return td;
         };
+        var thumbImg = function (entry) {
+          var src = entry.photo_url || (entry.photo_id ? ('photo.php?id=' + entry.photo_id) : null);
+          if (!src) return null;
+          var img = document.createElement('img');
+          img.src = src;
+          img.alt = 'thumb';
+          img.className = 'preview-thumb';
+          var wrap = document.createElement('div');
+          wrap.className = 'thumb-wrap';
+          wrap.appendChild(img);
+          return wrap;
+        };
         var relativeTime = function (dateString) {
           var t = Date.parse((dateString || '').replace(' ', 'T'));
           if (isNaN(t)) return dateString || '—';
@@ -474,15 +513,9 @@ if (is_dir($backupDir)) {
           filtered.forEach(function (entry) {
             var row = document.createElement('tr');
             var skuTd = createCell(entry.sku);
-            if (entry.photo_url) {
-              var img = document.createElement('img');
-              img.src = entry.photo_url;
-              img.alt = 'thumb';
-              img.className = 'preview-thumb';
-              var wrap = document.createElement('div');
-              wrap.className = 'thumb-wrap';
-              wrap.appendChild(img);
-              skuTd.appendChild(wrap);
+            var thumb = thumbImg(entry);
+            if (thumb) {
+              skuTd.appendChild(thumb);
             }
             row.appendChild(skuTd);
             var statusTd = document.createElement('td');

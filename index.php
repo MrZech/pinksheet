@@ -92,6 +92,16 @@ if (!in_array('os', $columnNames, true)) {
 }
 $pdo->exec("CREATE INDEX IF NOT EXISTS idx_intake_items_sku_normalized ON intake_items (sku_normalized)");
 $pdo->exec("UPDATE intake_items SET sku_normalized = UPPER(TRIM(COALESCE(sku, ''))) WHERE sku_normalized IS NULL OR sku_normalized = ''");
+$pdo->exec(<<<'SQL'
+CREATE TABLE IF NOT EXISTS intake_drafts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    sku_normalized TEXT NOT NULL,
+    payload TEXT NOT NULL,
+    version INTEGER NOT NULL DEFAULT 1,
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+SQL);
+$pdo->exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_intake_drafts_sku ON intake_drafts (sku_normalized)");
 
 function normalizeSku(string $sku): string
 {
@@ -174,6 +184,17 @@ function loadSkuPhotos(PDO $pdo, string $skuNormalized): array
     return $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
 
+function loadLatestPhotoId(PDO $pdo, string $skuNormalized): ?int
+{
+    if ($skuNormalized === '') {
+        return null;
+    }
+    $stmt = $pdo->prepare('SELECT id FROM sku_photos WHERE sku_normalized = :sku_normalized ORDER BY id DESC LIMIT 1');
+    $stmt->execute(['sku_normalized' => $skuNormalized]);
+    $id = $stmt->fetchColumn();
+    return $id ? (int)$id : null;
+}
+
 // Write CSV entries for SKU/status lookups to analyze search trends later.
 function logLookup(string $sku, string $status): void
 {
@@ -214,7 +235,8 @@ foreach ($existingWhatIsIt as $label) {
 }
 
 $saved = isset($_GET['saved']);
-$saveMode = trim($_GET['save_mode'] ?? '');
+// Preserve save mode across redirect; prefer GET (after redirect) but capture POST so we can include it.
+$saveMode = trim($_GET['save_mode'] ?? ($_POST['save_mode'] ?? ''));
 $errors = [];
 $photoWarnings = [];
 $statusOptions = statusOptions();
@@ -487,6 +509,11 @@ SQL);
                 if ($data['sku'] !== '') {
                     $redirect .= '&sku=' . urlencode($data['sku']);
                 }
+                if ($data['sku_normalized'] !== '') {
+                    $pdo->prepare('DELETE FROM intake_drafts WHERE sku_normalized = :sku_normalized')->execute([
+                        'sku_normalized' => $data['sku_normalized'],
+                    ]);
+                }
                 header('Location: ' . $redirect);
                 exit;
             }
@@ -502,6 +529,17 @@ if ($lookupStatus !== '') {
 } else {
     $recent = $pdo->query('SELECT * FROM intake_items ORDER BY id DESC LIMIT 25')->fetchAll(PDO::FETCH_ASSOC);
 }
+$recentThumbnails = [];
+foreach ($recent as $item) {
+    $skuNorm = normalizeSku(trim((string)($item['sku'] ?? '')));
+    if ($skuNorm === '') {
+        continue;
+    }
+    $photoId = loadLatestPhotoId($pdo, $skuNorm);
+    if ($photoId) {
+        $recentThumbnails[$skuNorm] = $photoId;
+    }
+}
 $formData = $_POST;
 if (!$formData && $currentItem) {
     $formData = $currentItem;
@@ -516,7 +554,13 @@ if ($activeSkuNormalized === '') {
 $skuPhotos = loadSkuPhotos($pdo, $activeSkuNormalized);
 $toastMessage = '';
 if ($saved) {
-    $toastMessage = $saveMode === 'created' ? 'Saved as new SKU record.' : 'Saved and synced to this SKU.';
+    if ($saveMode === 'duplicate') {
+        $toastMessage = 'Saved. Form duplicated for a new SKU.';
+    } elseif ($saveMode === 'created') {
+        $toastMessage = 'Saved as new SKU record.';
+    } else {
+        $toastMessage = 'Saved and synced to this SKU.';
+    }
 }
 if (isset($_GET['photo_notice']) && trim((string)$_GET['photo_notice']) !== '') {
     $photoWarnings[] = trim((string)$_GET['photo_notice']);
@@ -627,6 +671,11 @@ function checked(string $name, string $value, array $formData): string
       <?php endif; ?>
 
       <p class="error client-error" id="client-error" hidden>Please fill in SKU before saving.</p>
+
+      <div class="status-bar" id="status-bar">
+        <span class="status-chip ok" id="autosave-status" hidden>Autosave ready</span>
+        <span class="status-chip warn" id="server-draft-banner" hidden>Restored server draft</span>
+      </div>
 
       <form id="photo-delete-form" method="post" class="visually-hidden">
         <input type="hidden" name="delete_photo_id" id="delete-photo-id">
@@ -890,6 +939,7 @@ function checked(string $name, string $value, array $formData): string
 
         <div class="actions">
           <button type="submit">Save Intake Item</button>
+          <button type="submit" name="save_mode" value="duplicate" id="save-duplicate" class="ghost">Save &amp; Duplicate</button>
         </div>
       </form>
 
@@ -942,12 +992,13 @@ function checked(string $name, string $value, array $formData): string
             <table>
               <thead>
                 <tr>
-                  <th>Select</th>
-                  <th>SKU</th>
-                  <th>Status</th>
-                  <th>What is it?</th>
-                  <th>Updated</th>
-                  <th>Open</th>
+              <th>Select</th>
+              <th>Photo</th>
+              <th>SKU</th>
+              <th>Status</th>
+              <th>What is it?</th>
+              <th>Updated</th>
+              <th>Open</th>
                 </tr>
               </thead>
               <tbody>
@@ -963,6 +1014,19 @@ function checked(string $name, string $value, array $formData): string
                           <input type="checkbox" name="bulk_ids[]" value="<?php echo isset($item['id']) ? (int)$item['id'] : 0; ?>">
                           <span></span>
                         </label>
+                      </td>
+                      <td class="thumb-cell">
+                        <?php
+                          $skuNormRow = normalizeSku(trim((string)($item['sku'] ?? '')));
+                          $thumbId = $recentThumbnails[$skuNormRow] ?? null;
+                        ?>
+                        <?php if ($thumbId): ?>
+                          <a class="thumb" href="photo.php?id=<?php echo $thumbId; ?>" target="_blank" rel="noopener">
+                            <img src="photo.php?id=<?php echo $thumbId; ?>" alt="Photo for <?php echo h($item['sku'] ?? 'SKU'); ?>">
+                          </a>
+                        <?php else: ?>
+                          <span class="thumb placeholder">—</span>
+                        <?php endif; ?>
                       </td>
                       <td><?php echo h($item['sku'] ?? ''); ?></td>
                       <td><?php echo h($item['status'] ?? ''); ?></td>
@@ -1227,6 +1291,7 @@ function checked(string $name, string $value, array $formData): string
       if (form) {
         var draftKey = 'intakeDraftV1';
         var backupKey = 'intakeDraftBackupV1';
+        var duplicateKey = 'intakeDuplicatePrefillV1';
         var errorEl = document.getElementById('client-error');
         var dismissDraft = document.getElementById('draft-dismiss');
         var hasRecord = document.getElementById('has-server-record');
@@ -1234,11 +1299,13 @@ function checked(string $name, string $value, array $formData): string
         var clearDraft = document.getElementById('clear-draft');
         var restoreBtn = document.getElementById('restore-draft-button');
         var restoreHint = document.getElementById('restore-hint');
+        var autosaveStatus = document.getElementById('autosave-status');
+        var serverDraftBanner = document.getElementById('server-draft-banner');
+        var duplicateButton = document.getElementById('save-duplicate');
         // Track last serialized draft to avoid writing identical data over and over.
         var lastSavedDraft = null;
-        var applyDraft = function (raw) {
-          if (!raw) return;
-          var draft = JSON.parse(raw);
+        var applyDraftObject = function (draft) {
+          if (!draft) return;
           Object.keys(draft).forEach(function (name) {
             var value = draft[name];
             var fields = form.querySelectorAll('[name="' + name + '"]');
@@ -1257,6 +1324,13 @@ function checked(string $name, string $value, array $formData): string
               field.value = value;
             });
           });
+        };
+        var applyDraft = function (raw) {
+          if (!raw) return;
+          try {
+            var draft = JSON.parse(raw);
+            applyDraftObject(draft);
+          } catch (e) {}
         };
         if (clearDraft && clearDraft.value === '1') {
           try {
@@ -1323,8 +1397,35 @@ function checked(string $name, string $value, array $formData): string
           } catch (e) {}
         }
 
-        var saveTimer = null;
-        var saveDraft = function () {
+        // Prefill from a prior entry when Save & Duplicate was used.
+        var applyDuplicatePrefill = function () {
+          var raw = null;
+          try {
+            raw = sessionStorage.getItem(duplicateKey);
+          } catch (e) {}
+          if (!raw) return;
+          if (!formLooksEmpty()) return;
+          try {
+            var payload = JSON.parse(raw);
+            applyDraftObject(payload);
+            lastSavedDraft = JSON.stringify(payload);
+            try { sessionStorage.removeItem(duplicateKey); } catch (e) {}
+            showToast('Duplicated previous item â€” enter new SKU.');
+          } catch (e) {}
+        };
+        applyDuplicatePrefill();
+
+        var setStatusChip = function (el, text, tone) {
+          if (!el) return;
+          el.textContent = text;
+          el.hidden = false;
+          el.classList.remove('ok', 'warn', 'err');
+          if (tone) {
+            el.classList.add(tone);
+          }
+        };
+
+        var collectDraftPayload = function () {
           var payload = {};
           var fields = form.querySelectorAll('input[name], select[name], textarea[name]');
           fields.forEach(function (field) {
@@ -1343,6 +1444,12 @@ function checked(string $name, string $value, array $formData): string
             }
             payload[field.name] = field.value;
           });
+          return payload;
+        };
+
+        var saveTimer = null;
+        var saveDraft = function () {
+          var payload = collectDraftPayload();
           var serialized = JSON.stringify(payload);
           if (serialized === lastSavedDraft) {
             return;
@@ -1356,8 +1463,26 @@ function checked(string $name, string $value, array $formData): string
           saveTimer = setTimeout(saveDraft, 400);
         };
 
+        var autosaveState = {
+          version: null,
+          dirty: false,
+          inflight: false,
+        };
+
+        var markAutosaveDirty = function () {
+          autosaveState.dirty = true;
+        };
+
+        var collectDuplicatePayload = function () {
+          var payload = collectDraftPayload();
+          delete payload.id;
+          delete payload.sku;
+          return payload;
+        };
+
         form.addEventListener('input', function (event) {
           queueDraftSave();
+          markAutosaveDirty();
           if (!event.target || !event.target.name) {
             return;
           }
@@ -1379,7 +1504,97 @@ function checked(string $name, string $value, array $formData): string
             whatError.hidden = true;
           }
         });
-        form.addEventListener('change', queueDraftSave);
+        form.addEventListener('change', function () {
+          queueDraftSave();
+          markAutosaveDirty();
+        });
+
+        if (duplicateButton) {
+          duplicateButton.addEventListener('click', function () {
+            try {
+              var payload = collectDuplicatePayload();
+              sessionStorage.setItem(duplicateKey, JSON.stringify(payload));
+            } catch (e) {}
+          });
+        }
+
+        var formatTime = function (isoString) {
+          if (!isoString) return 'just now';
+          try {
+            var d = new Date(isoString);
+            return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+          } catch (e) {
+            return 'just now';
+          }
+        };
+
+        var pushAutosave = function () {
+          if (!autosaveStatus) return;
+          if (autosaveState.inflight) return;
+          if (!autosaveState.dirty) return;
+          var payload = collectDraftPayload();
+          var skuVal = (payload.sku || '').trim();
+          if (!skuVal) {
+            setStatusChip(autosaveStatus, 'Add a SKU to autosave', 'warn');
+            return;
+          }
+          autosaveState.inflight = true;
+          setStatusChip(autosaveStatus, 'Autosaving…', 'warn');
+          fetch('autosave.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              sku: skuVal,
+              data: payload,
+              version: autosaveState.version || 0
+            })
+          }).then(function (resp) {
+            return resp.json();
+          }).then(function (resp) {
+            autosaveState.inflight = false;
+            if (resp.status === 'ok') {
+              autosaveState.version = resp.version;
+              autosaveState.dirty = false;
+              setStatusChip(autosaveStatus, 'Saved ' + formatTime(resp.saved_at), 'ok');
+            } else if (resp.status === 'conflict') {
+              setStatusChip(autosaveStatus, 'Server has a newer draft (not overwritten)', 'warn');
+              if (resp.server_data) {
+                // keep server copy available for restore button
+                localStorage.setItem(draftKey + '-server', JSON.stringify(resp.server_data));
+              }
+            } else {
+              setStatusChip(autosaveStatus, 'Autosave failed', 'err');
+            }
+          }).catch(function () {
+            autosaveState.inflight = false;
+            setStatusChip(autosaveStatus, 'Autosave failed', 'err');
+          });
+        };
+
+        // Autosave every ~25s while dirty.
+        setInterval(pushAutosave, 25000);
+
+        var fetchServerDraft = function () {
+          var skuInput = form.querySelector('[name=\"sku\"]');
+          var skuVal = (skuInput && skuInput.value || '').trim();
+          if (!skuVal) {
+            return;
+          }
+          fetch('autosave.php?sku=' + encodeURIComponent(skuVal))
+            .then(function (resp) { return resp.json(); })
+            .then(function (resp) {
+              if (!resp || resp.status !== 'ok' || !resp.has_draft || !resp.data) {
+                return;
+              }
+              applyDraftObject(resp.data);
+              var serialized = JSON.stringify(resp.data);
+              lastSavedDraft = serialized;
+              try { localStorage.setItem(draftKey, serialized); } catch (e) {}
+              autosaveState.version = resp.version || null;
+              setStatusChip(serverDraftBanner, 'Restored server draft (' + formatTime(resp.updated_at) + ')', 'warn');
+            }).catch(function () {});
+        };
+        fetchServerDraft();
         form.addEventListener('submit', function (event) {
           var skuField = form.querySelector('[name="sku"]');
           var sku = ((skuField || {}).value || '').trim().toUpperCase();

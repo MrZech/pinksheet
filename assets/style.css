@@ -633,6 +633,44 @@ body.dark-mode .status-chip {
   color: var(--ink-dark);
   border-color: var(--line-dark);
 }
+.status-chip.ok {
+  background: #e7f6ec;
+  color: #1f6b3a;
+  border-color: #b6dec3;
+}
+.status-chip.warn {
+  background: #fff4e5;
+  color: #8a4b00;
+  border-color: #f1d0a3;
+}
+.status-chip.err {
+  background: #ffe8ed;
+  color: #9b1a3f;
+  border-color: #f3b3c5;
+}
+body.dark-mode .status-chip.ok {
+  background: rgba(55, 142, 96, 0.18);
+  color: #9ae6b4;
+  border-color: rgba(154, 230, 180, 0.5);
+}
+body.dark-mode .status-chip.warn {
+  background: rgba(255, 200, 120, 0.16);
+  color: #f6c177;
+  border-color: rgba(246, 193, 119, 0.4);
+}
+body.dark-mode .status-chip.err {
+  background: rgba(255, 128, 160, 0.16);
+  color: #ff9bb3;
+  border-color: rgba(255, 155, 179, 0.4);
+}
+
+.status-bar {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin: 6px 0 10px;
+  flex-wrap: wrap;
+}
 
 .quick-actions {
   margin-top: 12px;
@@ -844,6 +882,36 @@ body.dark-mode .filter-chips button.is-active {
 .bulk-checkbox input:checked + span {
   background: var(--accent);
   box-shadow: inset 0 0 0 2px #fff;
+}
+
+.thumb-cell {
+  width: 64px;
+  text-align: center;
+}
+.thumb {
+  display: inline-flex;
+  width: 52px;
+  height: 52px;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  background: var(--surface);
+}
+.thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.thumb.placeholder {
+  display: inline-flex;
+  width: 52px;
+  height: 52px;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted);
+  border: 1px dashed var(--line);
+  border-radius: 8px;
 }
 
 .toast {
