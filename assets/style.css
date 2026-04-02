@@ -912,6 +912,9 @@ body.dark-mode .filter-chips button.is-active {
   color: var(--muted);
   border: 1px dashed var(--line);
   border-radius: 8px;
+  font-size: 0.7rem;
+  text-align: center;
+  padding: 4px;
 }
 
 .toast {

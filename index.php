@@ -1025,7 +1025,7 @@ function checked(string $name, string $value, array $formData): string
                             <img src="photo.php?id=<?php echo $thumbId; ?>" alt="Photo for <?php echo h($item['sku'] ?? 'SKU'); ?>">
                           </a>
                         <?php else: ?>
-                          <span class="thumb placeholder">—</span>
+                          <span class="thumb placeholder" title="No photo added">No photo</span>
                         <?php endif; ?>
                       </td>
                       <td><?php echo h($item['sku'] ?? ''); ?></td>
