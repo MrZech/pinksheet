@@ -34,6 +34,7 @@ function runPhpBackup(): array
     $logFile = $repoRoot . '/logs/lookup.csv';
     $logArchiveDir = $repoRoot . '/logs/archive';
     $oneDrive = getenv('USERPROFILE') ? getenv('USERPROFILE') . '/OneDrive/pinksheet-backups' : null;
+    $photosMirror = getenv('BACKUP_PHOTOS_MIRROR') ?: null;
     $messages = [];
     $ok = true;
 
@@ -50,6 +51,15 @@ function runPhpBackup(): array
             return ['ok' => false, 'error' => 'Failed to copy DB to ' . $dest];
         }
         $messages[] = 'SQLite backup created: ' . $dest;
+        // Write SHA256 checksum
+        $hash = hash_file('sha256', $dest);
+        if ($hash !== false) {
+            file_put_contents($dest . '.sha256', $hash);
+            $messages[] = 'SHA256 written: ' . $dest . '.sha256';
+        } else {
+            $messages[] = 'Failed to write checksum.';
+            $ok = false;
+        }
     } else {
         $messages[] = 'SQLite database not found at ' . $dbPath;
         $ok = false;
@@ -67,6 +77,42 @@ function runPhpBackup(): array
                 $ok = false;
             } else {
                 $messages[] = 'Mirrored backup to OneDrive: ' . $mirrorPath;
+                if (is_file(($dest ?? '') . '.sha256')) {
+                    copy(($dest ?? '') . '.sha256', $mirrorPath . '.sha256');
+                }
+            }
+        }
+    }
+
+    // Optional photo mirror (set BACKUP_PHOTOS_MIRROR=/path/to/mirror)
+    if ($photosMirror) {
+        $sourcePhotos = $repoRoot . '/data/sku_photos';
+        if (!is_dir($photosMirror) && !mkdir($photosMirror, 0777, true) && !is_dir($photosMirror)) {
+            $messages[] = 'Failed to create photo mirror at ' . $photosMirror;
+            $ok = false;
+        } else {
+            $iterator = new RecursiveIteratorIterator(
+                new RecursiveDirectoryIterator($sourcePhotos, FilesystemIterator::SKIP_DOTS),
+                RecursiveIteratorIterator::SELF_FIRST
+            );
+            foreach ($iterator as $item) {
+                $targetPath = $photosMirror . substr($item->getPathname(), strlen($sourcePhotos));
+                if ($item->isDir()) {
+                    if (!is_dir($targetPath) && !mkdir($targetPath, 0777, true) && !is_dir($targetPath)) {
+                        $messages[] = 'Failed to create dir ' . $targetPath;
+                        $ok = false;
+                        break;
+                    }
+                } else {
+                    if (!copy($item->getPathname(), $targetPath)) {
+                        $messages[] = 'Failed to copy photo ' . $item->getPathname();
+                        $ok = false;
+                        break;
+                    }
+                }
+            }
+            if ($ok) {
+                $messages[] = 'Mirrored photos to ' . $photosMirror;
             }
         }
     }

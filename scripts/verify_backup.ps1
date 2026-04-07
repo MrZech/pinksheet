@@ -61,6 +61,17 @@ function Check-DbIntegrity([string]$path, [string]$label) {
     if (-not (Test-Path $path)) {
         throw "$label not found at $path"
     }
+    # Verify checksum if present
+    $hashFile = "$path.sha256"
+    if (Test-Path $hashFile) {
+        $expected = (Get-Content $hashFile).Trim()
+        $actual = (Get-FileHash -Path $path -Algorithm SHA256).Hash
+        if ($actual -ne $expected) {
+            throw "$label checksum mismatch (expected $expected, got $actual)"
+        } elseif (-not $Quiet) {
+            Write-Host "$label checksum ok"
+        }
+    }
     $php = Get-PhpPath
     $checker = Join-Path $PSScriptRoot 'check_db.php'
     $command = @('-d', 'detect_unicode=0', '-f', $checker, ($path -replace '\\', '/'), $label)

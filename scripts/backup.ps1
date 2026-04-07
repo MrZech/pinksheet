@@ -4,7 +4,9 @@ param(
     # If >0, attempt to sleep the machine after backup when user idle at least this many minutes.
     [int]$SleepIfIdleMinutes = 0,
     # Optional: copy the backups folder to this destination (e.g., \\server\share\pinksheet-backups).
-    [string]$CopyTo = ''
+    [string]$CopyTo = '',
+    # Optional: mirror photos to this destination (e.g., \\server\share\pinksheet-photos). Skipped if blank.
+    [string]$CopyPhotosTo = ''
 )
 
 $ErrorActionPreference = 'Stop'
@@ -26,6 +28,13 @@ if (Test-Path $dbPath) {
     $dest = Join-Path $backupDir $backupName
     Copy-Item -Path $dbPath -Destination $dest -Force
     Write-Host "SQLite backup created: $dest"
+    try {
+        $hash = Get-FileHash -Path $dest -Algorithm SHA256
+        $hash | Select-Object -ExpandProperty Hash | Out-File -FilePath ($dest + '.sha256') -Encoding ascii -NoNewline
+        Write-Host "SHA256 written: $($dest + '.sha256')"
+    } catch {
+        Write-Warning "Could not write checksum: $_"
+    }
 }
 else {
     Write-Warning "SQLite database not found at $dbPath"
@@ -90,6 +99,31 @@ if ($CopyTo) {
         }
     } catch {
         Write-Warning "Off-box copy failed: $_"
+    }
+}
+
+# Optional photo mirror (can be large; use only if storage allows).
+if (-not $CopyPhotosTo) {
+    # Default to sibling under CopyTo if set.
+    if ($CopyTo) {
+        $CopyPhotosTo = Join-Path $CopyTo 'sku_photos'
+    }
+}
+if ($CopyPhotosTo) {
+    try {
+        if (-not (Test-Path $CopyPhotosTo)) {
+            New-Item -ItemType Directory -Force -Path $CopyPhotosTo | Out-Null
+        }
+        Write-Host "Mirroring photos to $CopyPhotosTo ..."
+        $photoDir = Join-Path $repoRoot 'data\sku_photos'
+        $robocopyPhotos = Start-Process -FilePath "robocopy.exe" -ArgumentList @("$photoDir", "$CopyPhotosTo", "*.*", "/MIR") -NoNewWindow -PassThru -Wait
+        if ($robocopyPhotos.ExitCode -gt 8) {
+            Write-Warning "Photo mirror reported errors (exit $($robocopyPhotos.ExitCode))."
+        } else {
+            Write-Host "Photo mirror completed (exit $($robocopyPhotos.ExitCode))."
+        }
+    } catch {
+        Write-Warning "Photo mirror failed: $_"
     }
 }
 

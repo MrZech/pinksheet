@@ -19,6 +19,8 @@ $latestBackup = null;
 $latestBackupAgeHours = null;
 $latestBackupSize = null;
 $backupBadge = null;
+$backupFreePct = null;
+$backupSummary = 'No backup yet';
 // Provision a short list of the most recently updated SKUs so the home lookup can show instant suggestions.
 if (is_readable(HOME_DB_PATH)) {
     try {
@@ -98,11 +100,20 @@ if (is_dir($backupDir)) {
         $latestBackupAgeHours = (time() - $latestFile->getMTime()) / 3600;
         $latestBackupSize = $latestFile->getSize();
         $backupBadge = 'Backup ' . number_format($latestBackupAgeHours, 1) . 'h ago';
+        $backupSummary = 'Last: ~' . number_format($latestBackupAgeHours ?? 0, 1) . 'h · ' . number_format(($latestBackupSize ?? 0) / 1024, 1) . ' KB';
         if ($latestBackupAgeHours !== null && $latestBackupAgeHours > 36) {
             $alerts[] = 'Latest backup is older than 36 hours.';
         }
     } else {
         $alerts[] = 'No backups found in data/backups.';
+    }
+    $freeBytes = @disk_free_space($backupDir);
+    $totalBytes = @disk_total_space($backupDir);
+    if ($freeBytes !== false && $totalBytes > 0) {
+        $backupFreePct = ($freeBytes / $totalBytes) * 100;
+        if ($backupFreePct < 10) {
+            $alerts[] = 'Backup drive is low on space (<10% free).';
+        }
     }
 } else {
     $alerts[] = 'Backup directory missing (data/backups).';
@@ -140,6 +151,7 @@ if (is_dir($backupDir)) {
           <?php if ($backupBadge): ?>
             <span class="badge" title="Latest backup"><?php echo htmlspecialchars($backupBadge, ENT_QUOTES, 'UTF-8'); ?></span>
           <?php endif; ?>
+          <span class="badge subtle" id="health-chip" title="System health">Health: ...</span>
           <button type="button" class="print-button" id="print-button">Print</button>
           <button type="button" class="theme-toggle" id="theme-toggle">Dark mode</button>
           <a class="button-link new-intake-cta" href="index.php?clear_draft=1" data-new-intake>New Intake</a>
@@ -151,6 +163,20 @@ if (is_dir($backupDir)) {
         <span>Dashboard</span>
       </nav>
       <p class="lead">Snapshot of intake health plus a focused SKU search workspace.</p>
+
+      <section class="section quick-actions">
+        <h2>Quick actions</h2>
+        <div class="quick-links">
+          <a class="button-link" href="index.php?clear_draft=1" data-new-intake>New Intake</a>
+          <a class="button-link" href="#sku-lookup-shell">Search SKUs</a>
+          <a class="button-link" href="index.php#sku-photos">Upload photos</a>
+          <a class="button-link" href="docs/maintenance.md">Maintenance docs</a>
+          <button type="button" class="button-link ghost" id="run-backup-now" data-run-backup>
+            Run backup now<?php if ($latestBackup): ?> (<?php echo htmlspecialchars($backupSummary, ENT_QUOTES, 'UTF-8'); ?>)<?php endif; ?>
+          </button>
+          <button type="button" class="button-link subtle" data-verify-backup>Verify latest backup</button>
+        </div>
+      </section>
 
       <?php if (!empty($alerts)): ?>
         <div class="alert-block" role="status">
@@ -196,8 +222,15 @@ if (is_dir($backupDir)) {
               <?php endif; ?>
             </p>
             <p class="dash-sub">
-              <button type="button" class="button-link ghost" data-run-backup>Run backup now</button>
+              <button type="button" class="button-link ghost" data-run-backup>
+                Run backup now<?php if ($latestBackup): ?> (<?php echo htmlspecialchars($backupSummary, ENT_QUOTES, 'UTF-8'); ?>)<?php endif; ?>
+              </button>
               <span class="hint">Local only; saves to data/backups/</span>
+              <?php if ($backupFreePct !== null): ?>
+                <span class="hint"><?php echo 'Free space: ' . number_format($backupFreePct, 1) . '%'; ?></span>
+              <?php endif; ?>
+              <button type="button" class="button-link subtle" data-verify-backup>Verify latest backup</button>
+              <span class="hint">Runs checksum + integrity check</span>
             </p>
           </div>
         </div>
@@ -205,6 +238,7 @@ if (is_dir($backupDir)) {
 
       <section class="section activity">
         <h2>Recent activity</h2>
+        <div class="hint" id="recent-activity-skus" aria-label="Recently viewed SKUs"></div>
         <?php if (!empty($recentActivity)): ?>
           <ul class="activity-list">
             <?php foreach ($recentActivity as $row): ?>
@@ -232,25 +266,16 @@ if (is_dir($backupDir)) {
           <p class="hint">No recent activity to show.</p>
         <?php endif; ?>
       </section>
-
-      <section class="section quick-actions">
-        <h2>Quick actions</h2>
-        <div class="quick-links">
-          <a class="button-link" href="index.php?clear_draft=1" data-new-intake>New Intake</a>
-          <a class="button-link" href="#sku-lookup-shell">Search SKUs</a>
-          <a class="button-link" href="upload_photo.php">Upload photos</a>
-          <a class="button-link" href="docs/maintenance.md">Maintenance docs</a>
-          <button type="button" class="button-link ghost" id="run-backup-now" data-run-backup>Run backup now</button>
-        </div>
-      </section>
     </section>
 
-    <section class="section lookup-shell" aria-live="polite" id="sku-lookup-shell">
-      <div class="lookup-grid">
-        <div class="lookup-card">
-          <h2>SKU Lookup</h2>
-          <p class="hint">Search by SKU or filter by status. Results preview live as you type.</p>
-          <form class="form-grid" method="get" action="index.php" id="sku-lookup">
+      <section class="section lookup-shell" aria-live="polite" id="sku-lookup-shell">
+        <div class="lookup-grid">
+      <div class="lookup-card">
+        <h2>SKU Lookup</h2>
+        <p class="hint">Search by SKU or filter by status. Results preview live as you type.</p>
+        <div class="hint" id="recent-skus" aria-label="Recently viewed SKUs"></div>
+        <p class="hint"><button type="button" class="ghost" id="clear-recent-skus">Clear recent SKUs</button></p>
+            <form class="form-grid" method="get" action="index.php" id="sku-lookup">
             <div class="row">
               <label>SKU
                 <input type="text" name="sku" list="suggested-skus" autofocus>
@@ -283,6 +308,7 @@ if (is_dir($backupDir)) {
             <div class="actions lookup-actions">
               <button type="submit">Open in intake</button>
               <button type="button" id="lookup-preview-refresh" class="ghost">Refresh preview</button>
+              <button type="button" id="lookup-clear-filters" class="ghost">Clear filters</button>
             </div>
           </form>
         </div>
@@ -294,6 +320,7 @@ if (is_dir($backupDir)) {
             </div>
             <div class="lookup-results-actions">
               <button type="button" class="ghost" id="lookup-load-more">Load more</button>
+              <button type="button" class="ghost" id="lookup-export-csv">Export CSV</button>
               <a class="button-link subtle" href="lookup_preview.php">Preview API</a>
             </div>
           </div>
@@ -398,6 +425,20 @@ if (is_dir($backupDir)) {
         if (event.key === 'Escape') {
           closeMenu();
         }
+        if (event.ctrlKey && event.key.toLowerCase() === 'l') {
+          if (event.target && (event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA')) return;
+          event.preventDefault();
+          var skuInput = document.querySelector('#sku-lookup [name=\"sku\"]');
+          if (skuInput) {
+            skuInput.focus();
+            skuInput.select();
+          }
+        }
+        if (event.ctrlKey && event.key.toLowerCase() === 'n') {
+          event.preventDefault();
+          var newLink = document.querySelector('[data-new-intake]');
+          if (newLink) newLink.click();
+        }
       });
 
       var lookupForm = document.getElementById('sku-lookup');
@@ -409,11 +450,93 @@ if (is_dir($backupDir)) {
         var previewMessage = document.getElementById('lookup-preview-message');
         var statusSelect = lookupForm.querySelector('[name="status"]');
         var refreshBtn = document.getElementById('lookup-preview-refresh');
+        var clearBtn = document.getElementById('lookup-clear-filters');
         var chipRow = document.getElementById('lookup-chips');
         var filterState = { staleDays: 0 };
         var backupButtons = Array.prototype.slice.call(document.querySelectorAll('[data-run-backup]'));
+        var verifyButtons = Array.prototype.slice.call(document.querySelectorAll('[data-verify-backup]'));
         var loadMoreBtn = document.getElementById('lookup-load-more');
+        var exportBtn = document.getElementById('lookup-export-csv');
         var previewLimit = 20;
+        var recentSkuKey = 'pinksheetRecentSkus';
+        var filterKey = 'pinksheetLookupFilter';
+
+        var saveFilter = function () {
+          try {
+            localStorage.setItem(filterKey, JSON.stringify({
+              sku: (skuInput && skuInput.value) || '',
+              status: (statusSelect && statusSelect.value) || '',
+              staleDays: filterState.staleDays || 0,
+            }));
+          } catch (e) {}
+        };
+        var loadFilter = function () {
+          try {
+            var saved = localStorage.getItem(filterKey);
+            if (!saved) return;
+            var data = JSON.parse(saved);
+            if (skuInput && typeof data.sku === 'string') skuInput.value = data.sku;
+            if (statusSelect && typeof data.status === 'string') statusSelect.value = data.status;
+            if (chipRow && data.staleDays) {
+              filterState.staleDays = data.staleDays;
+              var btn = chipRow.querySelector('[data-lookup-stale="' + data.staleDays + '"]');
+              if (btn) btn.click();
+            }
+          } catch (e) {}
+        };
+        var addRecentSku = function (value) {
+          if (!value) return;
+          try {
+            var saved = JSON.parse(localStorage.getItem(recentSkuKey) || '[]');
+            saved = [value].concat(saved.filter(function (v) { return v !== value; })).slice(0, 6);
+            localStorage.setItem(recentSkuKey, JSON.stringify(saved));
+            renderRecentSkus(saved);
+          } catch (e) {}
+        };
+        var renderRecentSkus = function (list) {
+          var host = document.getElementById('recent-skus');
+          if (!host) return;
+          host.innerHTML = '';
+          (list || []).forEach(function (sku) {
+            var btn = document.createElement('button');
+            btn.type = 'button';
+            btn.textContent = sku;
+            btn.addEventListener('click', function () {
+              if (skuInput) skuInput.value = sku;
+              schedulePreview();
+            });
+            host.appendChild(btn);
+          });
+        };
+        var renderActivityRecent = function (list) {
+          var host = document.getElementById('recent-activity-skus');
+          if (!host) return;
+          host.innerHTML = '';
+          (list || []).forEach(function (sku) {
+            var btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'ghost';
+            btn.textContent = sku;
+            btn.addEventListener('click', function () {
+              if (skuInput) skuInput.value = sku;
+              schedulePreview();
+            });
+            host.appendChild(btn);
+          });
+        };
+        var clearRecentSkus = function () {
+          try {
+            localStorage.removeItem(recentSkuKey);
+            renderRecentSkus([]);
+            renderActivityRecent([]);
+          } catch (e) {}
+        };
+        var clearRecentBtn = document.getElementById('clear-recent-skus');
+        if (clearRecentBtn) {
+          clearRecentBtn.addEventListener('click', function () {
+            clearRecentSkus();
+          });
+        }
         if (skuInput && suggestionList && window.fetch && typeof AbortController !== 'undefined') {
           var suggestionTimer = null;
           var suggestionController = null;
@@ -565,6 +688,7 @@ if (is_dir($backupDir)) {
             resetPreview();
             return;
           }
+          saveFilter();
           previewMessage.textContent = 'Loading preview...';
           previewMessage.classList.remove('hint-warning');
           var tableEl = previewBody ? previewBody.closest('table') : null;
@@ -589,6 +713,7 @@ if (is_dir($backupDir)) {
                 previewMessage.classList.add('hint-warning');
                 return;
               }
+              addRecentSku(skuValue || (items[0] && items[0].sku));
               renderPreviewRows(items);
             })
             .catch(function () {
@@ -611,13 +736,57 @@ if (is_dir($backupDir)) {
             requestPreview();
           });
         }
+        if (clearBtn) {
+          clearBtn.addEventListener('click', function () {
+            if (skuInput) skuInput.value = '';
+            if (statusSelect) statusSelect.value = '';
+            filterState.staleDays = 0;
+            if (chipRow) {
+              Array.prototype.forEach.call(chipRow.querySelectorAll('button'), function (b) {
+                b.classList.toggle('is-active', b.getAttribute('data-lookup-status') === '');
+              });
+            }
+            saveFilter();
+            resetPreview();
+          });
+        }
+        var toastBox = null;
+        var ensureToast = function () {
+          if (toastBox) return toastBox;
+          toastBox = document.createElement('div');
+          toastBox.id = 'toast-box';
+          toastBox.style.position = 'fixed';
+          toastBox.style.bottom = '16px';
+          toastBox.style.right = '16px';
+          toastBox.style.zIndex = '9999';
+          toastBox.style.display = 'flex';
+          toastBox.style.flexDirection = 'column';
+          toastBox.style.gap = '8px';
+          document.body.appendChild(toastBox);
+          return toastBox;
+        };
+        var showToast = function (message, ok) {
+          var box = ensureToast();
+          var el = document.createElement('div');
+          el.textContent = message;
+          el.style.padding = '10px 14px';
+          el.style.borderRadius = '6px';
+          el.style.color = '#0b1721';
+          el.style.background = ok ? '#c5f7d7' : '#ffd7d7';
+          el.style.boxShadow = '0 4px 10px rgba(0,0,0,0.1)';
+          el.style.fontWeight = '600';
+          box.appendChild(el);
+          setTimeout(function () {
+            if (el.parentNode) el.parentNode.removeChild(el);
+          }, 4200);
+        };
         if (backupButtons.length) {
           var setBackupState = function (running) {
             backupButtons.forEach(function (btn) {
               btn.disabled = running;
               if (running) {
                 btn.dataset.originalText = btn.dataset.originalText || btn.textContent;
-                btn.textContent = 'Running...';
+                btn.textContent = 'Running… (~5s)';
               } else if (btn.dataset.originalText) {
                 btn.textContent = btn.dataset.originalText;
               }
@@ -629,13 +798,13 @@ if (is_dir($backupDir)) {
               .then(function (r) { return r.json(); })
               .then(function (data) {
                 if (data.ok) {
-                  alert('Backup finished.');
-                  window.location.reload();
+                  showToast('Backup finished', true);
+                  window.setTimeout(function () { window.location.reload(); }, 600);
                 } else {
-                  alert('Backup failed: ' + (data.error || ('exit ' + data.exit)));
+                  showToast('Backup failed: ' + (data.error || ('exit ' + data.exit)), false);
                 }
               })
-              .catch(function () { alert('Backup failed.'); })
+              .catch(function () { showToast('Backup failed.', false); })
               .finally(function () {
                 setBackupState(false);
               });
@@ -643,6 +812,71 @@ if (is_dir($backupDir)) {
           backupButtons.forEach(function (btn) {
             btn.addEventListener('click', runBackup);
           });
+        }
+
+        var verifyButtons = Array.prototype.slice.call(document.querySelectorAll('[data-verify-backup]'));
+        if (verifyButtons.length) {
+          var setVerifyState = function (running) {
+            verifyButtons.forEach(function (btn) {
+              btn.disabled = running;
+              if (running) {
+                btn.dataset.originalText = btn.dataset.originalText || btn.textContent;
+                btn.textContent = 'Verifying…';
+              } else if (btn.dataset.originalText) {
+                btn.textContent = btn.dataset.originalText;
+              }
+            });
+          };
+          var runVerify = function () {
+            setVerifyState(true);
+            fetch('verify_now.php', { method: 'POST' })
+              .then(function (r) { return r.json(); })
+              .then(function (data) {
+                if (data.ok) {
+                  showToast('Backup verified', true);
+                } else {
+                  showToast('Verify failed: ' + (data.error || ('exit ' + data.exit)), false);
+                }
+              })
+              .catch(function () { showToast('Verify failed.', false); })
+              .finally(function () {
+                setVerifyState(false);
+              });
+          };
+          verifyButtons.forEach(function (btn) {
+            btn.addEventListener('click', runVerify);
+          });
+        }
+
+        var healthChip = document.getElementById('health-chip');
+        if (healthChip && window.fetch) {
+          fetch('health.php')
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+              var txt = 'Health: ok';
+              var cls = 'badge subtle';
+              if (data.maintenance) {
+                txt = 'Health: maintenance';
+                cls = 'badge danger';
+              } else if (data.backup && typeof data.backup.age_hours === 'number') {
+                if (data.backup.age_hours > 36) {
+                  txt = 'Health: backup stale';
+                  cls = 'badge warning';
+                } else if (data.backup.checksum_ok === false) {
+                  txt = 'Health: checksum mismatch';
+                  cls = 'badge danger';
+                } else {
+                  txt = 'Health: ok · ' + data.backup.latest;
+                  cls = 'badge subtle';
+                }
+              }
+              healthChip.textContent = txt;
+              healthChip.className = cls;
+            })
+            .catch(function () {
+              healthChip.textContent = 'Health: unknown';
+              healthChip.className = 'badge warning';
+            });
         }
         if (chipRow) {
           chipRow.addEventListener('click', function (event) {
@@ -658,6 +892,7 @@ if (is_dir($backupDir)) {
               b.classList.toggle('is-active', b === btn);
             });
             schedulePreview();
+            saveFilter();
           });
         }
         if (skuInput) {
@@ -668,14 +903,67 @@ if (is_dir($backupDir)) {
         if (statusSelect) {
           statusSelect.addEventListener('change', function () {
             schedulePreview();
+            saveFilter();
           });
         }
         if (loadMoreBtn) {
           loadMoreBtn.addEventListener('click', function () {
-            previewLimit = Math.min(previewLimit + 20, 100);
+            previewLimit = Math.min(previewLimit + 20, 200);
             schedulePreview();
           });
         }
+        if (exportBtn) {
+          exportBtn.addEventListener('click', function () {
+            if (!window.fetch) return;
+            var skuValue = (skuInput && skuInput.value.trim()) || '';
+            var statusValue = (statusSelect && statusSelect.value.trim()) || '';
+            if (skuValue === '' && statusValue === '') {
+              showToast('Add a SKU or status before exporting.', false);
+              return;
+            }
+            var params = new URLSearchParams();
+            if (skuValue !== '') params.set('sku', skuValue);
+            if (statusValue !== '') params.set('status', statusValue);
+            params.set('limit', 200);
+            fetch('lookup_preview.php?' + params.toString())
+              .then(function (r) { return r.json(); })
+              .then(function (items) {
+                if (!Array.isArray(items) || !items.length) {
+                  showToast('Nothing to export.', false);
+                  return;
+                }
+                var header = ['SKU', 'Status', 'What is it?', 'Updated'];
+                var rows = items.map(function (i) {
+                  return [
+                    (i.sku || '').replace(/\"/g, '\"\"'),
+                    (i.status || '').replace(/\"/g, '\"\"'),
+                    (i.what_is_it || '').replace(/\"/g, '\"\"'),
+                    i.updated_at || ''
+                  ];
+                });
+                var csv = [header].concat(rows).map(function (row) {
+                  return row.map(function (cell) { return '\"' + cell + '\"'; }).join(',');
+                }).join('\\r\\n');
+                var blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+                var url = URL.createObjectURL(blob);
+                var a = document.createElement('a');
+                a.href = url;
+                a.download = 'lookup_export.csv';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                showToast('Exported ' + rows.length + ' rows.', true);
+              })
+              .catch(function () { showToast('Export failed.', false); });
+          });
+        }
+        loadFilter();
+        try {
+          var recentList = JSON.parse(localStorage.getItem(recentSkuKey) || '[]');
+          renderRecentSkus(recentList);
+          renderActivityRecent(recentList);
+        } catch (e) {}
         resetPreview();
         lookupForm.addEventListener('submit', function (event) {
           var sku = ((lookupForm.querySelector('[name="sku"]') || {}).value || '').trim();

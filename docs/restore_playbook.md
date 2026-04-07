@@ -61,12 +61,13 @@ Use this when intake data is missing/corrupt, or when rolling back after a bad d
    ```
 
 ## Verification steps
-1) Run integrity check on the restored DB:
+1) Run integrity check on the restored DB and verify checksum (optional):
    ```
    php scripts/check_db.php
    ```
    Expect `integrity_check: ok`.
    - If using the UI button flow, you can also hit `backup_now.php` after restore to ensure backups still run (should return `{"ok":true,...}`).
+   - To verify checksum of a backup: `certutil -hashfile data\\backups\\intake-YYYYMMDD-HHMMSS.sqlite SHA256` and compare to the adjacent `.sha256` file.
 2) Spot-check in the UI:
    - Open Home (counts load, no alerts).
    - Lookup a restored SKU; verify status + thumbnail loads.

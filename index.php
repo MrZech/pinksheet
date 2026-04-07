@@ -867,7 +867,7 @@ function checked(string $name, string $value, array $formData): string
             </div>
           </div>
 
-          <div class="section sku-photos">
+          <div class="section sku-photos" id="sku-photos">
             <h2>SKU Photos</h2>
             <div class="sku-photo-dropzone" id="sku-photo-dropzone">
               <label>Add photos for this SKU
@@ -1782,6 +1782,45 @@ function checked(string $name, string $value, array $formData): string
         div.textContent = text;
         uploadMessages.appendChild(div);
       };
+      var MAX_DIM = 1600;
+      var RESIZE_THRESHOLD = 2 * 1024 * 1024; // 2MB
+      var TARGET_QUALITY = 0.82;
+      var resizeIfNeeded = function (file, done) {
+        if (!file || !file.type || !file.type.startsWith('image/') || file.size < RESIZE_THRESHOLD) {
+          done(file);
+          return;
+        }
+        var reader = new FileReader();
+        reader.onload = function (e) {
+          var img = new Image();
+          img.onload = function () {
+            var w = img.width;
+            var h = img.height;
+            var scale = Math.min(1, MAX_DIM / Math.max(w, h));
+            if (scale >= 1) {
+              done(file);
+              return;
+            }
+            var canvas = document.createElement('canvas');
+            canvas.width = Math.round(w * scale);
+            canvas.height = Math.round(h * scale);
+            var ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+            canvas.toBlob(function (blob) {
+              if (!blob) {
+                done(file);
+                return;
+              }
+              var resized = new File([blob], file.name.replace(/\.(png|webp|gif)$/i, '.jpg'), { type: 'image/jpeg', lastModified: Date.now() });
+              done(resized);
+            }, 'image/jpeg', TARGET_QUALITY);
+          };
+          img.onerror = function () { done(file); };
+          img.src = e.target.result;
+        };
+        reader.onerror = function () { done(file); };
+        reader.readAsDataURL(file);
+      };
       var clearPreview = function () {
         photoQueue.forEach(function (entry) {
           URL.revokeObjectURL(entry.url);
@@ -1851,6 +1890,7 @@ function checked(string $name, string $value, array $formData): string
           progressBar.className = 'sku-photo-progress';
           var progressInner = document.createElement('span');
           progressInner.dataset.photoIdx = String(index);
+          progressInner.textContent = '0%';
           progressBar.appendChild(progressInner);
           card.appendChild(progressBar);
 
@@ -1871,21 +1911,31 @@ function checked(string $name, string $value, array $formData): string
       if (photoInput) {
         photoInput.addEventListener('change', function () {
           var files = photoInput.files || [];
+          var remaining = files.length;
+          if (!remaining) return;
           Array.prototype.forEach.call(files, function (file) {
-            if (!file || !file.type || !file.type.startsWith('image/')) {
-              return;
-            }
-            var url = URL.createObjectURL(file);
-            photoQueue.push({ file: file, url: url });
+            resizeIfNeeded(file, function (processed) {
+              if (!processed || !processed.type || !processed.type.startsWith('image/')) {
+                return;
+              }
+              var url = URL.createObjectURL(processed);
+              photoQueue.push({ file: processed, url: url, progress: 0 });
+              remaining -= 1;
+              if (remaining === 0) {
+                syncInputFromQueue();
+                renderPreview();
+                processQueue();
+              }
+            });
           });
-          syncInputFromQueue();
-          renderPreview();
         });
       }
       var updateProgress = function (idx, percent) {
         var bar = previewList.querySelector('.sku-photo-progress span[data-photo-idx="' + idx + '"]');
         if (bar) {
-          bar.style.width = Math.min(100, Math.max(0, percent)) + '%';
+          var pct = Math.min(100, Math.max(0, percent));
+          bar.style.width = pct + '%';
+          bar.textContent = Math.round(pct) + '%';
         }
       };
       var CHUNK_SIZE = 512 * 1024; // 512KB to stay under server limits
@@ -1995,16 +2045,25 @@ function checked(string $name, string $value, array $formData): string
         next();
       };
       var addFilesToQueue = function (fileList) {
-        Array.prototype.forEach.call(fileList || [], function (file) {
-          if (!file || !file.type || !file.type.startsWith('image/')) {
-            return;
-          }
-          var url = URL.createObjectURL(file);
-          photoQueue.push({ file: file, url: url, progress: 0 });
+        var files = Array.prototype.slice.call(fileList || []);
+        if (!files.length) return;
+        var remaining = files.length;
+        files.forEach(function (file) {
+          resizeIfNeeded(file, function (processed) {
+            if (!processed || !processed.type || !processed.type.startsWith('image/')) {
+              remaining -= 1;
+              return;
+            }
+            var url = URL.createObjectURL(processed);
+            photoQueue.push({ file: processed, url: url, progress: 0 });
+            remaining -= 1;
+            if (remaining === 0) {
+              syncInputFromQueue();
+              renderPreview();
+              processQueue();
+            }
+          });
         });
-        syncInputFromQueue();
-        renderPreview();
-        processQueue();
       };
       if (photoDropzone) {
         var dz = photoDropzone;
