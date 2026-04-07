@@ -169,7 +169,6 @@ if (is_dir($backupDir)) {
         <div class="quick-links">
           <a class="button-link" href="index.php?clear_draft=1" data-new-intake>New Intake</a>
           <a class="button-link" href="#sku-lookup-shell">Search SKUs</a>
-          <a class="button-link" href="index.php#sku-photos">Upload photos</a>
           <a class="button-link" href="docs/maintenance.md">Maintenance docs</a>
           <button type="button" class="button-link ghost" id="run-backup-now" data-run-backup>
             Run backup now<?php if ($latestBackup): ?> (<?php echo htmlspecialchars($backupSummary, ENT_QUOTES, 'UTF-8'); ?>)<?php endif; ?>
@@ -270,11 +269,11 @@ if (is_dir($backupDir)) {
 
       <section class="section lookup-shell" aria-live="polite" id="sku-lookup-shell">
         <div class="lookup-grid">
-      <div class="lookup-card">
-        <h2>SKU Lookup</h2>
-        <p class="hint">Search by SKU or filter by status. Results preview live as you type.</p>
-        <div class="hint" id="recent-skus" aria-label="Recently viewed SKUs"></div>
-        <p class="hint"><button type="button" class="ghost" id="clear-recent-skus">Clear recent SKUs</button></p>
+        <div class="lookup-card">
+          <h2>SKU Lookup</h2>
+          <p class="hint">Search by SKU or filter by status. Results preview live as you type.</p>
+          <div class="hint" id="recent-skus" aria-label="Recently viewed SKUs"></div>
+          <p class="hint"><button type="button" class="ghost" id="clear-recent-skus">Clear recent SKUs</button></p>
             <form class="form-grid" method="get" action="index.php" id="sku-lookup">
             <div class="row">
               <label>SKU
@@ -304,6 +303,7 @@ if (is_dir($backupDir)) {
               <button type="button" data-lookup-status="Listed">Listed</button>
               <button type="button" data-lookup-status="SOLD">Sold</button>
               <button type="button" data-lookup-stale="7">Stale >7d</button>
+              <button type="button" data-lookup-stale="30">Stale >30d</button>
             </div>
             <div class="actions lookup-actions">
               <button type="submit">Open in intake</button>
@@ -323,6 +323,11 @@ if (is_dir($backupDir)) {
               <button type="button" class="ghost" id="lookup-export-csv">Export CSV</button>
               <a class="button-link subtle" href="lookup_preview.php">Preview API</a>
             </div>
+            <div class="gap-chips" id="gap-chips">
+              <button type="button" data-gap="">Any</button>
+              <button type="button" data-gap="no-photos">No photos</button>
+              <button type="button" data-gap="no-price">No price</button>
+            </div>
           </div>
           <div class="table-wrap">
             <table class="lookup-table">
@@ -332,6 +337,7 @@ if (is_dir($backupDir)) {
                   <th>Status</th>
                   <th>What is it?</th>
                   <th>Updated</th>
+                  <th>Actions</th>
                 </tr>
               </thead>
               <tbody id="lookup-preview-body">
@@ -460,6 +466,8 @@ if (is_dir($backupDir)) {
         var previewLimit = 20;
         var recentSkuKey = 'pinksheetRecentSkus';
         var filterKey = 'pinksheetLookupFilter';
+        var gapChips = document.getElementById('gap-chips');
+        var gapState = { noPhotos: false, missingPrice: false };
 
         var saveFilter = function () {
           try {
@@ -634,6 +642,16 @@ if (is_dir($backupDir)) {
               return !isNaN(t) && t < cutoff;
             });
           }
+          if (gapState.noPhotos) {
+            filtered = filtered.filter(function (entry) {
+              return (entry.photo_count || 0) === 0;
+            });
+          }
+          if (gapState.missingPrice) {
+            filtered = filtered.filter(function (entry) {
+              return !!entry.missing_price;
+            });
+          }
           previewBody.innerHTML = '';
           if (!filtered.length) {
             previewBody.innerHTML = '<tr><td colspan="4">No matches found.</td></tr>';
@@ -652,11 +670,55 @@ if (is_dir($backupDir)) {
             statusSpan.className = 'status-chip';
             statusSpan.textContent = entry.status || '—';
             statusTd.appendChild(statusSpan);
-            row.appendChild(statusTd);
-            row.appendChild(createCell(entry.what_is_it));
-            row.appendChild(createCell(relativeTime(entry.updated_at)));
-            previewBody.appendChild(row);
+          row.appendChild(statusTd);
+          row.appendChild(createCell(entry.what_is_it));
+          row.appendChild(createCell(relativeTime(entry.updated_at)));
+          var actionsTd = document.createElement('td');
+          if ((entry.photo_count || 0) === 0) {
+            var badge = document.createElement('span');
+            badge.className = 'badge warning';
+            badge.textContent = 'No photos';
+            actionsTd.appendChild(badge);
+          }
+          if (entry.missing_price) {
+            var priceBadge = document.createElement('span');
+            priceBadge.className = 'badge warning';
+            priceBadge.textContent = 'No price';
+            actionsTd.appendChild(priceBadge);
+          }
+          var inlineStatus = document.createElement('select');
+          ['','Intake','Description','Tested','Listed','SOLD'].forEach(function (opt) {
+            var o = document.createElement('option');
+            o.value = opt;
+            o.textContent = opt || 'Set status';
+            if (opt === entry.status) o.selected = true;
+            inlineStatus.appendChild(o);
           });
+          inlineStatus.addEventListener('change', function () {
+            updateField(entry.sku, 'status', inlineStatus.value);
+          });
+          actionsTd.appendChild(inlineStatus);
+          var priceInput = document.createElement('input');
+          priceInput.type = 'number';
+          priceInput.step = '0.01';
+          priceInput.placeholder = 'Price';
+          priceInput.value = entry.dispotech_price || '';
+          priceInput.addEventListener('change', function () {
+            updateField(entry.sku, 'dispotech_price', priceInput.value);
+          });
+          actionsTd.appendChild(priceInput);
+          var dupBtn = document.createElement('button');
+          dupBtn.type = 'button';
+          dupBtn.className = 'ghost';
+          dupBtn.textContent = 'Duplicate';
+          dupBtn.addEventListener('click', function () {
+              if (!entry.sku) return;
+              window.location.href = 'index.php?copy_sku=' + encodeURIComponent(entry.sku);
+            });
+            actionsTd.appendChild(dupBtn);
+            row.appendChild(actionsTd);
+          previewBody.appendChild(row);
+        });
           previewMessage.textContent = 'Showing the most recent matches' + (filterState.staleDays > 0 ? ' (stale filter applied)' : '') + '.';
           previewMessage.classList.remove('hint-warning');
         };
@@ -684,6 +746,7 @@ if (is_dir($backupDir)) {
             params.set('status', statusValue);
           }
           params.set('limit', previewLimit);
+          params.set('with_photos', '1');
           if (!params.toString()) {
             resetPreview();
             return;
@@ -779,6 +842,22 @@ if (is_dir($backupDir)) {
           setTimeout(function () {
             if (el.parentNode) el.parentNode.removeChild(el);
           }, 4200);
+        };
+        var updateField = function (sku, field, value) {
+          fetch('update_item.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: 'sku=' + encodeURIComponent(sku) + '&field=' + encodeURIComponent(field) + '&value=' + encodeURIComponent(value)
+          })
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+              if (data.ok) {
+                showToast('Updated ' + field, true);
+              } else {
+                showToast('Update failed: ' + (data.error || 'error'), false);
+              }
+            })
+            .catch(function () { showToast('Update failed.', false); });
         };
         if (backupButtons.length) {
           var setBackupState = function (running) {
@@ -893,6 +972,19 @@ if (is_dir($backupDir)) {
             });
             schedulePreview();
             saveFilter();
+          });
+        }
+        if (gapChips) {
+          gapChips.addEventListener('click', function (event) {
+            if (!event.target || event.target.tagName !== 'BUTTON') return;
+            var btn = event.target;
+            var gap = btn.getAttribute('data-gap') || '';
+            gapState.noPhotos = gap === 'no-photos';
+            gapState.missingPrice = gap === 'no-price';
+            Array.prototype.forEach.call(gapChips.querySelectorAll('button'), function (b) {
+              b.classList.toggle('is-active', b === btn);
+            });
+            schedulePreview();
           });
         }
         if (skuInput) {

@@ -243,6 +243,7 @@ $statusOptions = statusOptions();
 $lookupSku = trim($_GET['sku'] ?? '');
 $lookupSkuNormalized = normalizeSku($lookupSku);
 $lookupStatus = trim($_GET['status'] ?? '');
+$copySkuPrefill = trim($_GET['copy_sku'] ?? '');
 if ($lookupStatus !== '' && !in_array($lookupStatus, $statusOptions, true)) {
     $lookupStatus = '';
 }
@@ -719,7 +720,10 @@ function checked(string $name, string $value, array $formData): string
           </label>
           <div class="copy-sku">
             <input type="text" id="copy-sku-input" placeholder="Copy fields from SKU">
-            <button type="button" class="ghost" id="copy-sku-button">Copy fields</button>
+            <div class="copy-actions">
+              <button type="button" class="ghost" id="copy-sku-button">Copy fields</button>
+              <button type="button" class="ghost subtle" id="find-sku-button">Find SKU</button>
+            </div>
             <span class="hint" id="copy-sku-status" hidden></span>
           </div>
           <?php
@@ -1327,7 +1331,7 @@ function checked(string $name, string $value, array $formData): string
       if (form) {
         var draftKey = 'intakeDraftV1';
         var backupKey = 'intakeDraftBackupV1';
-        var duplicateKey = 'intakeDuplicatePrefillV1';
+      var duplicateKey = 'intakeDuplicatePrefillV1';
         var errorEl = document.getElementById('client-error');
         var dismissDraft = document.getElementById('draft-dismiss');
         var hasRecord = document.getElementById('has-server-record');
@@ -1338,9 +1342,19 @@ function checked(string $name, string $value, array $formData): string
         var autosaveStatus = document.getElementById('autosave-status');
         var serverDraftBanner = document.getElementById('server-draft-banner');
       var duplicateButton = document.getElementById('save-duplicate');
+      if (duplicateButton) {
+        duplicateButton.title = 'Save, then start a new item with the same fields (SKU/photos cleared)';
+      }
       var copySkuInput = document.getElementById('copy-sku-input');
       var copySkuButton = document.getElementById('copy-sku-button');
       var copySkuStatus = document.getElementById('copy-sku-status');
+      var findSkuButton = document.getElementById('find-sku-button');
+      var findSkuModal = document.getElementById('find-sku-modal');
+      var findSkuBackdrop = document.getElementById('find-sku-backdrop');
+      var findSkuClose = document.getElementById('find-sku-close');
+      var findSkuQuery = document.getElementById('find-sku-query');
+      var findSkuResults = document.getElementById('find-sku-results');
+      var copySkuPrefill = '<?php echo h($copySkuPrefill); ?>';
       var deleteButtons = document.querySelectorAll('.js-delete-item');
       var deleteForm = null;
       var deleteInputId = null;
@@ -1400,6 +1414,99 @@ function checked(string $name, string $value, array $formData): string
           delete filtered.updated_at;
           applyDraftObject(filtered);
         };
+        var fetchSkuData = function (sku, cb) {
+          fetch('copy_item.php?sku=' + encodeURIComponent(sku))
+            .then(function (r) { return r.json(); })
+            .then(function (data) { cb(null, data); })
+            .catch(function (err) { cb(err); });
+        };
+        var openCopyModal = function () {
+          var sku = (copySkuInput && copySkuInput.value || '').trim();
+          if (!sku) {
+            copySkuStatus.hidden = false;
+            copySkuStatus.textContent = 'Enter a SKU to copy.';
+            copySkuStatus.className = 'hint error';
+            return;
+          }
+          copySkuStatus.hidden = false;
+          copySkuStatus.textContent = 'Loading...';
+          copySkuStatus.className = 'hint';
+          fetchSkuData(sku, function (err, data) {
+            if (err || !data || !data.ok || !data.item) {
+              copySkuStatus.hidden = false;
+              copySkuStatus.textContent = data && data.error ? data.error : 'Could not load that SKU.';
+              copySkuStatus.className = 'hint error';
+              return;
+            }
+            applyDataFiltered(data.item);
+            copySkuStatus.hidden = false;
+            copySkuStatus.textContent = 'Copied fields; SKU and photos left blank.';
+            copySkuStatus.className = 'hint ok';
+          });
+        };
+        if (copySkuButton && copySkuInput) {
+          copySkuButton.addEventListener('click', function () {
+            openCopyModal();
+          });
+          copySkuInput.addEventListener('keypress', function (evt) {
+            if (evt.key === 'Enter') {
+              evt.preventDefault();
+              openCopyModal();
+            }
+          });
+        }
+        var openFindModal = function () {
+          if (!findSkuModal) return;
+          findSkuModal.hidden = false;
+          if (findSkuQuery) {
+            findSkuQuery.value = '';
+            findSkuQuery.focus();
+          }
+          if (findSkuResults) findSkuResults.innerHTML = '';
+        };
+        var closeFindModal = function () {
+          if (findSkuModal) findSkuModal.hidden = true;
+        };
+        if (findSkuButton) {
+          findSkuButton.addEventListener('click', openFindModal);
+        }
+        if (findSkuBackdrop) findSkuBackdrop.addEventListener('click', closeFindModal);
+        if (findSkuClose) findSkuClose.addEventListener('click', closeFindModal);
+        if (findSkuQuery && findSkuResults) {
+          var findTimer = null;
+          findSkuQuery.addEventListener('input', function () {
+            clearTimeout(findTimer);
+            var q = findSkuQuery.value.trim();
+            if (q.length < 2) {
+              findSkuResults.innerHTML = '';
+              return;
+            }
+            findTimer = setTimeout(function () {
+              fetch('suggestions.php?q=' + encodeURIComponent(q))
+                .then(function (r) { return r.json(); })
+                .then(function (items) {
+                  findSkuResults.innerHTML = '';
+                  items.slice(0, 15).forEach(function (item) {
+                    var li = document.createElement('li');
+                    li.textContent = item.value || item.label || '';
+                    li.addEventListener('click', function () {
+                      if (copySkuInput) copySkuInput.value = li.textContent;
+                      closeFindModal();
+                      openCopyModal();
+                    });
+                    findSkuResults.appendChild(li);
+                  });
+                })
+                .catch(function () {
+                  findSkuResults.innerHTML = '<li>Could not load suggestions.</li>';
+                });
+            }, 200);
+          });
+        }
+        if (copySkuPrefill) {
+          if (copySkuInput) copySkuInput.value = copySkuPrefill;
+          openCopyModal();
+        }
         var applyDraft = function (raw) {
           if (!raw) return;
           try {
@@ -2148,5 +2255,19 @@ function checked(string $name, string $value, array $formData): string
       // Keep screen view at full readable size; print layout is handled by CSS.
     })();
   </script>
+
+  <div class="modal" id="find-sku-modal" hidden>
+    <div class="modal-backdrop" id="find-sku-backdrop"></div>
+    <div class="modal-content">
+      <header class="modal-header">
+        <h3>Find a SKU to copy</h3>
+        <button type="button" class="ghost" id="find-sku-close">×</button>
+      </header>
+      <div class="modal-body">
+        <input type="text" id="find-sku-query" placeholder="Type SKU or keywords">
+        <ul id="find-sku-results" class="find-sku-list"></ul>
+      </div>
+    </div>
+  </div>
 </body>
 </html>

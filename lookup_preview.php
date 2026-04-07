@@ -12,6 +12,7 @@ header('Content-Type: application/json; charset=utf-8');
 $sku = trim((string)($_GET['sku'] ?? ''));
 $status = trim((string)($_GET['status'] ?? ''));
 $limit = (int)($_GET['limit'] ?? PREVIEW_LIMIT);
+$withPhotos = isset($_GET['with_photos']);
 if ($limit < 1) { $limit = PREVIEW_LIMIT; }
 if ($limit > 100) { $limit = 100; }
 if (mb_strlen($sku) > MAX_QUERY_LENGTH) {
@@ -48,7 +49,7 @@ try {
         $conditions[] = 'status = :status';
         $params['status'] = $status;
     }
-    $sql = 'SELECT sku, status, what_is_it, updated_at FROM intake_items';
+$sql = 'SELECT id, sku, status, what_is_it, updated_at, dispotech_price, ebay_price FROM intake_items';
     if ($conditions) {
         $sql .= ' WHERE ' . implode(' AND ', $conditions);
     }
@@ -59,6 +60,7 @@ try {
 
     // Optional thumbnail: pick most recent photo per normalized SKU.
     $thumbs = [];
+    $photoCounts = [];
     $skus = array_filter(array_map(static fn($r) => trim((string)($r['sku'] ?? '')), $rows));
     if ($skus) {
         $norms = array_map(static fn($s) => strtoupper(trim($s)), $skus);
@@ -76,20 +78,43 @@ try {
                 $thumbs[$norm] = (int)$p['id'];
             }
         }
+        if ($withPhotos) {
+            $countStmt = $pdo->prepare("
+                SELECT sku_normalized, COUNT(*) AS c
+                FROM sku_photos
+                WHERE sku_normalized IN ($placeholders)
+                GROUP BY sku_normalized
+            ");
+            $countStmt->execute($norms);
+            foreach ($countStmt->fetchAll() as $row) {
+                $n = trim((string)$row['sku_normalized']);
+                if ($n !== '') {
+                    $photoCounts[$n] = (int)$row['c'];
+                }
+            }
+        }
     }
 
-    $results = array_map(static function (array $row) use ($thumbs): array {
+    $results = array_map(static function (array $row) use ($thumbs, $photoCounts): array {
         $sku = trim((string)($row['sku'] ?? ''));
         $norm = strtoupper(trim($sku));
         $photoId = $thumbs[$norm] ?? null;
         $photoUrl = $photoId ? ('photo.php?id=' . $photoId) : null;
+        $dPrice = $row['dispotech_price'] ?? null;
+        $ePrice = $row['ebay_price'] ?? null;
+        $missingPrice = ($dPrice === null || $dPrice === '') && ($ePrice === null || $ePrice === '');
         return [
+            'id' => isset($row['id']) ? (int)$row['id'] : null,
             'sku' => $sku,
             'status' => trim((string)($row['status'] ?? '')),
             'what_is_it' => trim((string)($row['what_is_it'] ?? '')),
             'updated_at' => trim((string)($row['updated_at'] ?? '')),
             'photo_id' => $photoId,
             'photo_url' => $photoUrl,
+            'photo_count' => $photoCounts[$norm] ?? 0,
+            'missing_price' => $missingPrice,
+            'dispotech_price' => $dPrice,
+            'ebay_price' => $ePrice,
         ];
     }, $rows);
     echo json_encode($results, JSON_THROW_ON_ERROR);
