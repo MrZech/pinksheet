@@ -195,6 +195,10 @@ if (is_dir($backupDir)) {
                 Backups will display here once created.
               <?php endif; ?>
             </p>
+            <p class="dash-sub">
+              <button type="button" class="button-link ghost" data-run-backup>Run backup now</button>
+              <span class="hint">Local only; saves to data/backups/</span>
+            </p>
           </div>
         </div>
       </section>
@@ -236,7 +240,7 @@ if (is_dir($backupDir)) {
           <a class="button-link" href="#sku-lookup-shell">Search SKUs</a>
           <a class="button-link" href="upload_photo.php">Upload photos</a>
           <a class="button-link" href="docs/maintenance.md">Maintenance docs</a>
-          <button type="button" class="button-link ghost" id="run-backup-now">Run backup now</button>
+          <button type="button" class="button-link ghost" id="run-backup-now" data-run-backup>Run backup now</button>
         </div>
       </section>
     </section>
@@ -407,7 +411,7 @@ if (is_dir($backupDir)) {
         var refreshBtn = document.getElementById('lookup-preview-refresh');
         var chipRow = document.getElementById('lookup-chips');
         var filterState = { staleDays: 0 };
-        var runBackupBtn = document.getElementById('run-backup-now');
+        var backupButtons = Array.prototype.slice.call(document.querySelectorAll('[data-run-backup]'));
         var loadMoreBtn = document.getElementById('lookup-load-more');
         var previewLimit = 20;
         if (skuInput && suggestionList && window.fetch && typeof AbortController !== 'undefined') {
@@ -607,24 +611,37 @@ if (is_dir($backupDir)) {
             requestPreview();
           });
         }
-        if (runBackupBtn) {
-          runBackupBtn.addEventListener('click', function () {
-            runBackupBtn.disabled = true;
-            runBackupBtn.textContent = 'Running...';
+        if (backupButtons.length) {
+          var setBackupState = function (running) {
+            backupButtons.forEach(function (btn) {
+              btn.disabled = running;
+              if (running) {
+                btn.dataset.originalText = btn.dataset.originalText || btn.textContent;
+                btn.textContent = 'Running...';
+              } else if (btn.dataset.originalText) {
+                btn.textContent = btn.dataset.originalText;
+              }
+            });
+          };
+          var runBackup = function () {
+            setBackupState(true);
             fetch('backup_now.php', { method: 'POST' })
               .then(function (r) { return r.json(); })
               .then(function (data) {
                 if (data.ok) {
                   alert('Backup finished.');
+                  window.location.reload();
                 } else {
                   alert('Backup failed: ' + (data.error || ('exit ' + data.exit)));
                 }
               })
               .catch(function () { alert('Backup failed.'); })
               .finally(function () {
-                runBackupBtn.disabled = false;
-                runBackupBtn.textContent = 'Run backup now';
+                setBackupState(false);
               });
+          };
+          backupButtons.forEach(function (btn) {
+            btn.addEventListener('click', runBackup);
           });
         }
         if (chipRow) {
