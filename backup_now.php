@@ -22,13 +22,61 @@ if (!$isPrivate) {
 }
 
 $script = __DIR__ . '/scripts/backup.ps1';
-if (!is_readable($script)) {
-    http_response_code(500);
-    echo json_encode(['ok' => false, 'error' => 'Backup script missing']);
-    exit;
+
+/**
+ * Lightweight PHP fallback for environments without PowerShell (e.g., Linux host).
+ */
+function runPhpBackup(): array
+{
+    $repoRoot = __DIR__;
+    $dbPath = $repoRoot . '/data/intake.sqlite';
+    $backupDir = $repoRoot . '/data/backups';
+    $logFile = $repoRoot . '/logs/lookup.csv';
+    $logArchiveDir = $repoRoot . '/logs/archive';
+    $messages = [];
+    $ok = true;
+
+    foreach ([$backupDir, $logArchiveDir] as $dir) {
+        if (!is_dir($dir) && !mkdir($dir, 0777, true) && !is_dir($dir)) {
+            return ['ok' => false, 'error' => 'Could not create directory: ' . $dir];
+        }
+    }
+
+    $timestamp = date('Ymd-His');
+    if (is_file($dbPath)) {
+        $dest = $backupDir . '/intake-' . $timestamp . '.sqlite';
+        if (!copy($dbPath, $dest)) {
+            return ['ok' => false, 'error' => 'Failed to copy DB to ' . $dest];
+        }
+        $messages[] = 'SQLite backup created: ' . $dest;
+    } else {
+        $messages[] = 'SQLite database not found at ' . $dbPath;
+        $ok = false;
+    }
+
+    if (is_file($logFile)) {
+        $length = filesize($logFile);
+        if ($length > 0) {
+            $archiveDest = $logArchiveDir . '/lookup-' . $timestamp . '.csv';
+            if (!copy($logFile, $archiveDest)) {
+                $messages[] = 'Failed to archive lookup log.';
+                $ok = false;
+            } else {
+                file_put_contents($logFile, '');
+                $messages[] = 'Rotated lookup log to ' . $archiveDest;
+            }
+        } else {
+            $messages[] = 'Lookup log exists but is empty; nothing to rotate.';
+        }
+    } else {
+        $messages[] = 'Lookup log not found at ' . $logFile;
+    }
+
+    // Retention not applied in PHP fallback (default keeps all).
+    return ['ok' => $ok, 'output' => $messages, 'fallback' => 'php'];
 }
 
-// Locate PowerShell (handles Windows and pwsh on Linux/macOS). Exit 127 typically means the shell couldn't find it.
+// Locate PowerShell (handles Windows and pwsh on Linux/macOS). If not found, fall back to PHP backup.
 $psCandidates = [];
 if (stripos(PHP_OS_FAMILY, 'Windows') !== false) {
     $systemRoot = getenv('SystemRoot') ?: 'C:\\Windows';
@@ -43,35 +91,47 @@ if (stripos(PHP_OS_FAMILY, 'Windows') !== false) {
         '/usr/bin/pwsh',
         '/usr/local/bin/pwsh',
         '/opt/microsoft/powershell/7/pwsh',
-        'pwsh',
-        'powershell',
     ];
 }
 
 $psPath = null;
 foreach ($psCandidates as $candidate) {
-    // is_executable works for absolute paths; for bare commands we rely on shell PATH, so accept them last.
-    $isAbsolute = strpos($candidate, ':') !== false || str_starts_with($candidate, '/');
+    $isAbsolute = str_starts_with($candidate, '/') || strpos($candidate, ':') !== false;
     if ($isAbsolute && is_executable($candidate)) {
         $psPath = $candidate;
         break;
     }
-    if (!$isAbsolute) {
-        // keep as a fallback; we'll use the first bare command if no absolute path found
-        $psPath = $psPath ?? $candidate;
-    }
 }
 
-if ($psPath === null) {
-    http_response_code(500);
-    echo json_encode(['ok' => false, 'error' => 'PowerShell not found on server', 'candidates' => $psCandidates]);
-    exit;
-}
-
-$cmd = escapeshellarg($psPath) . ' -NoProfile -ExecutionPolicy Bypass -File ' . escapeshellarg($script);
+$usedFallback = false;
 $output = [];
 $exit = 0;
-exec($cmd . ' 2>&1', $output, $exit);
+$cmd = null;
+
+if ($psPath !== null && is_readable($script)) {
+    $cmd = escapeshellarg($psPath) . ' -NoProfile -ExecutionPolicy Bypass -File ' . escapeshellarg($script);
+    exec($cmd . ' 2>&1', $output, $exit);
+    if ($exit === 127) {
+        // PowerShell command not found at runtime; fall back to PHP.
+        $fallback = runPhpBackup();
+        http_response_code($fallback['ok'] ? 200 : 500);
+        echo json_encode(array_merge($fallback, [
+            'ps_used' => $psPath,
+            'ps_exit' => $exit,
+            'command' => $cmd,
+        ]));
+        exit;
+    }
+} else {
+    $fallback = runPhpBackup();
+    http_response_code($fallback['ok'] ? 200 : 500);
+    echo json_encode(array_merge($fallback, [
+        'ps_used' => null,
+        'command' => $cmd,
+        'ps_candidates' => $psCandidates,
+    ]));
+    exit;
+}
 
 echo json_encode([
     'ok' => $exit === 0,
@@ -81,4 +141,5 @@ echo json_encode([
     'ps_candidates' => $psCandidates,
     'script_exists' => is_readable($script),
     'output' => $output,
+    'fallback' => $usedFallback ? 'php' : 'powershell',
 ]);
