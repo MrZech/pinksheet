@@ -64,7 +64,7 @@ foreach ($psCandidates as $candidate) {
 
 if ($psPath === null) {
     http_response_code(500);
-    echo json_encode(['ok' => false, 'error' => 'PowerShell not found on server']);
+    echo json_encode(['ok' => false, 'error' => 'PowerShell not found on server', 'candidates' => $psCandidates]);
     exit;
 }
 
@@ -76,5 +76,9 @@ exec($cmd . ' 2>&1', $output, $exit);
 echo json_encode([
     'ok' => $exit === 0,
     'exit' => $exit,
+    'command' => $cmd,
+    'ps_found' => $psPath,
+    'ps_candidates' => $psCandidates,
+    'script_exists' => is_readable($script),
     'output' => $output,
 ]);
