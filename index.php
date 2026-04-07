@@ -1028,6 +1028,8 @@ function checked(string $name, string $value, array $formData): string
                   <th>SKU</th>
                   <th>Status</th>
                   <th>What is it?</th>
+                  <th>DispoTech Price</th>
+                  <th>Ebay Price</th>
                   <th>Updated</th>
                   <th>Open</th>
                   <th>Delete</th>
@@ -1036,7 +1038,7 @@ function checked(string $name, string $value, array $formData): string
               <tbody>
                 <?php if (!$recent): ?>
                   <tr>
-                    <td colspan="6">No items found for this lookup.</td>
+                    <td colspan="10">No items found for this lookup.</td>
                   </tr>
                 <?php else: ?>
                   <?php foreach ($recent as $item): ?>
@@ -1063,6 +1065,8 @@ function checked(string $name, string $value, array $formData): string
                       <td><?php echo h($item['sku'] ?? ''); ?></td>
                       <td><?php echo h($item['status'] ?? ''); ?></td>
                       <td><?php echo h($item['what_is_it'] ?? ''); ?></td>
+                      <td><?php echo isset($item['dispotech_price']) && $item['dispotech_price'] !== '' ? number_format((float)$item['dispotech_price'], 2) : '—'; ?></td>
+                      <td><?php echo isset($item['ebay_price']) && $item['ebay_price'] !== '' ? number_format((float)$item['ebay_price'], 2) : '—'; ?></td>
                       <td><?php echo h($item['updated_at'] ?? ''); ?></td>
                       <td><a class="open-link" href="index.php?sku=<?php echo urlencode((string)($item['sku'] ?? '')); ?>">Open</a></td>
                       <td>
