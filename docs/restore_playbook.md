@@ -28,6 +28,15 @@ Use this when intake data is missing/corrupt, or when rolling back after a bad d
    copy /Y data\backups\intake-YYYY-MM-DD-HHMM.sqlite data\intake.sqlite
    ```
 5) Restart the server.
+6) If your primary copy is in OneDrive, you can restore directly from there:
+   ```
+   copy /Y "%UserProfile%\\OneDrive\\pinksheet-backups\\intake-YYYYMMDD-HHMMSS.sqlite" data\\intake.sqlite
+   ```
+7) Shortcut (latest backup, with safety copy):  
+   ```
+   powershell -NoProfile -ExecutionPolicy Bypass -File scripts/restore_latest_backup.ps1
+   ```
+   Add `-DryRun` to see what it would do without copying.
 
 ## Restore photos (per-SKU)
 > Only if certain SKU folders are missing/corrupt.
@@ -57,6 +66,7 @@ Use this when intake data is missing/corrupt, or when rolling back after a bad d
    php scripts/check_db.php
    ```
    Expect `integrity_check: ok`.
+   - If using the UI button flow, you can also hit `backup_now.php` after restore to ensure backups still run (should return `{"ok":true,...}`).
 2) Spot-check in the UI:
    - Open Home (counts load, no alerts).
    - Lookup a restored SKU; verify status + thumbnail loads.
