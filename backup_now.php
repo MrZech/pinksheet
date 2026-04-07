@@ -33,6 +33,7 @@ function runPhpBackup(): array
     $backupDir = $repoRoot . '/data/backups';
     $logFile = $repoRoot . '/logs/lookup.csv';
     $logArchiveDir = $repoRoot . '/logs/archive';
+    $oneDrive = getenv('USERPROFILE') ? getenv('USERPROFILE') . '/OneDrive/pinksheet-backups' : null;
     $messages = [];
     $ok = true;
 
@@ -52,6 +53,22 @@ function runPhpBackup(): array
     } else {
         $messages[] = 'SQLite database not found at ' . $dbPath;
         $ok = false;
+    }
+
+    // Mirror to OneDrive if available.
+    if ($oneDrive) {
+        if (!is_dir($oneDrive) && !mkdir($oneDrive, 0777, true) && !is_dir($oneDrive)) {
+            $messages[] = 'Failed to create OneDrive mirror at ' . $oneDrive;
+            $ok = false;
+        } else {
+            $mirrorPath = $oneDrive . '/intake-' . $timestamp . '.sqlite';
+            if (!copy($dest ?? '', $mirrorPath)) {
+                $messages[] = 'Failed to mirror backup to OneDrive at ' . $mirrorPath;
+                $ok = false;
+            } else {
+                $messages[] = 'Mirrored backup to OneDrive: ' . $mirrorPath;
+            }
+        }
     }
 
     if (is_file($logFile)) {

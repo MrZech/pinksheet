@@ -68,6 +68,14 @@ if ($RetentionDays -gt 0) {
 }
 
 # Optional off-box copy for redundancy.
+# Default to OneDrive if not provided.
+if (-not $CopyTo) {
+    $oneDrive = Join-Path $env:UserProfile 'OneDrive'
+    if (Test-Path $oneDrive) {
+        $CopyTo = Join-Path $oneDrive 'pinksheet-backups'
+    }
+}
+
 if ($CopyTo) {
     try {
         if (-not (Test-Path $CopyTo)) {
