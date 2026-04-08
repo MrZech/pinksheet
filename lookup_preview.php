@@ -58,7 +58,7 @@ $sql = 'SELECT id, sku, status, what_is_it, updated_at, dispotech_price, ebay_pr
     $stmt->execute($params);
     $rows = $stmt->fetchAll();
 
-    // Optional thumbnail: pick most recent photo per normalized SKU.
+    // Optional thumbnail: pick most recent photo per normalized SKU, preferring explicit thumbnail flags.
     $thumbs = [];
     $photoCounts = [];
     $skus = array_filter(array_map(static fn($r) => trim((string)($r['sku'] ?? '')), $rows));
@@ -66,10 +66,10 @@ $sql = 'SELECT id, sku, status, what_is_it, updated_at, dispotech_price, ebay_pr
         $norms = array_map(static fn($s) => strtoupper(trim($s)), $skus);
         $placeholders = implode(',', array_fill(0, count($norms), '?'));
         $photoStmt = $pdo->prepare("
-            SELECT sku_normalized, id
+            SELECT sku_normalized, id, is_thumb
             FROM sku_photos
             WHERE sku_normalized IN ($placeholders)
-            ORDER BY id DESC
+            ORDER BY is_thumb DESC, id DESC
         ");
         $photoStmt->execute($norms);
         foreach ($photoStmt->fetchAll() as $p) {

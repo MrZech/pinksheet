@@ -108,6 +108,21 @@ function normalizeSku(string $sku): string
     return strtoupper(trim($sku));
 }
 
+function ensureArchiveTable(PDO $pdo): void
+{
+    $pdo->exec("CREATE TABLE IF NOT EXISTS intake_deleted AS SELECT * FROM intake_items WHERE 0");
+    $hasDeletedAt = false;
+    foreach ($pdo->query("PRAGMA table_info(intake_deleted)") as $col) {
+        if ((string)$col['name'] === 'deleted_at') {
+            $hasDeletedAt = true;
+            break;
+        }
+    }
+    if (!$hasDeletedAt) {
+        $pdo->exec("ALTER TABLE intake_deleted ADD COLUMN deleted_at TEXT");
+    }
+}
+
 function iniBytes(string $value): int
 {
     $value = trim($value);
@@ -189,7 +204,12 @@ function loadLatestPhotoId(PDO $pdo, string $skuNormalized): ?int
     if ($skuNormalized === '') {
         return null;
     }
-    $stmt = $pdo->prepare('SELECT id FROM sku_photos WHERE sku_normalized = :sku_normalized ORDER BY id DESC LIMIT 1');
+    try {
+        $pdo->exec("ALTER TABLE sku_photos ADD COLUMN is_thumb INTEGER NOT NULL DEFAULT 0");
+    } catch (Throwable $e) {
+        // ignore if exists
+    }
+    $stmt = $pdo->prepare('SELECT id FROM sku_photos WHERE sku_normalized = :sku_normalized ORDER BY is_thumb DESC, id DESC LIMIT 1');
     $stmt->execute(['sku_normalized' => $skuNormalized]);
     $id = $stmt->fetchColumn();
     return $id ? (int)$id : null;
@@ -315,9 +335,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         if (!$bulkErrors) {
             $placeholders = implode(',', array_fill(0, count($bulkIds), '?'));
+            $pdo->beginTransaction();
+            ensureArchiveTable($pdo);
+            // Archive rows first
+            $fetch = $pdo->prepare("SELECT * FROM intake_items WHERE id IN ($placeholders)");
+            $fetch->execute($bulkIds);
+            $rows = $fetch->fetchAll(PDO::FETCH_ASSOC);
+            if ($rows) {
+                $now = (new DateTime('now'))->format('c');
+                foreach ($rows as $row) {
+                    $row['deleted_at'] = $now;
+                    $cols = array_keys($row);
+                    $placeVals = array_map(static fn($c) => ':' . $c, $cols);
+                    $sql = 'INSERT INTO intake_deleted (' . implode(',', $cols) . ') VALUES (' . implode(',', $placeVals) . ')';
+                    $insert = $pdo->prepare($sql);
+                    $insert->execute($row);
+                }
+            }
             $stmt = $pdo->prepare("DELETE FROM intake_items WHERE id IN ($placeholders)");
             $stmt->execute($bulkIds);
-            $bulkMessage = 'Deleted ' . $stmt->rowCount() . ' record' . ($stmt->rowCount() === 1 ? '' : 's') . '.';
+            $pdo->commit();
+            $bulkMessage = 'Deleted ' . $stmt->rowCount() . ' record' . ($stmt->rowCount() === 1 ? '' : 's') . ' (archived for undo).';
         }
         $saved = false;
         $errors = [];
@@ -914,6 +952,12 @@ function checked(string $name, string $value, array $formData): string
                               data-photo-id="<?php echo isset($photo['id']) ? (int)$photo['id'] : 0; ?>">
                         Delete
                       </button>
+                      <button type="button"
+                              class="ghost js-set-thumb"
+                              data-photo-id="<?php echo isset($photo['id']) ? (int)$photo['id'] : 0; ?>"
+                              data-photo-sku="<?php echo h($activeSkuNormalized); ?>">
+                        Set thumbnail
+                      </button>
                     </div>
                   </div>
                 <?php endforeach; ?>
@@ -1017,7 +1061,10 @@ function checked(string $name, string $value, array $formData): string
             <button type="submit" name="bulk_update" value="1">Apply to selected</button>
             <input type="hidden" name="bulk_delete" id="bulk-delete-flag" value="">
             <button type="button" class="ghost danger" id="bulk-delete-button">Delete selected</button>
-            <span class="hint">Check boxes in the table, then update that status in bulk.</span>
+            <form id="undo-delete-form" method="post" action="undo_delete.php" class="inline-form">
+              <button type="submit" class="ghost">Undo last delete</button>
+            </form>
+            <span class="hint">Check boxes in the table, then update that status in bulk. You can undo the most recent delete.</span>
           </div>
             <div class="table-wrap">
             <table>
@@ -1063,10 +1110,17 @@ function checked(string $name, string $value, array $formData): string
                         <?php endif; ?>
                       </td>
                       <td><?php echo h($item['sku'] ?? ''); ?></td>
-                      <td><?php echo h($item['status'] ?? ''); ?></td>
+                      <td>
+                        <select class="js-inline-status" data-sku="<?php echo h($item['sku'] ?? ''); ?>">
+                          <option value="">Set status</option>
+                          <?php foreach ($statusOptions as $opt): ?>
+                            <option value="<?php echo $opt; ?>" <?php echo (($item['status'] ?? '') === $opt) ? 'selected' : ''; ?>><?php echo $opt; ?></option>
+                          <?php endforeach; ?>
+                        </select>
+                      </td>
                       <td><?php echo h($item['what_is_it'] ?? ''); ?></td>
-                      <td><?php echo isset($item['dispotech_price']) && $item['dispotech_price'] !== '' ? number_format((float)$item['dispotech_price'], 2) : '—'; ?></td>
-                      <td><?php echo isset($item['ebay_price']) && $item['ebay_price'] !== '' ? number_format((float)$item['ebay_price'], 2) : '—'; ?></td>
+                      <td><input type="number" step="0.01" class="js-inline-price" data-field="dispotech_price" data-sku="<?php echo h($item['sku'] ?? ''); ?>" value="<?php echo isset($item['dispotech_price']) ? h((string)$item['dispotech_price']) : ''; ?>" placeholder="—"></td>
+                      <td><input type="number" step="0.01" class="js-inline-price" data-field="ebay_price" data-sku="<?php echo h($item['sku'] ?? ''); ?>" value="<?php echo isset($item['ebay_price']) ? h((string)$item['ebay_price']) : ''; ?>" placeholder="—"></td>
                       <td><?php echo h($item['updated_at'] ?? ''); ?></td>
                       <td><a class="open-link" href="index.php?sku=<?php echo urlencode((string)($item['sku'] ?? '')); ?>">Open</a></td>
                       <td>
@@ -1360,6 +1414,8 @@ function checked(string $name, string $value, array $formData): string
       var findSkuResults = document.getElementById('find-sku-results');
       var copySkuPrefill = '<?php echo h($copySkuPrefill); ?>';
       var deleteButtons = document.querySelectorAll('.js-delete-item');
+      var inlineStatuses = document.querySelectorAll('.js-inline-status');
+      var inlinePrices = document.querySelectorAll('.js-inline-price');
       var deleteForm = null;
       var deleteInputId = null;
       var deleteInputSku = null;
@@ -1384,6 +1440,27 @@ function checked(string $name, string $value, array $formData): string
       var bulkDeleteBtn = document.getElementById('bulk-delete-button');
       var bulkDeleteFlag = document.getElementById('bulk-delete-flag');
       var bulkForm = document.getElementById('bulk-form');
+      var undoDeleteForm = document.getElementById('undo-delete-form');
+      if (undoDeleteForm) {
+        undoDeleteForm.addEventListener('submit', function (evt) {
+          evt.preventDefault();
+          fetch('undo_delete.php', { method: 'POST' })
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+              if (data && data.status === 'ok') {
+                alert('Restored SKU ' + (data.restored_sku || '') + ' (new ID ' + (data.new_id || '') + ')');
+                window.location.reload();
+              } else if (data && data.status === 'empty') {
+                alert('Nothing to undo.');
+              } else {
+                alert('Undo failed. Please retry.');
+              }
+            })
+            .catch(function () {
+              alert('Undo failed. Please retry.');
+            });
+        });
+      }
         // Track last serialized draft to avoid writing identical data over and over.
         var lastSavedDraft = null;
         var applyDraftObject = function (draft) {
@@ -2200,6 +2277,7 @@ function checked(string $name, string $value, array $formData): string
         });
       }
       var deleteButtons = document.querySelectorAll('.js-delete-photo');
+      var setThumbButtons = document.querySelectorAll('.js-set-thumb');
       if (deleteButtons.length && deleteForm && deleteInput) {
         deleteButtons.forEach(function (btn) {
           btn.addEventListener('click', function () {
@@ -2212,6 +2290,58 @@ function checked(string $name, string $value, array $formData): string
               deleteSku.value = skuField.value;
             }
             deleteForm.submit();
+          });
+        });
+      }
+      var inlineUpdate = function (sku, field, value) {
+        fetch('update_item.php', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: 'sku=' + encodeURIComponent(sku) + '&field=' + encodeURIComponent(field) + '&value=' + encodeURIComponent(value)
+        })
+          .then(function (r) { return r.json(); })
+          .then(function (data) {
+            if (data.ok) {
+              showToast('Updated ' + field);
+            } else {
+              showToast('Update failed: ' + (data.error || 'error'));
+            }
+          })
+          .catch(function () { showToast('Update failed'); });
+      };
+      inlineStatuses.forEach(function (sel) {
+        sel.addEventListener('change', function () {
+          var sku = sel.getAttribute('data-sku') || '';
+          inlineUpdate(sku, 'status', sel.value);
+        });
+      });
+      inlinePrices.forEach(function (input) {
+        input.addEventListener('change', function () {
+          var sku = input.getAttribute('data-sku') || '';
+          var field = input.getAttribute('data-field') || '';
+          inlineUpdate(sku, field, input.value);
+        });
+      });
+      if (setThumbButtons.length) {
+        setThumbButtons.forEach(function (btn) {
+          btn.addEventListener('click', function () {
+            var id = btn.getAttribute('data-photo-id');
+            var skuVal = btn.getAttribute('data-photo-sku');
+            if (!id || !skuVal) return;
+            fetch('set_thumbnail.php', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+              body: 'photo_id=' + encodeURIComponent(id) + '&sku=' + encodeURIComponent(skuVal)
+            })
+              .then(function (r) { return r.json(); })
+              .then(function (data) {
+                if (data.ok) {
+                  location.reload();
+                } else {
+                  alert('Set thumbnail failed: ' + (data.error || 'error'));
+                }
+              })
+              .catch(function () { alert('Set thumbnail failed.'); });
           });
         });
       }

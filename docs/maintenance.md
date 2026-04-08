@@ -11,6 +11,7 @@
 - Quick restore helper: `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/restore_latest_backup.ps1` (makes a safety copy of the current DB, then restores the newest backup; `-DryRun` to preview).
 - Git hooks: `.githooks/pre-commit` blocks staging DB/backups/logs and runs a backup; `.githooks/pre-push` runs a backup before every push. `core.hooksPath` is already set here; on a fresh clone run `git config core.hooksPath .githooks` to enable them.
 - Run-now button: Home page “Run backup now” calls `backup_now.php` (local-only) which invokes `scripts/backup.ps1`.
+- Kanban/status board: `kanban.php` uses `update_item.php` to change status via drag/drop; ensure that endpoint remains local/private.
 
 ## Health
 - `health.php` reports maintenance flag, last-backup name/age/size, and checksum status for probes.

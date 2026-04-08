@@ -170,6 +170,7 @@ if (is_dir($backupDir)) {
           <a class="button-link" href="index.php?clear_draft=1" data-new-intake>New Intake</a>
           <a class="button-link" href="#sku-lookup-shell">Search SKUs</a>
           <a class="button-link" href="docs/maintenance.md">Maintenance docs</a>
+          <a class="button-link" href="kanban.php">Kanban</a>
           <button type="button" class="button-link ghost" id="run-backup-now" data-run-backup>
             Run backup now<?php if ($latestBackup): ?> (<?php echo htmlspecialchars($backupSummary, ENT_QUOTES, 'UTF-8'); ?>)<?php endif; ?>
           </button>
@@ -321,6 +322,7 @@ if (is_dir($backupDir)) {
             <div class="lookup-results-actions">
               <button type="button" class="ghost" id="lookup-load-more">Load more</button>
               <button type="button" class="ghost" id="lookup-export-csv">Export CSV</button>
+              <button type="button" class="ghost" id="lookup-copy-link">Copy link</button>
               <a class="button-link subtle" href="lookup_preview.php">Preview API</a>
             </div>
             <div class="gap-chips" id="gap-chips">
@@ -1048,6 +1050,23 @@ if (is_dir($backupDir)) {
                 showToast('Exported ' + rows.length + ' rows.', true);
               })
               .catch(function () { showToast('Export failed.', false); });
+          });
+        }
+        var copyLinkBtn = document.getElementById('lookup-copy-link');
+        if (copyLinkBtn && navigator.clipboard) {
+          copyLinkBtn.addEventListener('click', function () {
+            var params = new URLSearchParams();
+            var skuVal = (skuInput && skuInput.value.trim()) || '';
+            var statusVal = (statusSelect && statusSelect.value.trim()) || '';
+            if (skuVal) params.set('sku', skuVal);
+            if (statusVal) params.set('status', statusVal);
+            if (filterState.staleDays) params.set('stale', String(filterState.staleDays));
+            if (gapState.noPhotos) params.set('gap', 'no-photos');
+            if (gapState.missingPrice) params.set('gap', 'no-price');
+            var url = window.location.origin + window.location.pathname + '?' + params.toString() + '#sku-lookup-shell';
+            navigator.clipboard.writeText(url)
+              .then(function () { showToast('Lookup link copied', true); })
+              .catch(function () { showToast('Copy failed.', false); });
           });
         }
         loadFilter();

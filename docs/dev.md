@@ -8,6 +8,9 @@
 - `scripts/smoke.php` — health, intake page, lookup preview, autosave POST, and photo upload (requires curl extension for the photo step).
 - `assets/style.css` — theming (light/dark/pink), dashboard/lookup card styles, print styles.
 - `suggestions.php` / `lookup_preview.php` — lookup APIs.
+- `kanban.php` — status board with drag-to-update (uses `update_item.php`; keep endpoint local/private).
+- `update_item.php` — local-only status/price updater used by lookup inline edits and Kanban.
+- `set_thumbnail.php` — local-only endpoint to mark a photo as the thumbnail for a SKU.
 - `scripts/backup.ps1` — DB/log backup (no pruning by default).
 - `scripts/verify_backup.ps1` + `scripts/check_db.php` — integrity checks and optional email alerts (reads `scripts/alert.config.ps1`).
 - `scripts/register_backup_task.ps1` — schedule nightly backup + verify.
