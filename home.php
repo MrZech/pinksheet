@@ -84,11 +84,10 @@ if (is_readable(HOME_DB_PATH)) {
         $stmtListed = $pdo->query("
             SELECT sku, status, what_is_it, updated_at
             FROM intake_items
-            WHERE status = 'Listed'
-              AND sku IS NOT NULL
+            WHERE sku IS NOT NULL
               AND TRIM(sku) <> ''
             ORDER BY updated_at DESC, id DESC
-            LIMIT 20
+            LIMIT 30
         ");
         $listedItems = $stmtListed->fetchAll(PDO::FETCH_ASSOC);
         $listedSkus = array_values(array_filter(array_map(static fn($r) => trim((string)($r['sku'] ?? '')), $listedItems)));
@@ -351,11 +350,11 @@ if (is_dir($backupDir)) {
         <div class="lookup-card lookup-results">
           <div class="lookup-results-header">
             <div>
-              <h2>Listed items</h2>
-              <p class="hint">Recent records already marked Listed.</p>
+              <h2>Inventory items</h2>
+              <p class="hint">Recent records from the full inventory.</p>
             </div>
             <div class="lookup-results-actions">
-              <span class="badge subtle"><?php echo count($listedItems); ?> listed</span>
+              <span class="badge subtle"><?php echo count($listedItems); ?> items</span>
             </div>
           </div>
           <div class="table-wrap">
