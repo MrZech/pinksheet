@@ -75,16 +75,18 @@ foreach ($items as $item) {
       width: 100%;
     }
     .kanban-lane {
-      background: rgba(255,255,255,0.08);
-      border: 1px solid rgba(255,255,255,0.1);
-      border-radius: 12px;
+      background: var(--surface-glass);
+      border: 1px solid var(--line);
+      border-radius: 14px;
       min-width: 240px;
       max-width: 280px;
       padding: 10px;
       flex: 0 0 260px;
+      box-shadow: var(--shadow-soft);
+      backdrop-filter: blur(12px);
     }
     .kanban-lane.is-drop-target {
-      outline: 2px solid rgba(108, 160, 255, 0.7);
+      outline: 2px solid var(--accent-strong);
       outline-offset: 2px;
     }
     .kanban-lane h3 {
@@ -98,15 +100,13 @@ foreach ($items as $item) {
       opacity: 0.7;
     }
     .kanban-card {
-      background: #1f2a36;
-      border-radius: 8px;
+      background: linear-gradient(180deg, var(--surface-primary), var(--surface-secondary));
+      border-radius: 12px;
       padding: 8px;
       margin-bottom: 8px;
       cursor: grab;
-      border: 1px solid rgba(255,255,255,0.08);
-    }
-    body:not(.dark-mode) .kanban-card {
-      background: #f7f8fa;
+      border: 1px solid var(--line);
+      box-shadow: var(--shadow-soft);
     }
     .kanban-card .sku {
       font-weight: 700;
@@ -129,7 +129,7 @@ foreach ($items as $item) {
       margin-top: 6px;
     }
     .lane-drop {
-      border: 2px dashed #6ca0ff;
+      border: 2px dashed var(--accent-strong);
       border-radius: 8px;
       padding: 6px;
       margin-bottom: 6px;
@@ -145,6 +145,7 @@ foreach ($items as $item) {
         <div class="updated">Pinksheet Status Board</div>
         <div class="sheet-header-right">
           <a class="button-link" href="home.php">Home</a>
+          <button type="button" class="theme-toggle" id="theme-toggle">Dark mode</button>
         </div>
       </header>
       <h1>Status Board</h1>
@@ -184,6 +185,28 @@ foreach ($items as $item) {
       var draggedFromLane = null;
       var board = document.getElementById('kanban-board');
       if (!board) return;
+
+      var themeToggle = document.getElementById('theme-toggle');
+      function setTheme(mode) {
+        var isDark = mode === 'dark';
+        document.body.dataset.theme = isDark ? 'dark' : 'light';
+        document.body.classList.toggle('dark-mode', isDark);
+        if (themeToggle) {
+          themeToggle.textContent = isDark ? 'Light mode' : 'Dark mode';
+        }
+      }
+      var storedTheme = null;
+      try {
+        storedTheme = localStorage.getItem('themePreference');
+      } catch (e) {}
+      setTheme(storedTheme || (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'));
+      if (themeToggle) {
+        themeToggle.addEventListener('click', function () {
+          var nextMode = document.body.dataset.theme === 'dark' ? 'light' : 'dark';
+          setTheme(nextMode);
+          try { localStorage.setItem('themePreference', nextMode); } catch (e) {}
+        });
+      }
 
       board.addEventListener('dragstart', function (e) {
         var card = e.target.closest('.kanban-card');

@@ -96,7 +96,8 @@ $initialItemJson = $currentItem ? json_encode($currentItem, JSON_HEX_TAG | JSON_
       border: 1px solid var(--line);
       border-radius: 12px;
       padding: 10px 12px;
-      background: rgba(255, 255, 255, 0.7);
+      background: var(--surface-secondary);
+      box-shadow: var(--shadow-soft);
     }
     .prompt-field .label {
       display: block;
@@ -131,8 +132,9 @@ $initialItemJson = $currentItem ? json_encode($currentItem, JSON_HEX_TAG | JSON_
       line-height: 1.45;
       margin-top: 8px;
     }
+    body[data-theme="dark"] .prompt-field,
     body.dark-mode .prompt-field {
-      background: rgba(255, 255, 255, 0.05);
+      background: rgba(255, 255, 255, 0.04);
       border-color: var(--line-dark);
     }
   </style>
