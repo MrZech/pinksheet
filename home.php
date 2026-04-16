@@ -524,7 +524,8 @@ if (is_dir($backupDir)) {
           };
           var runBackup = function () {
             setBackupState(true);
-            fetch('backup_now.php', { method: 'POST' })
+            showToast('Backup started', true);
+            fetch('backup_now.php', { method: 'POST', credentials: 'same-origin', cache: 'no-store' })
               .then(function (r) { return r.json(); })
               .then(function (data) {
                 if (data.ok) {
@@ -559,7 +560,8 @@ if (is_dir($backupDir)) {
           };
           var runVerify = function () {
             setVerifyState(true);
-            fetch('verify_now.php', { method: 'POST' })
+            showToast('Verification started', true);
+            fetch('verify_now.php', { method: 'POST', credentials: 'same-origin', cache: 'no-store' })
               .then(function (r) { return r.json(); })
               .then(function (data) {
                 if (data.ok) {

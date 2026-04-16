@@ -8,11 +8,18 @@ header('Content-Type: application/json; charset=utf-8');
 
 // Basic protection: only allow local/private network.
 $remote = $_SERVER['REMOTE_ADDR'] ?? '';
+$host = strtolower(trim((string)($_SERVER['HTTP_HOST'] ?? $_SERVER['SERVER_NAME'] ?? '')));
 $isPrivate = false;
 if ($remote !== '') {
     $isPrivate = $remote === '127.0.0.1'
         || $remote === '::1'
         || filter_var($remote, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE) === false;
+}
+if (!$isPrivate && $remote === '') {
+    $isPrivate = in_array($host, ['localhost', '127.0.0.1', '[::1]', '::1'], true)
+        || str_starts_with($host, 'localhost:')
+        || str_starts_with($host, '127.0.0.1:')
+        || str_starts_with($host, '[::1]:');
 }
 if (!$isPrivate) {
     http_response_code(403);
