@@ -24,7 +24,7 @@ php scripts/smoke.php
 - Lookup pane: SKU + status filters, quick chips (Intake/Listed/Sold/Stale >7d), live preview with status chips, relative “last updated,” thumbnails, and “Load more” + “Refresh” controls.
 - `suggestions.php?q=...` streams live SKU + “What is it?” suggestions; `lookup_preview.php` powers the preview table (accepts `limit`).
 - Open `intake.php?clear_draft=1` for a blank intake.
-- `prompt_builder.php` builds a copy-ready ChatGPT prompt from the latest SKU record.
+- `prompt_builder.php` builds the ChatGPT prompt and the final eBay script with the boilerplate description block.
 
 ## Intake/drafts
 - Autosaves while you type (server + local); if you clear via “New Intake,” the last draft is stashed and a “Restore last draft” button appears when the form is empty.

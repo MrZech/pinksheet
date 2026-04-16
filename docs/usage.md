@@ -10,7 +10,7 @@
 - **Single delete:** each row has a Delete button; requires two confirmations to avoid accidents.
 - **Home dashboard:** quick tiles show totals, today’s creates, in-progress vs. sold, latest backup age/size, plus a recent-activity list and quick-action links.
 - **SKU lookup:** dedicated two-pane area. Left: SKU + status filters + quick chips (Intake/Listed/Sold/Stale >7d/30d) plus gap chips (No photos, No price). Right: live preview table with status chips, relative “last updated,” thumbnails, badges for gaps, inline status/price edit, and per-row Duplicate. Type 2+ chars or pick a status; “Refresh preview” or “Load more” increases results; “Copy link” shares the current filters.
-- **Prompt builder:** open `prompt_builder.php`, load a SKU, generate a copy-ready ChatGPT prompt from the latest record, then copy or edit it before pasting.
+- **eBay Script Builder:** open `prompt_builder.php`, load a SKU, build the ChatGPT prompt, paste the ChatGPT response, then build the final eBay script with the boilerplate description block underneath.
 - **Kanban:** `kanban.php` shows status lanes; drag cards to change status. Counts and thumbnails included when available.
 
 ## Appearance & printing

@@ -20,7 +20,7 @@ function formatLabel(string $key): string
     return ucwords(str_replace('_', ' ', $key));
 }
 
-$currentPage = 'prompt';
+$currentPage = 'script';
 $statusMessage = '';
 $recentSkus = [];
 $currentSku = trim((string)($_GET['sku'] ?? ($_GET['copy_sku'] ?? '')));
@@ -67,7 +67,7 @@ $initialItemJson = $currentItem ? json_encode($currentItem, JSON_HEX_TAG | JSON_
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Dispo.Tech Prompt Builder</title>
+  <title>Dispo.Tech SKU eBay Script Builder</title>
   <link rel="stylesheet" href="assets/style.css">
   <link rel="stylesheet" media="print" href="assets/print.css">
   <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
@@ -123,6 +123,14 @@ $initialItemJson = $currentItem ? json_encode($currentItem, JSON_HEX_TAG | JSON_
       align-items: center;
       margin-top: 10px;
     }
+    .final-input {
+      width: 100%;
+      min-height: 180px;
+      resize: vertical;
+      font-family: inherit;
+      line-height: 1.45;
+      margin-top: 8px;
+    }
     body.dark-mode .prompt-field {
       background: rgba(255, 255, 255, 0.05);
       border-color: var(--line-dark);
@@ -141,26 +149,26 @@ $initialItemJson = $currentItem ? json_encode($currentItem, JSON_HEX_TAG | JSON_
           <li><a class="menu-link <?php echo $currentPage === 'home' ? 'is-active' : ''; ?>" href="home.php">Home</a></li>
           <li><a class="menu-link <?php echo $currentPage === 'lookup' ? 'is-active' : ''; ?>" href="lookup.php">SKU Lookup</a></li>
           <li><a class="menu-link <?php echo $currentPage === 'intake' ? 'is-active' : ''; ?>" href="intake.php?clear_draft=1" data-new-intake>New Intake</a></li>
-          <li><a class="menu-link <?php echo $currentPage === 'prompt' ? 'is-active' : ''; ?>" href="prompt_builder.php">Prompt Builder</a></li>
+          <li><a class="menu-link <?php echo $currentPage === 'script' ? 'is-active' : ''; ?>" href="prompt_builder.php">eBay Script Builder</a></li>
         </ul>
       </nav>
     </div>
 
     <section class="sheet home-sheet">
       <header class="sheet-header">
-        <div class="updated">Dispo.Tech Prompt Builder</div>
+        <div class="updated">Dispo.Tech SKU eBay Script Builder</div>
         <div class="sheet-header-right">
           <span class="badge subtle" id="prompt-status-chip" title="Prompt status">Ready</span>
           <button type="button" class="theme-toggle" id="theme-toggle">Dark mode</button>
         </div>
       </header>
 
-      <h1>SKU Prompt Builder</h1>
+      <h1>SKU eBay Script Builder</h1>
       <nav class="breadcrumbs" aria-label="Breadcrumb">
         <a href="home.php">Home</a>
-        <span>Prompt Builder</span>
+        <span>eBay Script Builder</span>
       </nav>
-      <p class="lead">Load a SKU record, generate a clean ChatGPT prompt from the inventory data, and copy it for later use.</p>
+      <p class="lead">Load a SKU record, generate a ChatGPT prompt, then paste ChatGPT's response into the final eBay description builder.</p>
 
       <?php if ($statusMessage !== ''): ?>
         <div class="alert-block" role="status">
@@ -171,7 +179,7 @@ $initialItemJson = $currentItem ? json_encode($currentItem, JSON_HEX_TAG | JSON_
       <section class="section prompt-builder-shell">
         <div class="lookup-grid prompt-grid">
           <div class="lookup-card">
-            <h2>Load SKU</h2>
+            <h2>Select SKU</h2>
             <p class="hint">Pick a recent SKU or type one directly, then generate a prompt from the latest record.</p>
             <div class="hint" id="prompt-recent-skus" aria-label="Recently viewed SKUs"></div>
             <form class="form-grid" id="prompt-form">
@@ -186,9 +194,9 @@ $initialItemJson = $currentItem ? json_encode($currentItem, JSON_HEX_TAG | JSON_
                 </datalist>
               </div>
               <div class="prompt-actions">
-                <button type="submit" id="generate-prompt-btn">Generate prompt</button>
-                <button type="button" class="ghost" id="clear-prompt-btn">Clear</button>
-                <a class="button-link subtle" href="<?php echo h($intakeLink); ?>">Open in intake</a>
+                <button type="submit" id="generate-prompt-btn">Build ChatGPT prompt</button>
+                <button type="button" class="ghost" id="clear-prompt-btn">Clear SKU</button>
+                <a class="button-link subtle" href="<?php echo h($intakeLink); ?>">Open intake sheet</a>
               </div>
             </form>
 
@@ -206,15 +214,32 @@ $initialItemJson = $currentItem ? json_encode($currentItem, JSON_HEX_TAG | JSON_
           <div class="lookup-card lookup-results">
             <div class="lookup-results-header">
               <div>
-                <h2>Prompt output</h2>
+                <h2>ChatGPT prompt</h2>
                 <p class="hint">Edit the generated text if needed, then copy it into ChatGPT.</p>
               </div>
               <div class="lookup-results-actions">
-                <button type="button" class="ghost" id="copy-prompt-btn">Copy prompt</button>
-                <a class="button-link subtle" href="lookup.php">Back to lookup</a>
+                <button type="button" class="ghost" id="copy-prompt-btn">Copy to ChatGPT</button>
+                <a class="button-link subtle" href="lookup.php">Back to SKU Lookup</a>
               </div>
             </div>
             <textarea class="prompt-output" id="prompt-output" spellcheck="false" aria-label="Generated ChatGPT prompt"></textarea>
+            <div class="prompt-source" style="margin-top:16px;">
+              <h3>Paste ChatGPT output</h3>
+              <p class="hint">Paste the response you want to use on eBay, then build the final listing script with the boilerplate below it.</p>
+              <textarea class="final-input" id="chatgpt-output" spellcheck="false" aria-label="Pasted ChatGPT output"></textarea>
+              <div class="prompt-actions">
+                <button type="button" id="build-final-btn">Build final eBay script</button>
+                <button type="button" class="ghost" id="clear-final-btn">Clear final text</button>
+              </div>
+            </div>
+            <div class="prompt-source" style="margin-top:16px;">
+              <h3>Final eBay script</h3>
+              <p class="hint">This puts your pasted ChatGPT copy above the boilerplate you wanted under the description section.</p>
+              <textarea class="prompt-output" id="final-output" spellcheck="false" aria-label="Final eBay listing script"></textarea>
+              <div class="prompt-actions">
+                <button type="button" class="ghost" id="copy-final-btn">Copy final script</button>
+              </div>
+            </div>
           </div>
         </div>
       </section>
@@ -230,6 +255,11 @@ $initialItemJson = $currentItem ? json_encode($currentItem, JSON_HEX_TAG | JSON_
       var clearBtn = document.getElementById('clear-prompt-btn');
       var copyBtn = document.getElementById('copy-prompt-btn');
       var promptOutput = document.getElementById('prompt-output');
+      var chatgptOutput = document.getElementById('chatgpt-output');
+      var buildFinalBtn = document.getElementById('build-final-btn');
+      var clearFinalBtn = document.getElementById('clear-final-btn');
+      var copyFinalBtn = document.getElementById('copy-final-btn');
+      var finalOutput = document.getElementById('final-output');
       var sourceWrap = document.getElementById('prompt-source');
       var initialItem = <?php echo $initialItemJson; ?>;
 
@@ -251,6 +281,43 @@ $initialItemJson = $currentItem ? json_encode($currentItem, JSON_HEX_TAG | JSON_
           var nextMode = document.body.classList.contains('dark-mode') ? 'light' : 'dark';
           applyThemeMode(nextMode);
           try { localStorage.setItem('themePreference', nextMode); } catch (e) {}
+        });
+      }
+
+      var menuToggle = document.getElementById('menu-toggle');
+      var menuPanel = document.getElementById('global-menu');
+      if (menuToggle && menuPanel) {
+        var bodyElement = document.body;
+
+        var setMenuState = function (open) {
+          menuPanel.classList.toggle('is-open', open);
+          menuPanel.setAttribute('aria-hidden', open ? 'false' : 'true');
+          menuToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+          bodyElement.classList.toggle('has-open-menu', open);
+        };
+
+        var closeMenu = function () {
+          setMenuState(false);
+        };
+
+        menuToggle.addEventListener('click', function () {
+          var opening = !menuPanel.classList.contains('is-open');
+          setMenuState(opening);
+        });
+
+        document.addEventListener('click', function (event) {
+          if (!menuPanel.classList.contains('is-open')) {
+            return;
+          }
+          if (!menuPanel.contains(event.target) && !menuToggle.contains(event.target)) {
+            closeMenu();
+          }
+        });
+
+        document.addEventListener('keydown', function (event) {
+          if (event.key === 'Escape') {
+            closeMenu();
+          }
         });
       }
 
@@ -289,6 +356,43 @@ $initialItemJson = $currentItem ? json_encode($currentItem, JSON_HEX_TAG | JSON_
         notes: 'Notes'
       };
 
+      var finalBoilerplate = [
+        'Please Read This First',
+        'This product previously belonged to someone who either upgraded or no longer needed it. Regardless of the reason, it has come to us with the hope of finding a new purpose. (Lucky you!)',
+        '',
+        'Descriptions',
+        'We strive to provide accurate product descriptions by including the following details:',
+        'The item\'s brand and model name or number.',
+        'The item\'s physical condition.',
+        'Basic BIOS or system information (if applicable).',
+        'Testing status (if applicable—see below).',
+        'Any included accessories (see below).',
+        '',
+        'The weight, length, width, height, circumference, volume, diameter, etc., were likely entered to calculate shipping. Therefore, if the item includes any packaging, that is what was measured, and the actual product may be smaller. If you have any questions, please contact us; we will get those exact measurements for you.',
+        '',
+        'While we sometimes use AI to assist with descriptions, it may not always be as accurate as you might expect from a robot. Use the provided details to verify the product\'s suitability for your needs. Let us know if you spot an error—we appreciate your input!',
+        '',
+        'Images',
+        'In most cases, the pictures in the listing are of the actual item for sale. However, we may use representative images instead for bulk listings or new, unused items in original packaging. Pay close attention to the photos to identify any physical defects and to confirm what is (or is not) included.',
+        '',
+        'Accessories',
+        'While we wish every previous owner included power cables, connectors, chargers, dongles, keyboards, mice, and other accessories, this is rarely the case. Unless specifically mentioned in the product description or visible in the product photos, accessories are not included.',
+        '',
+        'Testing',
+        'Although we aim to test all items thoroughly, there are instances where we may lack the technical expertise for certain equipment. In other cases, testing may not be possible due to missing cables or connectors. If an item cannot be tested but appears to be in working condition, we will label it "as-is" to indicate that its functionality cannot be guaranteed. These items are priced significantly lower, leaving the testing up to you.',
+        '',
+        'Storage',
+        'We take data security seriously. Unless we specify something different in the product description, computers do not include hard disk drives (HDDs) or solid-state drives (SSDs). Exceptions will be noted in the description. In those cases, we obtained the previous owner\'s assurances that they had removed all sensitive data or that we had reformatted the storage media ourselves.',
+        '',
+        'Pricing',
+        'Please note that prices are subject to change.',
+        '',
+        'Shipping Times',
+        'Estimated shipping times are provided as general guidelines and may vary. Orders are processed in the order received, Monday through Friday, from 9:00 AM to 3:30 PM CST. Please remember that weather, carrier workloads, and holiday delivery schedules can affect delivery times.',
+        '',
+        '—'
+      ].join('\n');
+
       var buildFactLines = function (sku, item) {
         var lines = [];
         lines.push('SKU: ' + sku);
@@ -323,6 +427,19 @@ $initialItemJson = $currentItem ? json_encode($currentItem, JSON_HEX_TAG | JSON_
           factLines.map(function (line) { return '- ' + line; }).join('\n')
         ];
         return promptLines.join('\n');
+      };
+
+      var buildFinalScript = function (chatgptText) {
+        var text = (chatgptText || '').trim();
+        if (!text) {
+          return 'Paste the ChatGPT output first.';
+        }
+        return [
+          'Description:',
+          text,
+          '',
+          finalBoilerplate
+        ].join('\n');
       };
 
       var renderSource = function (sku, item) {
@@ -447,6 +564,55 @@ $initialItemJson = $currentItem ? json_encode($currentItem, JSON_HEX_TAG | JSON_
           } else {
             fallbackCopy();
             setStatus(copied ? 'Prompt copied' : 'Copy failed', copied ? 'subtle' : 'warning');
+          }
+        });
+      }
+
+      if (buildFinalBtn && chatgptOutput && finalOutput) {
+        buildFinalBtn.addEventListener('click', function () {
+          finalOutput.value = buildFinalScript(chatgptOutput.value);
+          setStatus('Final script ready', 'subtle');
+        });
+      }
+
+      if (clearFinalBtn && chatgptOutput && finalOutput) {
+        clearFinalBtn.addEventListener('click', function () {
+          chatgptOutput.value = '';
+          finalOutput.value = '';
+          setStatus('Ready', 'subtle');
+          chatgptOutput.focus();
+        });
+      }
+
+      if (copyFinalBtn && finalOutput) {
+        copyFinalBtn.addEventListener('click', function () {
+          var text = finalOutput.value.trim();
+          if (!text) {
+            setStatus('Build the final script first', 'warning');
+            return;
+          }
+          var copied = false;
+          var fallbackCopy = function () {
+            var ta = document.createElement('textarea');
+            ta.value = text;
+            ta.setAttribute('readonly', '');
+            ta.style.position = 'absolute';
+            ta.style.left = '-9999px';
+            document.body.appendChild(ta);
+            ta.select();
+            try {
+              document.execCommand('copy');
+              copied = true;
+            } catch (e) {}
+            document.body.removeChild(ta);
+          };
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(text)
+              .then(function () { copied = true; setStatus('Final script copied', 'subtle'); })
+              .catch(function () { fallbackCopy(); setStatus(copied ? 'Final script copied' : 'Copy failed', copied ? 'subtle' : 'warning'); });
+          } else {
+            fallbackCopy();
+            setStatus(copied ? 'Final script copied' : 'Copy failed', copied ? 'subtle' : 'warning');
           }
         });
       }
