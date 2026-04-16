@@ -280,7 +280,7 @@ if (is_dir($backupDir)) {
           <p class="hint">Search by SKU or filter by status. Results preview live as you type.</p>
           <div class="hint" id="recent-skus" aria-label="Recently viewed SKUs"></div>
           <p class="hint"><button type="button" class="ghost" id="clear-recent-skus">Clear recent SKUs</button></p>
-            <form class="form-grid" method="get" action="lookup.php" id="sku-lookup">
+            <form class="form-grid" method="get" action="intake.php" id="sku-lookup">
             <div class="row">
               <label>SKU
                 <input type="text" name="sku" list="suggested-skus" autofocus>
