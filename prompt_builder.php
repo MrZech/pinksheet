@@ -435,10 +435,10 @@ $initialItemJson = $currentItem ? json_encode($currentItem, JSON_HEX_TAG | JSON_
           return 'Paste the ChatGPT output first.';
         }
         return [
-          'Description:',
-          text,
+          finalBoilerplate,
           '',
-          finalBoilerplate
+          'Description:',
+          text
         ].join('\n');
       };
 
