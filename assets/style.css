@@ -1,12 +1,12 @@
 :root {
   color-scheme: light;
-  --bg-primary: #fff7fa;
-  --bg-secondary: #fdeff4;
-  --bg-tertiary: #fffafd;
-  --surface-primary: #fffdfd;
-  --surface-secondary: #fff4f8;
-  --surface-elevated: rgba(255, 253, 253, 0.88);
-  --surface-glass: rgba(255, 249, 252, 0.74);
+  --bg-primary: #fff1f7;
+  --bg-secondary: #fde3ef;
+  --bg-tertiary: #fff6fa;
+  --surface-primary: #fffafc;
+  --surface-secondary: #ffeef5;
+  --surface-elevated: rgba(255, 250, 252, 0.9);
+  --surface-glass: rgba(255, 244, 249, 0.8);
   --surface: var(--surface-primary);
   --text-primary: #2a1f24;
   --text-secondary: #6f4f5b;
@@ -69,8 +69,9 @@ body {
   font-family: "Inter", "Segoe UI", "Trebuchet MS", "Tahoma", sans-serif;
   color: var(--ink);
   background:
-    radial-gradient(1100px 820px at 12% 10%, rgba(255, 255, 255, 0.52), transparent 58%),
-    radial-gradient(950px 760px at 88% 86%, rgba(236, 72, 153, 0.12), transparent 62%),
+    radial-gradient(1100px 820px at 12% 10%, rgba(255, 255, 255, 0.44), transparent 58%),
+    radial-gradient(960px 820px at 16% 18%, rgba(244, 114, 182, 0.14), transparent 52%),
+    radial-gradient(980px 760px at 88% 86%, rgba(236, 72, 153, 0.18), transparent 62%),
     linear-gradient(145deg, var(--page-bg) 0%, var(--page-bg-alt) 100%);
   transition: background-color 200ms ease, color 180ms ease;
 }
@@ -123,13 +124,13 @@ body {
 body[data-theme="dark"],
 body.dark-mode {
   color-scheme: dark;
-  --bg-primary: #140d12;
-  --bg-secondary: #1a0f15;
-  --bg-tertiary: #22131a;
-  --surface-primary: #22131a;
-  --surface-secondary: #2a1720;
-  --surface-elevated: rgba(34, 19, 26, 0.92);
-  --surface-glass: rgba(34, 19, 26, 0.76);
+  --bg-primary: #170810;
+  --bg-secondary: #220d18;
+  --bg-tertiary: #2b111f;
+  --surface-primary: #26111b;
+  --surface-secondary: #311624;
+  --surface-elevated: rgba(38, 17, 27, 0.94);
+  --surface-glass: rgba(38, 17, 27, 0.8);
   --surface: var(--surface-primary);
   --text-primary: #ffe4ec;
   --text-secondary: #d1a3b3;
@@ -159,8 +160,9 @@ body.dark-mode {
   --accent-strong: var(--accent-primary-hover);
   color: var(--text-primary);
   background:
-    radial-gradient(1100px 840px at 10% 18%, rgba(244, 114, 182, 0.18), transparent 58%),
-    radial-gradient(1000px 880px at 88% 82%, rgba(113, 76, 139, 0.22), transparent 60%),
+    radial-gradient(1100px 840px at 10% 18%, rgba(244, 114, 182, 0.28), transparent 58%),
+    radial-gradient(920px 760px at 20% 8%, rgba(255, 160, 205, 0.1), transparent 46%),
+    radial-gradient(1000px 880px at 88% 82%, rgba(113, 76, 139, 0.18), transparent 60%),
     linear-gradient(145deg, var(--page-bg-dark) 0%, var(--page-bg-alt-dark) 100%);
 }
 
