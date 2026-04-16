@@ -8,6 +8,8 @@ $currentPage = $isLookupPage ? 'lookup' : 'home';
 const HOME_DB_PATH = __DIR__ . '/data/intake.sqlite';
 $statusOptions = ['Intake', 'Description', 'Tested', 'Listed', 'SOLD'];
 $lookupSuggestions = [];
+$listedItems = [];
+$listedThumbs = [];
 $counts = [
     'total' => null,
     'today' => null,
@@ -75,6 +77,35 @@ if (is_readable(HOME_DB_PATH)) {
                 $norm = trim((string)$photoRow['sku_normalized']);
                 if ($norm !== '' && !isset($recentThumbs[$norm])) {
                     $recentThumbs[$norm] = (int)$photoRow['id'];
+                }
+            }
+        }
+
+        $stmtListed = $pdo->query("
+            SELECT sku, status, what_is_it, updated_at
+            FROM intake_items
+            WHERE status = 'Listed'
+              AND sku IS NOT NULL
+              AND TRIM(sku) <> ''
+            ORDER BY updated_at DESC, id DESC
+            LIMIT 20
+        ");
+        $listedItems = $stmtListed->fetchAll(PDO::FETCH_ASSOC);
+        $listedSkus = array_values(array_filter(array_map(static fn($r) => trim((string)($r['sku'] ?? '')), $listedItems)));
+        if ($listedSkus) {
+            $listedNorms = array_map(static fn($s) => strtoupper($s), $listedSkus);
+            $placeholders = implode(',', array_fill(0, count($listedNorms), '?'));
+            $photoStmt = $pdo->prepare("
+                SELECT sku_normalized, id
+                FROM sku_photos
+                WHERE sku_normalized IN ($placeholders)
+                ORDER BY id DESC
+            ");
+            $photoStmt->execute($listedNorms);
+            foreach ($photoStmt->fetchAll(PDO::FETCH_ASSOC) as $photoRow) {
+                $norm = trim((string)$photoRow['sku_normalized']);
+                if ($norm !== '' && !isset($listedThumbs[$norm])) {
+                    $listedThumbs[$norm] = (int)$photoRow['id'];
                 }
             }
         }
@@ -279,7 +310,7 @@ if (is_dir($backupDir)) {
         <div class="lookup-grid">
         <div class="lookup-card">
           <h2>SKU Lookup</h2>
-          <p class="hint">Search by SKU or filter by status. Results preview live as you type.</p>
+          <p class="hint">Search by SKU or filter by status, then open the item in intake.</p>
           <div class="hint" id="recent-skus" aria-label="Recently viewed SKUs"></div>
           <p class="hint"><button type="button" class="ghost" id="clear-recent-skus">Clear recent SKUs</button></p>
             <form class="form-grid" method="get" action="intake.php" id="sku-lookup">
@@ -310,12 +341,9 @@ if (is_dir($backupDir)) {
               <button type="button" data-lookup-status="Tested">Tested</button>
               <button type="button" data-lookup-status="Listed">Listed</button>
               <button type="button" data-lookup-status="SOLD">Sold</button>
-              <button type="button" data-lookup-stale="7">Stale >7d</button>
-              <button type="button" data-lookup-stale="30">Stale >30d</button>
             </div>
             <div class="actions lookup-actions">
               <button type="submit">Open in intake</button>
-              <button type="button" id="lookup-preview-refresh" class="ghost">Refresh preview</button>
               <button type="button" id="lookup-clear-filters" class="ghost">Clear filters</button>
             </div>
           </form>
@@ -323,19 +351,11 @@ if (is_dir($backupDir)) {
         <div class="lookup-card lookup-results">
           <div class="lookup-results-header">
             <div>
-              <h2>Preview matches</h2>
-              <p class="hint" id="lookup-preview-message">Type two characters or select a status to see recent entries.</p>
+              <h2>Listed items</h2>
+              <p class="hint">Recent records already marked Listed.</p>
             </div>
             <div class="lookup-results-actions">
-              <button type="button" class="ghost" id="lookup-load-more">Load more</button>
-              <button type="button" class="ghost" id="lookup-export-csv">Export CSV</button>
-              <button type="button" class="ghost" id="lookup-copy-link">Copy link</button>
-              <a class="button-link subtle" href="lookup_preview.php">Preview API</a>
-            </div>
-            <div class="gap-chips" id="gap-chips">
-              <button type="button" data-gap="">Any</button>
-              <button type="button" data-gap="no-photos">No photos</button>
-              <button type="button" data-gap="no-price">No price</button>
+              <span class="badge subtle"><?php echo count($listedItems); ?> listed</span>
             </div>
           </div>
           <div class="table-wrap">
@@ -346,13 +366,29 @@ if (is_dir($backupDir)) {
                   <th>Status</th>
                   <th>What is it?</th>
                   <th>Updated</th>
-                  <th>Actions</th>
                 </tr>
               </thead>
-              <tbody id="lookup-preview-body">
-                <tr>
-                  <td colspan="4">No lookup terms yet.</td>
-                </tr>
+              <tbody id="lookup-listing-body">
+                <?php if (!empty($listedItems)): ?>
+                  <?php foreach ($listedItems as $row): ?>
+                    <?php $skuVal = trim((string)($row['sku'] ?? '')); $normVal = strtoupper($skuVal); $thumbId = $listedThumbs[$normVal] ?? null; ?>
+                    <tr>
+                      <td>
+                        <?php echo htmlspecialchars($skuVal ?: 'Unknown', ENT_QUOTES, 'UTF-8'); ?>
+                        <?php if ($thumbId): ?>
+                          <span class="thumb-wrap"><img class="preview-thumb" src="photo.php?id=<?php echo $thumbId; ?>" alt="Photo for <?php echo htmlspecialchars($skuVal ?: 'SKU', ENT_QUOTES, 'UTF-8'); ?>"></span>
+                        <?php endif; ?>
+                      </td>
+                      <td><span class="status-chip"><?php echo htmlspecialchars($row['status'] ?: 'Listed', ENT_QUOTES, 'UTF-8'); ?></span></td>
+                      <td><?php echo htmlspecialchars($row['what_is_it'] ?: '—', ENT_QUOTES, 'UTF-8'); ?></td>
+                      <td><?php echo htmlspecialchars($row['updated_at'] ?: '', ENT_QUOTES, 'UTF-8'); ?></td>
+                    </tr>
+                  <?php endforeach; ?>
+                <?php else: ?>
+                  <tr>
+                    <td colspan="4">No listed items yet.</td>
+                  </tr>
+                <?php endif; ?>
               </tbody>
             </table>
           </div>
