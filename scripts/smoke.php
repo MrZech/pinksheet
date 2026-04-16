@@ -23,6 +23,10 @@ $tests = [
         'url' => $base . '/intake.php',
     ],
     [
+        'name' => 'prompt page',
+        'url' => $base . '/prompt_builder.php',
+    ],
+    [
         'name' => 'lookup preview (sku=TEST)',
         'url' => $base . '/lookup_preview.php?sku=TEST&limit=3',
     ],

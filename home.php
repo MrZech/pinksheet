@@ -143,6 +143,7 @@ if (is_dir($backupDir)) {
           <li><a class="menu-link <?php echo $currentPage === 'home' ? 'is-active' : ''; ?>" href="home.php">Home</a></li>
           <li><a class="menu-link <?php echo $currentPage === 'lookup' ? 'is-active' : ''; ?>" href="lookup.php">SKU Lookup</a></li>
           <li><a class="menu-link <?php echo $currentPage === 'intake' ? 'is-active' : ''; ?>" href="intake.php?clear_draft=1" data-new-intake>New Intake</a></li>
+          <li><a class="menu-link" href="prompt_builder.php">Prompt Builder</a></li>
         </ul>
       </nav>
     </div>
@@ -172,6 +173,7 @@ if (is_dir($backupDir)) {
         <div class="quick-links">
           <a class="button-link" href="intake.php?clear_draft=1" data-new-intake>New Intake</a>
           <a class="button-link" href="lookup.php">Search SKUs</a>
+          <a class="button-link" href="prompt_builder.php">Prompt Builder</a>
           <a class="button-link" href="docs/maintenance.md">Maintenance docs</a>
           <a class="button-link" href="kanban.php">Kanban</a>
           <button type="button" class="button-link ghost" id="run-backup-now" data-run-backup>
@@ -724,6 +726,15 @@ if (is_dir($backupDir)) {
               window.location.href = 'intake.php?copy_sku=' + encodeURIComponent(entry.sku);
             });
             actionsTd.appendChild(dupBtn);
+          var promptBtn = document.createElement('button');
+          promptBtn.type = 'button';
+          promptBtn.className = 'ghost subtle';
+          promptBtn.textContent = 'Prompt';
+          promptBtn.addEventListener('click', function () {
+            if (!entry.sku) return;
+            window.location.href = 'prompt_builder.php?sku=' + encodeURIComponent(entry.sku);
+          });
+          actionsTd.appendChild(promptBtn);
             row.appendChild(actionsTd);
           previewBody.appendChild(row);
         });

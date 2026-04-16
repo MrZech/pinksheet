@@ -656,6 +656,7 @@ function checked(string $name, string $value, array $formData): string
           <li><a class="menu-link <?php echo $currentPage === 'home' ? 'is-active' : ''; ?>" href="home.php">Home</a></li>
           <li><a class="menu-link <?php echo $currentPage === 'lookup' ? 'is-active' : ''; ?>" href="lookup.php">SKU Lookup</a></li>
           <li><a class="menu-link <?php echo $currentPage === 'intake' ? 'is-active' : ''; ?>" href="intake.php?clear_draft=1" data-new-intake>New Intake</a></li>
+          <li><a class="menu-link" href="prompt_builder.php">Prompt Builder</a></li>
         </ul>
       </nav>
     </div>
@@ -1079,13 +1080,14 @@ function checked(string $name, string $value, array $formData): string
                   <th>Ebay Price</th>
                   <th>Updated</th>
                   <th>Open</th>
+                  <th>Prompt</th>
                   <th>Delete</th>
                 </tr>
               </thead>
               <tbody>
                 <?php if (!$recent): ?>
                   <tr>
-                    <td colspan="10">No items found for this lookup.</td>
+                    <td colspan="11">No items found for this lookup.</td>
                   </tr>
                 <?php else: ?>
                   <?php foreach ($recent as $item): ?>
@@ -1123,6 +1125,7 @@ function checked(string $name, string $value, array $formData): string
                       <td><input type="number" step="0.01" class="js-inline-price" data-field="ebay_price" data-sku="<?php echo h($item['sku'] ?? ''); ?>" value="<?php echo isset($item['ebay_price']) ? h((string)$item['ebay_price']) : ''; ?>" placeholder="—"></td>
                       <td><?php echo h($item['updated_at'] ?? ''); ?></td>
                       <td><a class="open-link" href="intake.php?sku=<?php echo urlencode((string)($item['sku'] ?? '')); ?>">Open</a></td>
+                      <td><a class="open-link" href="prompt_builder.php?sku=<?php echo urlencode((string)($item['sku'] ?? '')); ?>">Prompt</a></td>
                       <td>
                         <button type="button"
                                 class="ghost danger js-delete-item"

@@ -33,3 +33,4 @@
 4) Save & Duplicate: save once, confirm new form is prefilled (SKU empty), copy-from-SKU works, autosave still runs.  
 5) Bulk-select rows, change status; then try “Delete selected” and type DELETE—list should refresh with success message.  
 6) Toggle dark mode, toggle print-pink, trigger print preview.
+
