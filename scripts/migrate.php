@@ -90,4 +90,16 @@ CREATE TABLE IF NOT EXISTS sku_photos (
 SQL);
 $pdo->exec("CREATE INDEX IF NOT EXISTS idx_sku_photos_sku_normalized ON sku_photos (sku_normalized)");
 
+$pdo->exec(<<<'SQL'
+CREATE TABLE IF NOT EXISTS script_cache (
+    sku_normalized TEXT PRIMARY KEY,
+    sku_display TEXT NOT NULL,
+    prompt_text TEXT,
+    chatgpt_text TEXT,
+    final_text TEXT,
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+SQL);
+$pdo->exec("CREATE INDEX IF NOT EXISTS idx_script_cache_updated_at ON script_cache (updated_at)");
+
 echo "Migration completed. Directories ensured and schema normalized.\n";

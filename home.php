@@ -175,7 +175,7 @@ if (is_dir($backupDir)) {
           <a class="button-link" href="lookup.php">Search SKUs</a>
           <a class="button-link" href="prompt_builder.php">eBay Script Builder</a>
           <a class="button-link" href="docs/maintenance.md">Maintenance docs</a>
-          <a class="button-link" href="kanban.php">Kanban</a>
+          <a class="button-link" href="kanban.php">Status Board</a>
           <button type="button" class="button-link ghost" id="run-backup-now" data-run-backup>
             Run backup now<?php if ($latestBackup): ?> (<?php echo htmlspecialchars($backupSummary, ENT_QUOTES, 'UTF-8'); ?>)<?php endif; ?>
           </button>

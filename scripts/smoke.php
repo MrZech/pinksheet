@@ -43,6 +43,25 @@ $tests = [
             'Content-Type: application/json',
         ],
     ],
+    [
+        'name' => 'script cache POST',
+        'url' => $base . '/script_cache.php',
+        'method' => 'POST',
+        'body' => json_encode([
+            'sku' => 'SMOKE123',
+            'sku_display' => 'SMOKE123',
+            'prompt_text' => 'Prompt text',
+            'chatgpt_text' => 'ChatGPT text',
+            'final_text' => 'Final text',
+        ], JSON_THROW_ON_ERROR),
+        'headers' => [
+            'Content-Type: application/json',
+        ],
+    ],
+    [
+        'name' => 'script cache GET',
+        'url' => $base . '/script_cache.php?sku=SMOKE123',
+    ],
 ];
 
 $ok = true;

@@ -159,6 +159,7 @@ $initialItemJson = $currentItem ? json_encode($currentItem, JSON_HEX_TAG | JSON_
         <div class="updated">Dispo.Tech SKU eBay Script Builder</div>
         <div class="sheet-header-right">
           <span class="badge subtle" id="prompt-status-chip" title="Prompt status">Ready</span>
+          <span class="badge subtle" id="save-status-chip" title="Autosave status">No SKU</span>
           <button type="button" class="theme-toggle" id="theme-toggle">Dark mode</button>
         </div>
       </header>
@@ -261,7 +262,10 @@ $initialItemJson = $currentItem ? json_encode($currentItem, JSON_HEX_TAG | JSON_
       var copyFinalBtn = document.getElementById('copy-final-btn');
       var finalOutput = document.getElementById('final-output');
       var sourceWrap = document.getElementById('prompt-source');
+      var saveStatusChip = document.getElementById('save-status-chip');
       var initialItem = <?php echo $initialItemJson; ?>;
+      var saveTimer = null;
+      var currentSkuNormalized = '';
 
       var applyThemeMode = function (mode) {
         var isDark = mode === 'dark';
@@ -325,6 +329,12 @@ $initialItemJson = $currentItem ? json_encode($currentItem, JSON_HEX_TAG | JSON_
         if (!statusChip) return;
         statusChip.textContent = message;
         statusChip.className = tone ? ('badge ' + tone) : 'badge subtle';
+      };
+
+      var setSaveStatus = function (message, tone) {
+        if (!saveStatusChip) return;
+        saveStatusChip.textContent = message;
+        saveStatusChip.className = tone ? ('badge ' + tone) : 'badge subtle';
       };
 
       var labelMap = {
@@ -441,6 +451,86 @@ $initialItemJson = $currentItem ? json_encode($currentItem, JSON_HEX_TAG | JSON_
         ].join('\n');
       };
 
+      var describeSavedState = function (promptText, chatgptText, finalText) {
+        if (String(finalText || '').trim()) {
+          return 'Saved final eBay script';
+        }
+        if (String(chatgptText || '').trim()) {
+          return 'Saved ChatGPT draft';
+        }
+        if (String(promptText || '').trim()) {
+          return 'Saved prompt';
+        }
+        return 'Saved';
+      };
+
+      var loadScriptCache = function (sku) {
+        return fetch('script_cache.php?sku=' + encodeURIComponent(sku))
+          .then(function (resp) {
+            return resp.json().then(function (data) {
+              if (!resp.ok) {
+                throw new Error(data.message || 'Could not load cached script.');
+              }
+              return data && data.has_cache ? data.data : null;
+            });
+          })
+          .catch(function () {
+            return null;
+          });
+      };
+
+      var saveScriptCache = function (sku, promptText, chatgptText, finalText) {
+        if (!sku) return Promise.resolve(false);
+        setSaveStatus('Saving...', 'warning');
+        var savedLabel = describeSavedState(promptText, chatgptText, finalText);
+        return fetch('script_cache.php', {
+          method: 'POST',
+          keepalive: true,
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            sku: sku,
+            sku_display: sku,
+            prompt_text: promptText || '',
+            chatgpt_text: chatgptText || '',
+            final_text: finalText || ''
+          })
+        })
+          .then(function (resp) {
+            return resp.json().then(function (data) {
+              if (!resp.ok) {
+                throw new Error(data.message || 'Could not save cached script.');
+              }
+              setSaveStatus(savedLabel, 'success');
+              return true;
+            });
+          })
+          .catch(function () {
+            setSaveStatus('Save failed', 'warning');
+            return false;
+          });
+      };
+
+      var scheduleScriptCacheSave = function () {
+        if (!currentSkuNormalized) {
+          return;
+        }
+        if (saveTimer) {
+          window.clearTimeout(saveTimer);
+        }
+        setSaveStatus('Saving...', 'warning');
+        saveTimer = window.setTimeout(function () {
+          saveTimer = null;
+          saveScriptCache(
+            currentSkuNormalized,
+            promptOutput ? promptOutput.value : '',
+            chatgptOutput ? chatgptOutput.value : '',
+            finalOutput ? finalOutput.value : ''
+          );
+        }, 500);
+      };
+
       var renderSource = function (sku, item) {
         if (!sourceWrap) return;
         sourceWrap.innerHTML = '';
@@ -487,12 +577,22 @@ $initialItemJson = $currentItem ? json_encode($currentItem, JSON_HEX_TAG | JSON_
         var normalized = (sku || '').trim().toUpperCase();
         if (!normalized) {
           setStatus('Enter a SKU first', 'warning');
-          promptOutput.value = '';
-          renderSource('', null);
+          currentSkuNormalized = '';
+            promptOutput.value = '';
+            if (chatgptOutput) chatgptOutput.value = '';
+            if (finalOutput) finalOutput.value = '';
+            renderSource('', null);
+            setSaveStatus('No SKU', 'subtle');
           return;
         }
         setStatus('Loading...', 'warning');
-        fetch('copy_item.php?sku=' + encodeURIComponent(normalized))
+        currentSkuNormalized = normalized;
+        promptOutput.value = '';
+        if (chatgptOutput) chatgptOutput.value = '';
+        if (finalOutput) finalOutput.value = '';
+        renderSource(normalized, null);
+
+        var itemPromise = fetch('copy_item.php?sku=' + encodeURIComponent(normalized))
           .then(function (resp) {
             return resp.json().then(function (data) {
               if (!resp.ok) {
@@ -503,12 +603,58 @@ $initialItemJson = $currentItem ? json_encode($currentItem, JSON_HEX_TAG | JSON_
           })
           .then(function (payload) {
             if (!payload || payload.status !== 'ok' || !payload.data) {
-              throw new Error('No record found for that SKU.');
+              return null;
             }
-            var item = payload.data;
-            promptOutput.value = buildPrompt(normalized, item);
-            renderSource(normalized, item);
-            setStatus('Prompt ready', 'subtle');
+            return payload.data;
+          })
+          .catch(function () {
+            return null;
+          });
+
+        var cachePromise = loadScriptCache(normalized);
+
+        Promise.all([itemPromise, cachePromise])
+          .then(function (results) {
+            var item = results[0];
+            var cache = results[1];
+
+            if (item) {
+              renderSource(normalized, item);
+            }
+
+            if (cache) {
+              if (cache.prompt_text) {
+                promptOutput.value = cache.prompt_text;
+              } else if (item) {
+                promptOutput.value = buildPrompt(normalized, item);
+              }
+              if (cache.chatgpt_text && chatgptOutput) {
+                chatgptOutput.value = cache.chatgpt_text;
+              }
+              if (cache.final_text && finalOutput) {
+                finalOutput.value = cache.final_text;
+              } else if (chatgptOutput && chatgptOutput.value.trim()) {
+                finalOutput.value = buildFinalScript(chatgptOutput.value);
+              }
+              setStatus('Cached script loaded', 'subtle');
+              setSaveStatus(describeSavedState(promptOutput.value, chatgptOutput && chatgptOutput.value, finalOutput && finalOutput.value), 'success');
+              return;
+            }
+
+            if (item) {
+              promptOutput.value = buildPrompt(normalized, item);
+              if (chatgptOutput && chatgptOutput.value.trim()) {
+                finalOutput.value = buildFinalScript(chatgptOutput.value);
+              }
+              setStatus('Prompt ready', 'subtle');
+              setSaveStatus('Saving...', 'warning');
+              scheduleScriptCacheSave();
+              return;
+            }
+
+            promptOutput.value = '';
+            setStatus('No record found for that SKU.', 'warning');
+            setSaveStatus('No cache', 'subtle');
           })
           .catch(function (err) {
             promptOutput.value = '';
@@ -527,9 +673,13 @@ $initialItemJson = $currentItem ? json_encode($currentItem, JSON_HEX_TAG | JSON_
       if (clearBtn) {
         clearBtn.addEventListener('click', function () {
           if (skuInput) skuInput.value = '';
+          currentSkuNormalized = '';
           promptOutput.value = '';
+          if (chatgptOutput) chatgptOutput.value = '';
+          if (finalOutput) finalOutput.value = '';
           renderSource('', null);
           setStatus('Ready', 'subtle');
+          setSaveStatus('No SKU', 'subtle');
           if (skuInput) skuInput.focus();
         });
       }
@@ -567,9 +717,31 @@ $initialItemJson = $currentItem ? json_encode($currentItem, JSON_HEX_TAG | JSON_
         });
       }
 
+      if (promptOutput) {
+        promptOutput.addEventListener('input', scheduleScriptCacheSave);
+      }
+
+      if (chatgptOutput) {
+        chatgptOutput.addEventListener('input', function () {
+          if (finalOutput) {
+            finalOutput.value = buildFinalScript(chatgptOutput.value);
+          }
+          scheduleScriptCacheSave();
+        });
+      }
+
+      if (finalOutput) {
+        finalOutput.addEventListener('input', scheduleScriptCacheSave);
+      }
+
       if (buildFinalBtn && chatgptOutput && finalOutput) {
         buildFinalBtn.addEventListener('click', function () {
+          var skuValue = skuInput ? skuInput.value.trim().toUpperCase() : '';
           finalOutput.value = buildFinalScript(chatgptOutput.value);
+          currentSkuNormalized = skuValue || currentSkuNormalized;
+          if (skuValue) {
+            saveScriptCache(skuValue, promptOutput.value, chatgptOutput.value, finalOutput.value);
+          }
           setStatus('Final script ready', 'subtle');
         });
       }
@@ -579,7 +751,9 @@ $initialItemJson = $currentItem ? json_encode($currentItem, JSON_HEX_TAG | JSON_
           chatgptOutput.value = '';
           finalOutput.value = '';
           setStatus('Ready', 'subtle');
+          setSaveStatus('Saving...', 'warning');
           chatgptOutput.focus();
+          scheduleScriptCacheSave();
         });
       }
 
@@ -619,9 +793,12 @@ $initialItemJson = $currentItem ? json_encode($currentItem, JSON_HEX_TAG | JSON_
       if (skuInput && skuInput.value.trim()) {
         loadSku(skuInput.value);
       } else if (initialItem) {
-        renderSource(skuInput ? skuInput.value.trim().toUpperCase() : '', initialItem);
-        promptOutput.value = buildPrompt((skuInput ? skuInput.value.trim().toUpperCase() : ''), initialItem);
+        currentSkuNormalized = skuInput ? skuInput.value.trim().toUpperCase() : '';
+        renderSource(currentSkuNormalized, initialItem);
+        promptOutput.value = buildPrompt(currentSkuNormalized, initialItem);
         setStatus('Prompt ready', 'subtle');
+        setSaveStatus('Saving...', 'warning');
+        scheduleScriptCacheSave();
       } else {
         promptOutput.value = [
           'Enter a SKU and click Generate prompt.',
@@ -629,7 +806,23 @@ $initialItemJson = $currentItem ? json_encode($currentItem, JSON_HEX_TAG | JSON_
           'This page will assemble a ChatGPT-ready prompt from the latest inventory record.'
         ].join('\n');
         setStatus('Ready', 'subtle');
+        setSaveStatus('No SKU', 'subtle');
       }
+
+      window.addEventListener('beforeunload', function () {
+        if (!currentSkuNormalized) {
+          return;
+        }
+        if (!promptOutput.value && !chatgptOutput.value && !finalOutput.value) {
+          return;
+        }
+        saveScriptCache(
+          currentSkuNormalized,
+          promptOutput.value,
+          chatgptOutput.value,
+          finalOutput.value
+        );
+      });
     })();
   </script>
 </body>

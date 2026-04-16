@@ -40,11 +40,11 @@ try {
     ]);
     $pdo->exec('PRAGMA foreign_keys = ON');
     if ($field === 'status') {
-        $stmt = $pdo->prepare('UPDATE intake_items SET status = :val, updated_at = datetime("now") WHERE UPPER(sku) = :sku');
+        $stmt = $pdo->prepare('UPDATE intake_items SET status = :val, updated_at = datetime("now") WHERE UPPER(COALESCE(sku, "")) = :sku OR UPPER(COALESCE(sku_normalized, "")) = :sku');
         $stmt->execute([':val' => (string)$value, ':sku' => $sku]);
     } else {
         $price = is_numeric($value) ? (float)$value : null;
-        $stmt = $pdo->prepare("UPDATE intake_items SET {$field} = :val, updated_at = datetime('now') WHERE UPPER(sku) = :sku");
+        $stmt = $pdo->prepare("UPDATE intake_items SET {$field} = :val, updated_at = datetime('now') WHERE UPPER(COALESCE(sku, '')) = :sku OR UPPER(COALESCE(sku_normalized, '')) = :sku");
         $stmt->execute([':val' => $price, ':sku' => $sku]);
     }
     if ($stmt->rowCount() === 0) {

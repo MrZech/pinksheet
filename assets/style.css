@@ -214,10 +214,38 @@ body.dark-mode .form-grid {
   box-shadow: 0 10px 22px rgba(0, 57, 114, 0.18);
 }
 
+.badge.success {
+  background: linear-gradient(135deg, #e6f8ec, #cfeedb);
+  color: #145433;
+  border-color: #b3dfc4;
+  box-shadow: 0 10px 22px rgba(20, 84, 51, 0.16);
+}
+
+.badge.warning {
+  background: linear-gradient(135deg, #fff3d6, #ffe7ae);
+  color: #7a4f00;
+  border-color: #f0d48a;
+  box-shadow: 0 10px 22px rgba(122, 79, 0, 0.16);
+}
+
 body.dark-mode .badge {
   background: linear-gradient(135deg, rgba(141, 214, 255, 0.18), rgba(141, 214, 255, 0.28));
   color: #dbefff;
   border-color: rgba(141, 214, 255, 0.35);
+  box-shadow: 0 12px 26px rgba(0, 0, 0, 0.35);
+}
+
+body.dark-mode .badge.success {
+  background: linear-gradient(135deg, rgba(111, 214, 151, 0.22), rgba(111, 214, 151, 0.32));
+  color: #dff7e8;
+  border-color: rgba(111, 214, 151, 0.4);
+  box-shadow: 0 12px 26px rgba(0, 0, 0, 0.35);
+}
+
+body.dark-mode .badge.warning {
+  background: linear-gradient(135deg, rgba(246, 192, 88, 0.22), rgba(246, 192, 88, 0.32));
+  color: #fff2cd;
+  border-color: rgba(246, 192, 88, 0.4);
   box-shadow: 0 12px 26px rgba(0, 0, 0, 0.35);
 }
 
