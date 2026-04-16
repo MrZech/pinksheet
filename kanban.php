@@ -83,6 +83,10 @@ foreach ($items as $item) {
       padding: 10px;
       flex: 0 0 260px;
     }
+    .kanban-lane.is-drop-target {
+      outline: 2px solid rgba(108, 160, 255, 0.7);
+      outline-offset: 2px;
+    }
     .kanban-lane h3 {
       margin: 0 0 6px 0;
       display: flex;
@@ -186,6 +190,7 @@ foreach ($items as $item) {
         if (!card) return;
         dragged = card;
         draggedFromLane = card.closest('.kanban-lane');
+        e.dataTransfer.setData('text/plain', card.getAttribute('data-sku-normalized') || card.getAttribute('data-sku') || '');
         e.dataTransfer.effectAllowed = 'move';
         setTimeout(function () { card.style.opacity = '0.5'; }, 0);
       });
@@ -205,6 +210,7 @@ foreach ($items as $item) {
         e.preventDefault();
         var drop = lane.querySelector('.lane-drop');
         if (drop) drop.style.display = 'block';
+        lane.classList.add('is-drop-target');
       });
 
       board.addEventListener('dragleave', function (e) {
@@ -212,6 +218,7 @@ foreach ($items as $item) {
         if (!lane) return;
         var drop = lane.querySelector('.lane-drop');
         if (drop) drop.style.display = 'none';
+        lane.classList.remove('is-drop-target');
       });
 
       board.addEventListener('drop', function (e) {
@@ -222,6 +229,7 @@ foreach ($items as $item) {
         var sku = dragged.getAttribute('data-sku-normalized') || dragged.getAttribute('data-sku') || '';
         var drop = lane.querySelector('.lane-drop');
         if (drop) drop.style.display = 'none';
+        lane.classList.remove('is-drop-target');
 
         fetch('update_item.php', {
           method: 'POST',
@@ -244,6 +252,7 @@ foreach ($items as $item) {
               }
             }
             lane.appendChild(dragged);
+            dragged.style.opacity = '1';
           })
           .catch(function () {
             alert('Update failed');

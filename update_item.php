@@ -39,12 +39,20 @@ try {
         PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
     ]);
     $pdo->exec('PRAGMA foreign_keys = ON');
+
+    $columns = $pdo->query('PRAGMA table_info(intake_items)')->fetchAll(PDO::FETCH_ASSOC);
+    $columnNames = array_map(static fn($row) => (string)($row['name'] ?? ''), $columns);
+    $hasSkuNormalized = in_array('sku_normalized', $columnNames, true);
+    $skuWhere = $hasSkuNormalized
+        ? '(UPPER(COALESCE(sku, \'\')) = :sku OR UPPER(COALESCE(sku_normalized, \'\')) = :sku)'
+        : 'UPPER(COALESCE(sku, \'\')) = :sku';
+
     if ($field === 'status') {
-        $stmt = $pdo->prepare('UPDATE intake_items SET status = :val, updated_at = datetime("now") WHERE UPPER(COALESCE(sku, "")) = :sku OR UPPER(COALESCE(sku_normalized, "")) = :sku');
+        $stmt = $pdo->prepare('UPDATE intake_items SET status = :val, updated_at = datetime("now") WHERE ' . $skuWhere);
         $stmt->execute([':val' => (string)$value, ':sku' => $sku]);
     } else {
         $price = is_numeric($value) ? (float)$value : null;
-        $stmt = $pdo->prepare("UPDATE intake_items SET {$field} = :val, updated_at = datetime('now') WHERE UPPER(COALESCE(sku, '')) = :sku OR UPPER(COALESCE(sku_normalized, '')) = :sku");
+        $stmt = $pdo->prepare("UPDATE intake_items SET {$field} = :val, updated_at = datetime('now') WHERE " . $skuWhere);
         $stmt->execute([':val' => $price, ':sku' => $sku]);
     }
     if ($stmt->rowCount() === 0) {
