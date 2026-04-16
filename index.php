@@ -654,8 +654,8 @@ function checked(string $name, string $value, array $formData): string
       <nav class="menu-panel" id="global-menu" aria-hidden="true">
         <ul class="menu-links">
           <li><a class="menu-link <?php echo $currentPage === 'home' ? 'is-active' : ''; ?>" href="home.php">Home</a></li>
-          <li><a class="menu-link <?php echo $currentPage === 'lookup' ? 'is-active' : ''; ?>" href="home.php#sku-lookup">SKU Lookup</a></li>
-          <li><a class="menu-link <?php echo $currentPage === 'intake' ? 'is-active' : ''; ?>" href="index.php?clear_draft=1" data-new-intake>New Intake</a></li>
+          <li><a class="menu-link <?php echo $currentPage === 'lookup' ? 'is-active' : ''; ?>" href="lookup.php">SKU Lookup</a></li>
+          <li><a class="menu-link <?php echo $currentPage === 'intake' ? 'is-active' : ''; ?>" href="intake.php?clear_draft=1" data-new-intake>New Intake</a></li>
         </ul>
       </nav>
     </div>
@@ -673,7 +673,7 @@ function checked(string $name, string $value, array $formData): string
         <div class="sheet-header-right">
           <button type="button" class="print-button" id="print-button">Print</button>
           <button type="button" class="theme-toggle" id="theme-toggle">Dark mode</button>
-          <a class="button-link new-intake-cta" href="index.php?clear_draft=1" data-new-intake>New Intake</a>
+          <a class="button-link new-intake-cta" href="intake.php?clear_draft=1" data-new-intake>New Intake</a>
         </div>
         <div class="status">
           <label>
@@ -1018,7 +1018,7 @@ function checked(string $name, string $value, array $formData): string
 
       <section class="section recent-items">
         <h2><?php echo $lookupStatus !== '' ? 'Status Results' : 'Recent SKUs'; ?></h2>
-        <form class="form-grid" method="get" action="index.php">
+        <form class="form-grid" method="get" action="intake.php">
           <div class="row">
             <label>SKU
               <input type="text" name="sku" value="<?php echo h($lookupSku); ?>">
@@ -1034,7 +1034,7 @@ function checked(string $name, string $value, array $formData): string
           </div>
             <div class="actions">
             <button type="submit">Search</button>
-            <a class="button-link" href="index.php?clear_draft=1" data-new-intake>Clear</a>
+            <a class="button-link" href="intake.php?clear_draft=1" data-new-intake>Clear</a>
           </div>
         </form>
         <?php if ($bulkErrors): ?>
@@ -1122,7 +1122,7 @@ function checked(string $name, string $value, array $formData): string
                       <td><input type="number" step="0.01" class="js-inline-price" data-field="dispotech_price" data-sku="<?php echo h($item['sku'] ?? ''); ?>" value="<?php echo isset($item['dispotech_price']) ? h((string)$item['dispotech_price']) : ''; ?>" placeholder="—"></td>
                       <td><input type="number" step="0.01" class="js-inline-price" data-field="ebay_price" data-sku="<?php echo h($item['sku'] ?? ''); ?>" value="<?php echo isset($item['ebay_price']) ? h((string)$item['ebay_price']) : ''; ?>" placeholder="—"></td>
                       <td><?php echo h($item['updated_at'] ?? ''); ?></td>
-                      <td><a class="open-link" href="index.php?sku=<?php echo urlencode((string)($item['sku'] ?? '')); ?>">Open</a></td>
+                      <td><a class="open-link" href="intake.php?sku=<?php echo urlencode((string)($item['sku'] ?? '')); ?>">Open</a></td>
                       <td>
                         <button type="button"
                                 class="ghost danger js-delete-item"

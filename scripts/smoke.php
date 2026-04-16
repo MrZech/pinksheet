@@ -11,8 +11,16 @@ $tests = [
         'url' => $base . '/health.php',
     ],
     [
+        'name' => 'home page',
+        'url' => $base . '/home.php',
+    ],
+    [
+        'name' => 'lookup page',
+        'url' => $base . '/lookup.php',
+    ],
+    [
         'name' => 'intake page',
-        'url' => $base . '/index.php',
+        'url' => $base . '/intake.php',
     ],
     [
         'name' => 'lookup preview (sku=TEST)',

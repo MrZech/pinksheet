@@ -2,7 +2,9 @@
 require_once __DIR__ . '/config.php';
 checkMaintenance();
 ensureStorageWritable();
-$currentPage = 'home';
+$scriptName = basename($_SERVER['SCRIPT_NAME'] ?? $_SERVER['PHP_SELF'] ?? '');
+$isLookupPage = $scriptName === 'lookup.php';
+$currentPage = $isLookupPage ? 'lookup' : 'home';
 const HOME_DB_PATH = __DIR__ . '/data/intake.sqlite';
 $statusOptions = ['Intake', 'Description', 'Tested', 'Listed', 'SOLD'];
 $lookupSuggestions = [];
@@ -124,12 +126,12 @@ if (is_dir($backupDir)) {
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Dispo.Tech Intake Home</title>
+  <title><?php echo $isLookupPage ? 'Dispo.Tech SKU Lookup' : 'Dispo.Tech Intake Home'; ?></title>
   <link rel="stylesheet" href="assets/style.css">
   <link rel="stylesheet" media="print" href="assets/print.css">
   <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
 </head>
-<body class="home">
+<body class="home<?php echo $isLookupPage ? ' lookup-page' : ''; ?>">
   <main class="page">
     <div class="app-menu">
       <button type="button" class="menu-toggle" aria-expanded="false" aria-controls="global-menu" id="menu-toggle">
@@ -139,14 +141,14 @@ if (is_dir($backupDir)) {
       <nav class="menu-panel" id="global-menu" aria-hidden="true">
         <ul class="menu-links">
           <li><a class="menu-link <?php echo $currentPage === 'home' ? 'is-active' : ''; ?>" href="home.php">Home</a></li>
-          <li><a class="menu-link <?php echo $currentPage === 'lookup' ? 'is-active' : ''; ?>" href="home.php#sku-lookup">SKU Lookup</a></li>
-          <li><a class="menu-link <?php echo $currentPage === 'intake' ? 'is-active' : ''; ?>" href="index.php?clear_draft=1" data-new-intake>New Intake</a></li>
+          <li><a class="menu-link <?php echo $currentPage === 'lookup' ? 'is-active' : ''; ?>" href="lookup.php">SKU Lookup</a></li>
+          <li><a class="menu-link <?php echo $currentPage === 'intake' ? 'is-active' : ''; ?>" href="intake.php?clear_draft=1" data-new-intake>New Intake</a></li>
         </ul>
       </nav>
     </div>
     <section class="sheet home-sheet">
       <header class="sheet-header">
-        <div class="updated">Dispo.Tech Intake</div>
+        <div class="updated"><?php echo $isLookupPage ? 'Dispo.Tech SKU Lookup' : 'Dispo.Tech Intake'; ?></div>
         <div class="sheet-header-right">
           <?php if ($backupBadge): ?>
             <span class="badge" title="Latest backup"><?php echo htmlspecialchars($backupBadge, ENT_QUOTES, 'UTF-8'); ?></span>
@@ -154,21 +156,22 @@ if (is_dir($backupDir)) {
           <span class="badge subtle" id="health-chip" title="System health">Health: ...</span>
           <button type="button" class="print-button" id="print-button">Print</button>
           <button type="button" class="theme-toggle" id="theme-toggle">Dark mode</button>
-          <a class="button-link new-intake-cta" href="index.php?clear_draft=1" data-new-intake>New Intake</a>
-        </div>
+          <a class="button-link new-intake-cta" href="intake.php?clear_draft=1" data-new-intake>New Intake</a>
+      </div>
       </header>
-      <h1>Ops Home</h1>
+      <h1><?php echo $isLookupPage ? 'SKU Lookup' : 'Ops Home'; ?></h1>
       <nav class="breadcrumbs" aria-label="Breadcrumb">
         <a href="home.php">Home</a>
-        <span>Dashboard</span>
+        <span><?php echo $isLookupPage ? 'SKU Lookup' : 'Dashboard'; ?></span>
       </nav>
-      <p class="lead">Snapshot of intake health plus a focused SKU search workspace.</p>
+      <p class="lead"><?php echo $isLookupPage ? 'Search, filter, and update SKU records in one place.' : 'Snapshot of intake health plus a recent activity dashboard.'; ?></p>
 
+      <?php if (!$isLookupPage): ?>
       <section class="section quick-actions">
         <h2>Quick actions</h2>
         <div class="quick-links">
-          <a class="button-link" href="index.php?clear_draft=1" data-new-intake>New Intake</a>
-          <a class="button-link" href="#sku-lookup-shell">Search SKUs</a>
+          <a class="button-link" href="intake.php?clear_draft=1" data-new-intake>New Intake</a>
+          <a class="button-link" href="lookup.php">Search SKUs</a>
           <a class="button-link" href="docs/maintenance.md">Maintenance docs</a>
           <a class="button-link" href="kanban.php">Kanban</a>
           <button type="button" class="button-link ghost" id="run-backup-now" data-run-backup>
@@ -266,8 +269,10 @@ if (is_dir($backupDir)) {
           <p class="hint">No recent activity to show.</p>
         <?php endif; ?>
       </section>
+      <?php endif; ?>
     </section>
 
+      <?php if ($isLookupPage): ?>
       <section class="section lookup-shell" aria-live="polite" id="sku-lookup-shell">
         <div class="lookup-grid">
         <div class="lookup-card">
@@ -275,7 +280,7 @@ if (is_dir($backupDir)) {
           <p class="hint">Search by SKU or filter by status. Results preview live as you type.</p>
           <div class="hint" id="recent-skus" aria-label="Recently viewed SKUs"></div>
           <p class="hint"><button type="button" class="ghost" id="clear-recent-skus">Clear recent SKUs</button></p>
-            <form class="form-grid" method="get" action="index.php" id="sku-lookup">
+            <form class="form-grid" method="get" action="lookup.php" id="sku-lookup">
             <div class="row">
               <label>SKU
                 <input type="text" name="sku" list="suggested-skus" autofocus>
@@ -352,6 +357,7 @@ if (is_dir($backupDir)) {
         </div>
       </div>
     </section>
+      <?php endif; ?>
   </main>
   <script>
     (function () {
@@ -715,7 +721,7 @@ if (is_dir($backupDir)) {
           dupBtn.textContent = 'Duplicate';
           dupBtn.addEventListener('click', function () {
               if (!entry.sku) return;
-              window.location.href = 'index.php?copy_sku=' + encodeURIComponent(entry.sku);
+              window.location.href = 'intake.php?copy_sku=' + encodeURIComponent(entry.sku);
             });
             actionsTd.appendChild(dupBtn);
             row.appendChild(actionsTd);

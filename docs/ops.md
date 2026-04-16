@@ -11,7 +11,7 @@ See also: `docs/restore_playbook.md` for detailed backup/photo restore steps.
    - Type a known SKU (or 2 letters); preview shows status + thumb/placeholder.
    - “Refresh preview” works; “Load more” adds rows.
 3) **Intake smoke**:
-   - Open `index.php?clear_draft=1`.
+   - Open `intake.php?clear_draft=1`.
    - Type in a few fields; autosave chip shows “Saved …”.
    - Click “New Intake” then “Restore last draft” to confirm recovery works.
 

@@ -11,7 +11,7 @@ php scripts/smoke.php
 ```
 What it hits:
 - `/health.php`
-- `/index.php` (intake page)
+- `/intake.php` (intake page)
 - `/lookup_preview.php?sku=TEST&limit=3`
 - POST `/autosave.php` with a dummy payload
 - `/upload_photo.php` with a generated 1x1 PNG (requires curl extension; otherwise marked SKIP)

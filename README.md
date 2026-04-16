@@ -23,7 +23,7 @@ php scripts/smoke.php
 - `home.php` shows an ops dashboard (totals, today’s count, in-progress vs. sold, latest backup age/size badge), recent activity, quick actions, and a “Run backup now” button (local only).
 - Lookup pane: SKU + status filters, quick chips (Intake/Listed/Sold/Stale >7d), live preview with status chips, relative “last updated,” thumbnails, and “Load more” + “Refresh” controls.
 - `suggestions.php?q=...` streams live SKU + “What is it?” suggestions; `lookup_preview.php` powers the preview table (accepts `limit`).
-- Open `index.php?clear_draft=1` for a blank intake.
+- Open `intake.php?clear_draft=1` for a blank intake.
 
 ## Intake/drafts
 - Autosaves while you type (server + local); if you clear via “New Intake,” the last draft is stashed and a “Restore last draft” button appears when the form is empty.
