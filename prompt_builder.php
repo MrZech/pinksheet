@@ -437,7 +437,6 @@ $initialItemJson = $currentItem ? json_encode($currentItem, JSON_HEX_TAG | JSON_
         return [
           finalBoilerplate,
           '',
-          'Description:',
           text
         ].join('\n');
       };
