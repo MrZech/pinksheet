@@ -509,6 +509,92 @@ if (is_dir($backupDir)) {
         }
       });
 
+        var backupButtons = Array.prototype.slice.call(document.querySelectorAll('[data-run-backup]'));
+        if (backupButtons.length) {
+          var setBackupState = function (running) {
+            backupButtons.forEach(function (btn) {
+              btn.disabled = running;
+              if (running) {
+                btn.dataset.originalText = btn.dataset.originalText || btn.textContent;
+                btn.textContent = 'Running... (~5s)';
+              } else if (btn.dataset.originalText) {
+                btn.textContent = btn.dataset.originalText;
+              }
+            });
+          };
+          var runBackup = function () {
+            setBackupState(true);
+            fetch('backup_now.php', { method: 'POST' })
+              .then(function (r) { return r.json(); })
+              .then(function (data) {
+                if (data.ok) {
+                  showToast('Backup finished', true);
+                  window.setTimeout(function () { window.location.reload(); }, 600);
+                } else {
+                  showToast('Backup failed: ' + (data.error || ('exit ' + data.exit)), false);
+                }
+              })
+              .catch(function () { showToast('Backup failed.', false); })
+              .finally(function () {
+                setBackupState(false);
+              });
+          };
+          backupButtons.forEach(function (btn) {
+            btn.addEventListener('click', runBackup);
+          });
+        }
+
+        var verifyButtons = Array.prototype.slice.call(document.querySelectorAll('[data-verify-backup]'));
+        if (verifyButtons.length) {
+          var setVerifyState = function (running) {
+            verifyButtons.forEach(function (btn) {
+              btn.disabled = running;
+              if (running) {
+                btn.dataset.originalText = btn.dataset.originalText || btn.textContent;
+                btn.textContent = 'Verifying...';
+              } else if (btn.dataset.originalText) {
+                btn.textContent = btn.dataset.originalText;
+              }
+            });
+          };
+          var runVerify = function () {
+            setVerifyState(true);
+            fetch('verify_now.php', { method: 'POST' })
+              .then(function (r) { return r.json(); })
+              .then(function (data) {
+                if (data.ok) {
+                  showToast('Backup verified', true);
+                } else {
+                  showToast('Verify failed: ' + (data.error || ('exit ' + data.exit)), false);
+                }
+              })
+              .catch(function () { showToast('Verify failed.', false); })
+              .finally(function () {
+                setVerifyState(false);
+              });
+          };
+          verifyButtons.forEach(function (btn) {
+            btn.addEventListener('click', runVerify);
+          });
+        }
+
+        var updateField = function (sku, field, value) {
+          fetch('update_item.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: 'sku=' + encodeURIComponent(sku) + '&field=' + encodeURIComponent(field) + '&value=' + encodeURIComponent(value)
+          })
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+              if (data.ok) {
+                showToast('Updated ' + field, true);
+              } else {
+                showToast('Update failed: ' + (data.error || 'error'), false);
+              }
+            })
+            .catch(function () { showToast('Update failed.', false); });
+        };
+
       var lookupForm = document.getElementById('sku-lookup');
       if (lookupForm) {
         var errorEl = document.getElementById('lookup-error');
@@ -521,8 +607,6 @@ if (is_dir($backupDir)) {
         var clearBtn = document.getElementById('lookup-clear-filters');
         var chipRow = document.getElementById('lookup-chips');
         var filterState = { staleDays: 0 };
-        var backupButtons = Array.prototype.slice.call(document.querySelectorAll('[data-run-backup]'));
-        var verifyButtons = Array.prototype.slice.call(document.querySelectorAll('[data-verify-backup]'));
         var loadMoreBtn = document.getElementById('lookup-load-more');
         var exportBtn = document.getElementById('lookup-export-csv');
         var previewLimit = 20;
@@ -995,90 +1079,6 @@ if (is_dir($backupDir)) {
             if (el.parentNode) el.parentNode.removeChild(el);
           }, 4200);
         };
-        var updateField = function (sku, field, value) {
-          fetch('update_item.php', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: 'sku=' + encodeURIComponent(sku) + '&field=' + encodeURIComponent(field) + '&value=' + encodeURIComponent(value)
-          })
-            .then(function (r) { return r.json(); })
-            .then(function (data) {
-              if (data.ok) {
-                showToast('Updated ' + field, true);
-              } else {
-                showToast('Update failed: ' + (data.error || 'error'), false);
-              }
-            })
-            .catch(function () { showToast('Update failed.', false); });
-        };
-        if (backupButtons.length) {
-          var setBackupState = function (running) {
-            backupButtons.forEach(function (btn) {
-              btn.disabled = running;
-              if (running) {
-                btn.dataset.originalText = btn.dataset.originalText || btn.textContent;
-                btn.textContent = 'Running… (~5s)';
-              } else if (btn.dataset.originalText) {
-                btn.textContent = btn.dataset.originalText;
-              }
-            });
-          };
-          var runBackup = function () {
-            setBackupState(true);
-            fetch('backup_now.php', { method: 'POST' })
-              .then(function (r) { return r.json(); })
-              .then(function (data) {
-                if (data.ok) {
-                  showToast('Backup finished', true);
-                  window.setTimeout(function () { window.location.reload(); }, 600);
-                } else {
-                  showToast('Backup failed: ' + (data.error || ('exit ' + data.exit)), false);
-                }
-              })
-              .catch(function () { showToast('Backup failed.', false); })
-              .finally(function () {
-                setBackupState(false);
-              });
-          };
-          backupButtons.forEach(function (btn) {
-            btn.addEventListener('click', runBackup);
-          });
-        }
-
-        var verifyButtons = Array.prototype.slice.call(document.querySelectorAll('[data-verify-backup]'));
-        if (verifyButtons.length) {
-          var setVerifyState = function (running) {
-            verifyButtons.forEach(function (btn) {
-              btn.disabled = running;
-              if (running) {
-                btn.dataset.originalText = btn.dataset.originalText || btn.textContent;
-                btn.textContent = 'Verifying…';
-              } else if (btn.dataset.originalText) {
-                btn.textContent = btn.dataset.originalText;
-              }
-            });
-          };
-          var runVerify = function () {
-            setVerifyState(true);
-            fetch('verify_now.php', { method: 'POST' })
-              .then(function (r) { return r.json(); })
-              .then(function (data) {
-                if (data.ok) {
-                  showToast('Backup verified', true);
-                } else {
-                  showToast('Verify failed: ' + (data.error || ('exit ' + data.exit)), false);
-                }
-              })
-              .catch(function () { showToast('Verify failed.', false); })
-              .finally(function () {
-                setVerifyState(false);
-              });
-          };
-          verifyButtons.forEach(function (btn) {
-            btn.addEventListener('click', runVerify);
-          });
-        }
-
         var healthChip = document.getElementById('health-chip');
         if (healthChip && window.fetch) {
           fetch('health.php')
