@@ -417,6 +417,7 @@ if (is_dir($backupDir)) {
       var themeToggle = document.getElementById('theme-toggle');
       var applyThemeMode = function (mode) {
         var isDark = mode === 'dark';
+        document.body.dataset.theme = isDark ? 'dark' : 'light';
         document.body.classList.toggle('dark-mode', isDark);
         if (themeToggle) {
           themeToggle.textContent = isDark ? 'Light mode' : 'Dark mode';
@@ -430,7 +431,7 @@ if (is_dir($backupDir)) {
       applyThemeMode(initialTheme);
       if (themeToggle) {
         themeToggle.addEventListener('click', function () {
-          var nextMode = document.body.classList.contains('dark-mode') ? 'light' : 'dark';
+          var nextMode = document.body.dataset.theme === 'dark' ? 'light' : 'dark';
           applyThemeMode(nextMode);
           try {
             localStorage.setItem('themePreference', nextMode);
