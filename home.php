@@ -82,7 +82,7 @@ if (is_readable(HOME_DB_PATH)) {
         }
 
         $stmtListed = $pdo->query("
-            SELECT sku, status, what_is_it, updated_at
+            SELECT sku, status, what_is_it, updated_at, dispotech_price, ebay_price
             FROM intake_items
             WHERE sku IS NOT NULL
               AND TRIM(sku) <> ''
@@ -370,8 +370,24 @@ if (is_dir($backupDir)) {
               <tbody id="lookup-listing-body">
                 <?php if (!empty($listedItems)): ?>
                   <?php foreach ($listedItems as $row): ?>
-                    <?php $skuVal = trim((string)($row['sku'] ?? '')); $normVal = strtoupper($skuVal); $thumbId = $listedThumbs[$normVal] ?? null; ?>
-                    <tr>
+                    <?php
+                      $skuVal = trim((string)($row['sku'] ?? ''));
+                      $normVal = strtoupper($skuVal);
+                      $thumbId = $listedThumbs[$normVal] ?? null;
+                      $statusVal = trim((string)($row['status'] ?? ''));
+                      $whatVal = trim((string)($row['what_is_it'] ?? ''));
+                      $updatedVal = trim((string)($row['updated_at'] ?? ''));
+                      $dispotechPrice = $row['dispotech_price'] ?? null;
+                      $ebayPrice = $row['ebay_price'] ?? null;
+                      $missingPrice = ($dispotechPrice === null || $dispotechPrice === '') && ($ebayPrice === null || $ebayPrice === '');
+                    ?>
+                    <tr data-lookup-row="1"
+                        data-sku="<?php echo htmlspecialchars($skuVal, ENT_QUOTES, 'UTF-8'); ?>"
+                        data-status="<?php echo htmlspecialchars($statusVal, ENT_QUOTES, 'UTF-8'); ?>"
+                        data-what-is-it="<?php echo htmlspecialchars($whatVal, ENT_QUOTES, 'UTF-8'); ?>"
+                        data-updated-at="<?php echo htmlspecialchars($updatedVal, ENT_QUOTES, 'UTF-8'); ?>"
+                        data-photo-count="<?php echo $thumbId ? 1 : 0; ?>"
+                        data-missing-price="<?php echo $missingPrice ? '1' : '0'; ?>">
                       <td>
                         <?php echo htmlspecialchars($skuVal ?: 'Unknown', ENT_QUOTES, 'UTF-8'); ?>
                         <?php if ($thumbId): ?>
@@ -513,6 +529,82 @@ if (is_dir($backupDir)) {
         var filterKey = 'pinksheetLookupFilter';
         var gapChips = document.getElementById('gap-chips');
         var gapState = { noPhotos: false, missingPrice: false };
+        var inventoryBody = document.getElementById('lookup-listing-body');
+        var inventoryBadge = document.querySelector('.lookup-results-actions .badge.subtle');
+        var inventoryRows = inventoryBody ? Array.prototype.slice.call(inventoryBody.querySelectorAll('tr[data-lookup-row]')) : [];
+        var normalizeValue = function (value) {
+          return (value || '').toString().trim().toLowerCase();
+        };
+        var syncChipState = function () {
+          if (!chipRow) return;
+          var currentStatus = (statusSelect && statusSelect.value) || '';
+          Array.prototype.forEach.call(chipRow.querySelectorAll('button'), function (button) {
+            button.classList.toggle('is-active', (button.getAttribute('data-lookup-status') || '') === currentStatus);
+          });
+        };
+        var updateInventoryBadge = function (count) {
+          if (!inventoryBadge) return;
+          var total = inventoryRows.length;
+          inventoryBadge.textContent = count + ' item' + (count === 1 ? '' : 's');
+          if (total && count !== total) {
+            inventoryBadge.textContent += ' of ' + total;
+          }
+        };
+        var applyInventoryFilters = function () {
+          if (!inventoryBody || !inventoryRows.length) {
+            return;
+          }
+          var skuValue = normalizeValue(skuInput && skuInput.value);
+          var statusValue = normalizeValue(statusSelect && statusSelect.value);
+          var cutoff = filterState.staleDays > 0 ? (Date.now() - (filterState.staleDays * 86400000)) : 0;
+          var matchCount = 0;
+          inventoryRows.forEach(function (row) {
+            var rowSku = normalizeValue(row.getAttribute('data-sku'));
+            var rowStatus = normalizeValue(row.getAttribute('data-status'));
+            var rowWhat = normalizeValue(row.getAttribute('data-what-is-it'));
+            var rowUpdatedAt = row.getAttribute('data-updated-at') || '';
+            var rowUpdated = Date.parse(rowUpdatedAt.replace(' ', 'T'));
+            var rowPhotoCount = parseInt(row.getAttribute('data-photo-count') || '0', 10) || 0;
+            var rowMissingPrice = row.getAttribute('data-missing-price') === '1';
+            var matches = true;
+            if (skuValue) {
+              matches = rowSku.indexOf(skuValue) !== -1 || rowWhat.indexOf(skuValue) !== -1;
+            }
+            if (matches && statusValue) {
+              matches = rowStatus === statusValue;
+            }
+            if (matches && cutoff) {
+              matches = !isNaN(rowUpdated) && rowUpdated < cutoff;
+            }
+            if (matches && gapState.noPhotos) {
+              matches = rowPhotoCount === 0;
+            }
+            if (matches && gapState.missingPrice) {
+              matches = rowMissingPrice;
+            }
+            row.hidden = !matches;
+            row.setAttribute('aria-hidden', matches ? 'false' : 'true');
+            if (matches) {
+              matchCount++;
+            }
+          });
+          var emptyRow = inventoryBody.querySelector('[data-inventory-empty]');
+          if (matchCount === 0) {
+            if (!emptyRow) {
+              emptyRow = document.createElement('tr');
+              emptyRow.setAttribute('data-inventory-empty', '1');
+              var emptyCell = document.createElement('td');
+              emptyCell.colSpan = 4;
+              emptyCell.textContent = 'No inventory items match the current filters.';
+              emptyRow.appendChild(emptyCell);
+              inventoryBody.appendChild(emptyRow);
+            }
+            emptyRow.hidden = false;
+          } else if (emptyRow) {
+            emptyRow.parentNode.removeChild(emptyRow);
+          }
+          updateInventoryBadge(matchCount);
+        };
 
         var saveFilter = function () {
           try {
@@ -634,6 +726,8 @@ if (is_dir($backupDir)) {
               }
             }, 220);
             schedulePreview();
+            applyInventoryFilters();
+            saveFilter();
           });
         }
         var previewTimer = null;
@@ -858,6 +952,8 @@ if (is_dir($backupDir)) {
             if (skuInput) skuInput.value = '';
             if (statusSelect) statusSelect.value = '';
             filterState.staleDays = 0;
+            gapState.noPhotos = false;
+            gapState.missingPrice = false;
             if (chipRow) {
               Array.prototype.forEach.call(chipRow.querySelectorAll('button'), function (b) {
                 b.classList.toggle('is-active', b.getAttribute('data-lookup-status') === '');
@@ -865,6 +961,7 @@ if (is_dir($backupDir)) {
             }
             saveFilter();
             resetPreview();
+            applyInventoryFilters();
           });
         }
         var toastBox = null;
@@ -1026,6 +1123,8 @@ if (is_dir($backupDir)) {
             });
             schedulePreview();
             saveFilter();
+            syncChipState();
+            applyInventoryFilters();
           });
         }
         if (gapChips) {
@@ -1044,12 +1143,16 @@ if (is_dir($backupDir)) {
         if (skuInput) {
           skuInput.addEventListener('input', function () {
             schedulePreview();
+            applyInventoryFilters();
+            saveFilter();
           });
         }
         if (statusSelect) {
           statusSelect.addEventListener('change', function () {
             schedulePreview();
             saveFilter();
+            syncChipState();
+            applyInventoryFilters();
           });
         }
         if (loadMoreBtn) {
@@ -1122,11 +1225,13 @@ if (is_dir($backupDir)) {
           });
         }
         loadFilter();
+        syncChipState();
         try {
           var recentList = JSON.parse(localStorage.getItem(recentSkuKey) || '[]');
           renderRecentSkus(recentList);
           renderActivityRecent(recentList);
         } catch (e) {}
+        applyInventoryFilters();
         resetPreview();
         lookupForm.addEventListener('submit', function (event) {
           var sku = ((lookupForm.querySelector('[name="sku"]') || {}).value || '').trim();
