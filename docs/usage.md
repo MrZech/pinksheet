@@ -1,5 +1,8 @@
 # Usage Guide
 
+> [!TIP]
+> **Other docs:** [Maintenance](maintenance.md) · [Ops](ops.md) · [Testing](testing.md) · [Dev](dev.md) · [Schema](schema.md) · [Restore playbook](restore_playbook.md)
+
 ## Core Flows
 - **New intake:** open `intake.php?clear_draft=1`, fill in the SKU and details, then save. Duplicate SKUs update the newest record.
 - **Drafts and autosave:** the intake form saves locally and to the server while you type. If you start a new item and the form clears, use **Restore last draft** to bring it back.
@@ -31,7 +34,9 @@
 - **Print pink toggle:** on the intake page, this only affects print styling.
 
 ## Tips
-- Keep SKUs trimmed; the app normalizes them to uppercase.
-- Status values are fixed to Intake, Description, Tested, Listed, and SOLD.
-- Use the "What is it?" field for fast item classification in lookup and intake.
-- Photos are stored separately from the database record, so deleting an item does not automatically delete its photos.
+
+> [!NOTE]
+> **SKUs:** keep them trimmed; the app normalizes to **uppercase**. **Status** is always one of: Intake, Description, Tested, Listed, SOLD.
+
+- Use the **What is it?** field for fast classification in lookup and intake.
+- **Photos** live under `data/sku_photos/` per SKU. Deleting a row **does not** remove photo files automatically.

@@ -1,6 +1,7 @@
 # Operator SOP (Dispo.Tech Intake)
 
-See also: `docs/restore_playbook.md` for detailed backup/photo restore steps.
+> [!TIP]
+> **Related:** [Restore playbook](restore_playbook.md) (DB + photos) · [Maintenance](maintenance.md) (backups & tasks) · [Usage](usage.md) · [Testing](testing.md)
 
 ## Daily checklist (AM)
 1) **Open Home dashboard** (`home.php`):
@@ -26,6 +27,10 @@ See also: `docs/restore_playbook.md` for detailed backup/photo restore steps.
 3) **Storage**: ensure `data/sku_photos` and `data/backups` have space; clean old temp files if any.
 
 ## Bulk delete safety
+
+> [!WARNING]
+> **Bulk delete** is permanent for selected **rows** (with archive/undo per app design). Confirm SKUs twice before confirming.
+
 - Use intake table checkboxes + “Delete selected” only after selecting the correct SKUs.
 - Two confirmations: (1) browser confirm, (2) type `DELETE`. If unsure, cancel.
 - Deleting records **does not delete photos**; if photos must be removed, handle manually in `data/sku_photos/<SKU>/`.

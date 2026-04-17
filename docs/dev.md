@@ -1,5 +1,8 @@
 # Developer notes
 
+> [!TIP]
+> **Docs:** [Usage](usage.md) · [Maintenance](maintenance.md) · [Ops](ops.md) · [Testing](testing.md) · [Schema](schema.md) · [Restore playbook](restore_playbook.md)
+
 ## File map
 - `index.php` — intake form, autosave + draft backup/restore, saves/updates, bulk status, print toggle.
 - `home.php` — dashboard cards (counts, backup info), alerts, recent activity, quick actions, dedicated SKU lookup pane.
@@ -19,8 +22,19 @@
 - `.githooks/pre-commit` / `.githooks/pre-push` — run backups; pre-commit blocks DB/backups/logs from staging.
 
 ## Run locally
-- `php -S localhost:8000` from repo root, open http://localhost:8000.
-- Smoke: `php scripts/smoke.php` (run a local server first).
+
+> [!NOTE]
+> Start a server from repo root, then open the app in the browser (paths are relative to the document root).
+
+```bash
+php -S localhost:8000 -t .
+```
+
+Smoke (with server already running):
+
+```bash
+php scripts/smoke.php
+```
 
 ## Coding conventions
 - PHP: lightweight, single-file pages; keep inputs trimmed/escaped (see `h()` and `checked()` helpers).

@@ -1,12 +1,22 @@
 # Testing & smoke checklist
 
+> [!TIP]
+> **Docs:** [Dev](dev.md) · [Ops](ops.md) · [Maintenance](maintenance.md) · [Usage](usage.md)
+
 ## Automated smoke (local)
+
+> [!NOTE]
+> The photo upload step needs the **curl** extension; without it, that step is reported as **SKIP** (not a failure of the rest of the suite).
+
 Run a dev server first:
-```
+
+```bash
 php -S 127.0.0.1:8765 -t .
 ```
+
 Then execute:
-```
+
+```bash
 php scripts/smoke.php
 ```
 What it hits:
