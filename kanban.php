@@ -75,6 +75,8 @@ foreach ($items as $item) {
       width: 100%;
     }
     .kanban-lane {
+      display: flex;
+      flex-direction: column;
       background: var(--surface-glass);
       border: 1px solid var(--line);
       border-radius: 14px;
@@ -84,10 +86,24 @@ foreach ($items as $item) {
       flex: 0 0 260px;
       box-shadow: var(--shadow-soft);
       backdrop-filter: blur(12px);
+      transition: border-color 0.12s ease, box-shadow 0.12s ease;
     }
     .kanban-lane.is-drop-target {
-      outline: 2px solid var(--accent-strong);
-      outline-offset: 2px;
+      border-color: var(--accent-strong);
+      box-shadow: 0 0 0 2px var(--accent-strong), var(--shadow-soft);
+    }
+    .kanban-lane-body {
+      min-height: 48px;
+      flex: 1;
+    }
+    body.kanban-dragging .kanban-card {
+      cursor: grabbing;
+    }
+    body.kanban-dragging .kanban-card:not(.is-dragging) {
+      pointer-events: none;
+    }
+    body.kanban-dragging .kanban-lane {
+      pointer-events: auto;
     }
     .kanban-lane h3 {
       margin: 0 0 6px 0;
@@ -107,6 +123,11 @@ foreach ($items as $item) {
       cursor: grab;
       border: 1px solid var(--line);
       box-shadow: var(--shadow-soft);
+      touch-action: none;
+    }
+    .kanban-card.is-dragging {
+      opacity: 0.45;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
     }
     .kanban-card .sku {
       font-weight: 700;
@@ -127,14 +148,9 @@ foreach ($items as $item) {
       object-fit: cover;
       border-radius: 6px;
       margin-top: 6px;
-    }
-    .lane-drop {
-      border: 2px dashed var(--accent-strong);
-      border-radius: 8px;
-      padding: 6px;
-      margin-bottom: 6px;
-      opacity: 0.6;
-      display: none;
+      pointer-events: none;
+      user-select: none;
+      -webkit-user-drag: none;
     }
   </style>
 </head>
@@ -154,7 +170,7 @@ foreach ($items as $item) {
         <?php foreach ($lanes as $lane): $list = $cards[$lane] ?? []; ?>
           <div class="kanban-lane" data-status="<?php echo htmlspecialchars($lane, ENT_QUOTES, 'UTF-8'); ?>">
             <h3><?php echo htmlspecialchars($lane, ENT_QUOTES, 'UTF-8'); ?> <span class="kanban-count"><?php echo count($list); ?></span></h3>
-            <div class="lane-drop"></div>
+            <div class="kanban-lane-body">
             <?php foreach ($list as $card):
                 $sku = trim((string)($card['sku'] ?? ''));
                 $norm = strtoupper($sku);
@@ -170,10 +186,11 @@ foreach ($items as $item) {
                   <?php endif; ?>
                 </div>
                 <?php if ($thumb): ?>
-                  <img src="photo.php?id=<?php echo $thumb; ?>" alt="Thumb">
+                  <img src="photo.php?id=<?php echo $thumb; ?>" alt="" draggable="false">
                 <?php endif; ?>
               </div>
             <?php endforeach; ?>
+            </div>
           </div>
         <?php endforeach; ?>
       </div>
@@ -183,8 +200,25 @@ foreach ($items as $item) {
     (function () {
       var dragged = null;
       var draggedFromLane = null;
+      var highlightedLane = null;
       var board = document.getElementById('kanban-board');
       if (!board) return;
+
+      function clearLaneHighlight() {
+        if (highlightedLane) {
+          highlightedLane.classList.remove('is-drop-target');
+          highlightedLane = null;
+        }
+      }
+
+      function setLaneHighlight(lane) {
+        if (lane === highlightedLane) return;
+        clearLaneHighlight();
+        if (lane) {
+          lane.classList.add('is-drop-target');
+          highlightedLane = lane;
+        }
+      }
 
       var themeToggle = document.getElementById('theme-toggle');
       function setTheme(mode) {
@@ -213,35 +247,40 @@ foreach ($items as $item) {
         if (!card) return;
         dragged = card;
         draggedFromLane = card.closest('.kanban-lane');
+        card.classList.add('is-dragging');
+        document.body.classList.add('kanban-dragging');
         e.dataTransfer.setData('text/plain', card.getAttribute('data-sku-normalized') || card.getAttribute('data-sku') || '');
         e.dataTransfer.effectAllowed = 'move';
-        setTimeout(function () { card.style.opacity = '0.5'; }, 0);
       });
 
       board.addEventListener('dragend', function () {
-        if (dragged) dragged.style.opacity = '1';
+        clearLaneHighlight();
+        document.body.classList.remove('kanban-dragging');
+        if (dragged) {
+          dragged.classList.remove('is-dragging');
+          dragged.style.opacity = '';
+        }
         dragged = null;
         draggedFromLane = null;
-        board.querySelectorAll('.lane-drop').forEach(function (d) {
-          d.style.display = 'none';
-        });
       });
 
       board.addEventListener('dragover', function (e) {
+        if (!dragged) return;
         var lane = e.target.closest('.kanban-lane');
-        if (!lane) return;
+        if (!lane) {
+          clearLaneHighlight();
+          return;
+        }
         e.preventDefault();
-        var drop = lane.querySelector('.lane-drop');
-        if (drop) drop.style.display = 'block';
-        lane.classList.add('is-drop-target');
+        e.dataTransfer.dropEffect = 'move';
+        setLaneHighlight(lane);
       });
 
       board.addEventListener('dragleave', function (e) {
-        var lane = e.target.closest('.kanban-lane');
-        if (!lane) return;
-        var drop = lane.querySelector('.lane-drop');
-        if (drop) drop.style.display = 'none';
-        lane.classList.remove('is-drop-target');
+        if (!dragged) return;
+        var rel = e.relatedTarget;
+        if (rel && board.contains(rel)) return;
+        clearLaneHighlight();
       });
 
       board.addEventListener('drop', function (e) {
@@ -253,9 +292,7 @@ foreach ($items as $item) {
         var card = dragged;
         var fromLane = draggedFromLane;
         var sku = card.getAttribute('data-sku-normalized') || card.getAttribute('data-sku') || '';
-        var drop = lane.querySelector('.lane-drop');
-        if (drop) drop.style.display = 'none';
-        lane.classList.remove('is-drop-target');
+        clearLaneHighlight();
 
         fetch('update_item.php', {
           method: 'POST',
