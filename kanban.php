@@ -249,7 +249,10 @@ foreach ($items as $item) {
         var lane = e.target.closest('.kanban-lane');
         if (!lane || !dragged) return;
         var status = lane.getAttribute('data-status') || '';
-        var sku = dragged.getAttribute('data-sku-normalized') || dragged.getAttribute('data-sku') || '';
+        // Capture before dragend runs (dragend clears globals before fetch completes).
+        var card = dragged;
+        var fromLane = draggedFromLane;
+        var sku = card.getAttribute('data-sku-normalized') || card.getAttribute('data-sku') || '';
         var drop = lane.querySelector('.lane-drop');
         if (drop) drop.style.display = 'none';
         lane.classList.remove('is-drop-target');
@@ -266,16 +269,16 @@ foreach ($items as $item) {
               return;
             }
 
-            if (draggedFromLane && draggedFromLane !== lane) {
-              var fromCount = draggedFromLane.querySelector('.kanban-count');
+            if (fromLane && fromLane !== lane) {
+              var fromCount = fromLane.querySelector('.kanban-count');
               var toCount = lane.querySelector('.kanban-count');
               if (fromCount && toCount) {
                 fromCount.textContent = String(Math.max(0, parseInt(fromCount.textContent || '0', 10) - 1));
                 toCount.textContent = String(parseInt(toCount.textContent || '0', 10) + 1);
               }
             }
-            lane.appendChild(dragged);
-            dragged.style.opacity = '1';
+            lane.appendChild(card);
+            card.style.opacity = '1';
           })
           .catch(function () {
             alert('Update failed');

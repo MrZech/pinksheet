@@ -58,10 +58,16 @@ try {
         $stmt = $pdo->prepare("UPDATE intake_items SET dispotech_price = :val, ebay_price = :val, updated_at = datetime('now') WHERE " . $skuWhere);
         $stmt->execute([':val' => $price, ':sku' => $sku]);
     }
+    // SQLite PDO often reports rowCount() === 0 when UPDATE matched rows but no column
+    // values actually changed (e.g. status already that lane). Only 404 when SKU missing.
     if ($stmt->rowCount() === 0) {
-        http_response_code(404);
-        echo json_encode(['ok' => false, 'error' => 'SKU not found']);
-        exit;
+        $existsStmt = $pdo->prepare('SELECT COUNT(*) FROM intake_items WHERE ' . $skuWhere);
+        $existsStmt->execute([':sku' => $sku]);
+        if ((int) $existsStmt->fetchColumn() === 0) {
+            http_response_code(404);
+            echo json_encode(['ok' => false, 'error' => 'SKU not found']);
+            exit;
+        }
     }
     echo json_encode(['ok' => true]);
 } catch (Throwable $e) {
