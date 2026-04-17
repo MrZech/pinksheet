@@ -381,6 +381,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } else {
         $id = isset($_POST['id']) ? (int)$_POST['id'] : null;
         $sku = trim($_POST['sku'] ?? '');
+        $priceRaw = $_POST['price'] ?? ($_POST['dispotech_price'] ?? ($_POST['ebay_price'] ?? ''));
+        $price = ($priceRaw !== '' && is_numeric($priceRaw)) ? (float)$priceRaw : null;
         $data = [
             'id' => $id,
             'sku' => $sku,
@@ -401,13 +403,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'ram' => trim($_POST['ram'] ?? ''),
             'ssd_gb' => trim($_POST['ssd_gb'] ?? ''),
             'cpu' => trim($_POST['cpu'] ?? ''),
+            'os' => trim($_POST['os'] ?? ''),
             'battery_health' => trim($_POST['battery_health'] ?? ''),
             'graphics_card' => trim($_POST['graphics_card'] ?? ''),
             'screen_resolution' => trim($_POST['screen_resolution'] ?? ''),
             'where_it_goes' => trim($_POST['where_it_goes'] ?? ''),
             'ebay_status' => trim($_POST['ebay_status'] ?? ''),
-            'ebay_price' => $_POST['ebay_price'] !== '' ? (float)$_POST['ebay_price'] : null,
-            'dispotech_price' => $_POST['dispotech_price'] !== '' ? (float)$_POST['dispotech_price'] : null,
+            // Single canonical Price field. We keep both DB columns in sync for backwards compatibility.
+            'ebay_price' => $price,
+            'dispotech_price' => $price,
             'in_ebay_room' => trim($_POST['in_ebay_room'] ?? ''),
             'what_box' => trim($_POST['what_box'] ?? ''),
             'notes' => trim($_POST['notes'] ?? ''),
@@ -685,6 +689,14 @@ function checked(string $name, string $value, array $formData): string
                 <option value="<?php echo $opt; ?>" <?php echo (($formData['status'] ?? '') === $opt) ? 'selected' : ''; ?>><?php echo $opt; ?></option>
               <?php endforeach; ?>
             </select>
+          </label>
+          <label>
+            <span>Price:</span>
+            <input type="number"
+                   step="0.01"
+                   name="price"
+                   form="intake-form"
+                   value="<?php echo h(isset($formData['dispotech_price']) ? (string)$formData['dispotech_price'] : (isset($formData['ebay_price']) ? (string)$formData['ebay_price'] : '')); ?>">
           </label>
         </div>
       </header>
@@ -986,12 +998,6 @@ function checked(string $name, string $value, array $formData): string
               <label>Ebay Status
                 <input type="text" name="ebay_status" value="<?php echo h($formData['ebay_status'] ?? ''); ?>">
               </label>
-              <label>Ebay Price
-                <input type="number" step="0.01" name="ebay_price" value="<?php echo h(isset($formData['ebay_price']) ? (string)$formData['ebay_price'] : ''); ?>">
-              </label>
-              <label>DispoTech Price
-                <input type="number" step="0.01" name="dispotech_price" value="<?php echo h(isset($formData['dispotech_price']) ? (string)$formData['dispotech_price'] : ''); ?>">
-              </label>
             </div>
             <div class="row">
               <fieldset>
@@ -1076,8 +1082,7 @@ function checked(string $name, string $value, array $formData): string
                   <th>SKU</th>
                   <th>Status</th>
                   <th>What is it?</th>
-                  <th>DispoTech Price</th>
-                  <th>Ebay Price</th>
+                  <th>Price</th>
                   <th>Updated</th>
                   <th>Open</th>
                   <th>Prompt</th>
@@ -1087,7 +1092,7 @@ function checked(string $name, string $value, array $formData): string
               <tbody>
                 <?php if (!$recent): ?>
                   <tr>
-                    <td colspan="11">No items found for this lookup.</td>
+                    <td colspan="10">No items found for this lookup.</td>
                   </tr>
                 <?php else: ?>
                   <?php foreach ($recent as $item): ?>
@@ -1121,8 +1126,8 @@ function checked(string $name, string $value, array $formData): string
                         </select>
                       </td>
                       <td><?php echo h($item['what_is_it'] ?? ''); ?></td>
-                      <td><input type="number" step="0.01" class="js-inline-price" data-field="dispotech_price" data-sku="<?php echo h($item['sku'] ?? ''); ?>" value="<?php echo isset($item['dispotech_price']) ? h((string)$item['dispotech_price']) : ''; ?>" placeholder="—"></td>
-                      <td><input type="number" step="0.01" class="js-inline-price" data-field="ebay_price" data-sku="<?php echo h($item['sku'] ?? ''); ?>" value="<?php echo isset($item['ebay_price']) ? h((string)$item['ebay_price']) : ''; ?>" placeholder="—"></td>
+                      <?php $rowPrice = isset($item['dispotech_price']) ? $item['dispotech_price'] : ($item['ebay_price'] ?? null); ?>
+                      <td><input type="number" step="0.01" class="js-inline-price" data-field="price" data-sku="<?php echo h($item['sku'] ?? ''); ?>" value="<?php echo isset($rowPrice) ? h((string)$rowPrice) : ''; ?>" placeholder="—"></td>
                       <td><?php echo h($item['updated_at'] ?? ''); ?></td>
                       <td><a class="open-link" href="intake.php?sku=<?php echo urlencode((string)($item['sku'] ?? '')); ?>">Open</a></td>
                       <td><a class="open-link" href="prompt_builder.php?sku=<?php echo urlencode((string)($item['sku'] ?? '')); ?>">eBay Script</a></td>

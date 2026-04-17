@@ -25,6 +25,8 @@ if ($sku === '') {
 
 $allowedFields = [
     'status' => true,
+    'price' => true,
+    // Back-compat: old clients/inputs may still send these.
     'dispotech_price' => true,
     'ebay_price' => true,
 ];
@@ -52,7 +54,8 @@ try {
         $stmt->execute([':val' => (string)$value, ':sku' => $sku]);
     } else {
         $price = is_numeric($value) ? (float)$value : null;
-        $stmt = $pdo->prepare("UPDATE intake_items SET {$field} = :val, updated_at = datetime('now') WHERE " . $skuWhere);
+        // Unify pricing: treat any price update as the single canonical price.
+        $stmt = $pdo->prepare("UPDATE intake_items SET dispotech_price = :val, ebay_price = :val, updated_at = datetime('now') WHERE " . $skuWhere);
         $stmt->execute([':val' => $price, ':sku' => $sku]);
     }
     if ($stmt->rowCount() === 0) {

@@ -362,8 +362,7 @@ $initialItemJson = $currentItem ? json_encode($currentItem, JSON_HEX_TAG | JSON_
         screen_resolution: 'Screen Resolution',
         where_it_goes: 'Where It Goes',
         ebay_status: 'eBay Status',
-        ebay_price: 'eBay Price',
-        dispotech_price: 'DispoTech Price',
+        price: 'Price',
         in_ebay_room: 'In eBay Room',
         what_box: 'What Box',
         notes: 'Notes'
@@ -537,6 +536,7 @@ $initialItemJson = $currentItem ? json_encode($currentItem, JSON_HEX_TAG | JSON_
       var renderSource = function (sku, item) {
         if (!sourceWrap) return;
         sourceWrap.innerHTML = '';
+        var price = (item && (item.dispotech_price || item.ebay_price)) || '';
         var entries = [
           ['SKU', sku],
           ['Status', item && item.status],
@@ -547,8 +547,7 @@ $initialItemJson = $currentItem ? json_encode($currentItem, JSON_HEX_TAG | JSON_
           ['CPU', item && item.cpu],
           ['OS', item && item.os],
           ['Battery Health', item && item.battery_health],
-          ['eBay Price', item && item.ebay_price],
-          ['DispoTech Price', item && item.dispotech_price],
+          ['Price', price],
           ['Notes', item && item.notes]
         ];
         entries.forEach(function (entry) {

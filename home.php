@@ -928,9 +928,9 @@ if (is_dir($backupDir)) {
           priceInput.type = 'number';
           priceInput.step = '0.01';
           priceInput.placeholder = 'Price';
-          priceInput.value = entry.dispotech_price || '';
+          priceInput.value = entry.dispotech_price || entry.ebay_price || '';
           priceInput.addEventListener('change', function () {
-            updateField(entry.sku, 'dispotech_price', priceInput.value);
+            updateField(entry.sku, 'price', priceInput.value);
           });
           actionsTd.appendChild(priceInput);
           var dupBtn = document.createElement('button');
