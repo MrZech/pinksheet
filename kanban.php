@@ -61,18 +61,34 @@ foreach ($items as $item) {
   <title>Status Board · Pinksheet</title>
   <link rel="stylesheet" href="assets/style.css">
   <style>
-    .kanban-shell {
-      width: min(1680px, 100%);
-      margin: 0 auto;
+    /* Wider canvas than default home (1120px) so five lanes fit; page is centered via .home .page */
+    .home.status-board .page {
+      max-width: min(1520px, calc(100vw - 32px));
     }
+
+    .kanban-shell {
+      width: 100%;
+      max-width: none;
+      margin-inline: auto;
+    }
+
+    .kanban-scroll {
+      width: 100%;
+      overflow-x: auto;
+      overflow-y: visible;
+      overscroll-behavior-x: contain;
+      padding: 12px 0 18px;
+    }
+
     .kanban-board {
       display: flex;
       gap: 12px;
-      overflow-x: auto;
-      padding: 12px 6px 18px;
+      flex-wrap: nowrap;
       justify-content: center;
       align-items: flex-start;
-      width: 100%;
+      width: max-content;
+      min-width: 100%;
+      margin-inline: auto;
     }
     .kanban-lane {
       display: flex;
@@ -154,7 +170,7 @@ foreach ($items as $item) {
     }
   </style>
 </head>
-<body class="home">
+<body class="home status-board">
   <main class="page">
     <section class="sheet kanban-shell">
       <header class="sheet-header">
@@ -166,6 +182,7 @@ foreach ($items as $item) {
       </header>
       <h1>Status Board</h1>
       <p class="lead">Drag cards to update status; inline updates save immediately.</p>
+      <div class="kanban-scroll">
       <div class="kanban-board" id="kanban-board">
         <?php foreach ($lanes as $lane): $list = $cards[$lane] ?? []; ?>
           <div class="kanban-lane" data-status="<?php echo htmlspecialchars($lane, ENT_QUOTES, 'UTF-8'); ?>">
@@ -194,6 +211,7 @@ foreach ($items as $item) {
           </div>
         <?php endforeach; ?>
       </div>
+      </div>
     </section>
   </main>
   <script>
@@ -203,6 +221,7 @@ foreach ($items as $item) {
       var highlightedLane = null;
       var board = document.getElementById('kanban-board');
       if (!board) return;
+      var dragHost = board.closest('.kanban-scroll') || board;
 
       function clearLaneHighlight() {
         if (highlightedLane) {
@@ -279,7 +298,7 @@ foreach ($items as $item) {
       board.addEventListener('dragleave', function (e) {
         if (!dragged) return;
         var rel = e.relatedTarget;
-        if (rel && board.contains(rel)) return;
+        if (rel && dragHost.contains(rel)) return;
         clearLaneHighlight();
       });
 
