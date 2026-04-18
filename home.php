@@ -525,7 +525,10 @@ if (is_dir($backupDir)) {
         var setBackupIndicator = function (state, title, sub) {
           if (!backupIndicator) return;
           var isRunning = state === 'running';
+          // Be resilient to CSS caching / missing styles: force-show.
           backupIndicator.hidden = false;
+          backupIndicator.removeAttribute('hidden');
+          backupIndicator.style.display = 'grid';
           backupIndicator.setAttribute('aria-hidden', 'false');
           backupIndicator.classList.toggle('is-running', isRunning);
           backupIndicator.classList.toggle('is-done', state === 'done');
@@ -539,6 +542,7 @@ if (is_dir($backupDir)) {
             backupIndicator.hidden = true;
             backupIndicator.setAttribute('aria-hidden', 'true');
             backupIndicator.classList.remove('is-running', 'is-done', 'is-error');
+            backupIndicator.style.display = '';
           }, ms || 1200);
         };
         if (backupButtons.length) {
