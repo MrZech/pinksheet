@@ -103,12 +103,7 @@ if ($CopyTo) {
 }
 
 # Optional photo mirror (can be large; use only if storage allows).
-if (-not $CopyPhotosTo) {
-    # Default to sibling under CopyTo if set.
-    if ($CopyTo) {
-        $CopyPhotosTo = Join-Path $CopyTo 'sku_photos'
-    }
-}
+# Intentionally does NOT default on. Pass -CopyPhotosTo explicitly to enable.
 if ($CopyPhotosTo) {
     try {
         if (-not (Test-Path $CopyPhotosTo)) {

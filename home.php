@@ -412,6 +412,15 @@ if (is_dir($backupDir)) {
     </section>
       <?php endif; ?>
   </main>
+  <div class="backup-indicator" id="backup-indicator" aria-live="polite" aria-hidden="true" hidden>
+    <div class="backup-indicator-card" role="status" aria-label="Backup status">
+      <div class="backup-indicator-title" id="backup-indicator-title">Backup running…</div>
+      <div class="backup-indicator-sub" id="backup-indicator-sub">Creating backup files.</div>
+      <div class="backup-progress" aria-hidden="true">
+        <div class="backup-progress-bar"></div>
+      </div>
+    </div>
+  </div>
   <script>
     (function () {
       var themeToggle = document.getElementById('theme-toggle');
@@ -510,13 +519,35 @@ if (is_dir($backupDir)) {
       });
 
         var backupButtons = Array.prototype.slice.call(document.querySelectorAll('[data-run-backup]'));
+        var backupIndicator = document.getElementById('backup-indicator');
+        var backupIndicatorTitle = document.getElementById('backup-indicator-title');
+        var backupIndicatorSub = document.getElementById('backup-indicator-sub');
+        var setBackupIndicator = function (state, title, sub) {
+          if (!backupIndicator) return;
+          var isRunning = state === 'running';
+          backupIndicator.hidden = false;
+          backupIndicator.setAttribute('aria-hidden', 'false');
+          backupIndicator.classList.toggle('is-running', isRunning);
+          backupIndicator.classList.toggle('is-done', state === 'done');
+          backupIndicator.classList.toggle('is-error', state === 'error');
+          if (backupIndicatorTitle) backupIndicatorTitle.textContent = title || (isRunning ? 'Backup running…' : 'Backup status');
+          if (backupIndicatorSub) backupIndicatorSub.textContent = sub || '';
+        };
+        var hideBackupIndicatorSoon = function (ms) {
+          if (!backupIndicator) return;
+          window.setTimeout(function () {
+            backupIndicator.hidden = true;
+            backupIndicator.setAttribute('aria-hidden', 'true');
+            backupIndicator.classList.remove('is-running', 'is-done', 'is-error');
+          }, ms || 1200);
+        };
         if (backupButtons.length) {
           var setBackupState = function (running) {
             backupButtons.forEach(function (btn) {
               btn.disabled = running;
               if (running) {
                 btn.dataset.originalText = btn.dataset.originalText || btn.textContent;
-                btn.textContent = 'Running... (~5s)';
+                btn.textContent = 'Running...';
               } else if (btn.dataset.originalText) {
                 btn.textContent = btn.dataset.originalText;
               }
@@ -525,17 +556,29 @@ if (is_dir($backupDir)) {
           var runBackup = function () {
             setBackupState(true);
             showToast('Backup started', true);
+            setBackupIndicator('running', 'Backup running…', 'This can take a bit if your backup mirror is slow.');
             fetch('backup_now.php', { method: 'POST', credentials: 'same-origin', cache: 'no-store' })
               .then(function (r) { return r.json(); })
               .then(function (data) {
                 if (data.ok) {
                   showToast('Backup finished', true);
+                  var detail = '';
+                  if (data.fallback === 'powershell' && data.ps_found) detail = 'Completed via PowerShell.';
+                  if (data.fallback === 'php') detail = 'Completed via PHP fallback.';
+                  setBackupIndicator('done', 'Backup finished', detail);
+                  hideBackupIndicatorSoon(900);
                   window.setTimeout(function () { window.location.reload(); }, 600);
                 } else {
                   showToast('Backup failed: ' + (data.error || ('exit ' + data.exit)), false);
+                  setBackupIndicator('error', 'Backup failed', (data.error || ('Exit ' + data.exit) || 'Unknown error'));
+                  hideBackupIndicatorSoon(4200);
                 }
               })
-              .catch(function () { showToast('Backup failed.', false); })
+              .catch(function () {
+                showToast('Backup failed.', false);
+                setBackupIndicator('error', 'Backup failed', 'Request failed.');
+                hideBackupIndicatorSoon(4200);
+              })
               .finally(function () {
                 setBackupState(false);
               });
