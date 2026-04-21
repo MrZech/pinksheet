@@ -1039,6 +1039,7 @@ function checked(string $name, string $value, array $formData): string
         <?php elseif ($bulkMessage): ?>
           <p class="success"><?php echo h($bulkMessage); ?></p>
         <?php endif; ?>
+        <form id="undo-delete-form" method="post" action="undo_delete.php" class="visually-hidden"></form>
         <form id="bulk-form" method="post">
           <input type="hidden" name="bulk_update" value="1">
           <div class="bulk-actions">
@@ -1054,9 +1055,7 @@ function checked(string $name, string $value, array $formData): string
             <button type="submit" name="bulk_update" value="1">Apply to selected</button>
             <input type="hidden" name="bulk_delete" id="bulk-delete-flag" value="">
             <button type="button" class="ghost danger" id="bulk-delete-button">Delete selected</button>
-            <form id="undo-delete-form" method="post" action="undo_delete.php" class="inline-form">
-              <button type="submit" class="ghost">Undo last delete</button>
-            </form>
+            <button type="submit" form="undo-delete-form" class="ghost">Undo last delete</button>
             <span class="hint">Check boxes in the table, then update that status in bulk. You can undo the most recent delete.</span>
           </div>
             <div class="table-wrap">

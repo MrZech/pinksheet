@@ -348,12 +348,14 @@ body.dark-mode .form-grid {
   position: relative;
   width: 100%;
   height: 100%;
-  overflow: auto;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .sheet-content {
   width: 100%;
   min-height: 100%;
+  overflow-x: hidden;
   transform-origin: top left;
 }
 
@@ -1070,6 +1072,8 @@ body.dark-mode .filter-chips button.is-active {
   align-items: center;
   gap: 12px;
   margin: 10px 0 6px;
+  width: 100%;
+  min-width: 0;
 }
 
 .bulk-actions select {
@@ -1803,7 +1807,14 @@ body.dark-mode .sku-photo-item span {
 }
 
 .table-wrap {
+  width: 100%;
+  max-width: 100%;
   overflow-x: auto;
+}
+
+.recent-items {
+  width: 100%;
+  max-width: 100%;
 }
 
 table {
