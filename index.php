@@ -756,35 +756,35 @@ function checked(string $name, string $value, array $formData): string
 
           <form id="intake-form" method="post" enctype="multipart/form-data" class="form-grid">
             <input type="hidden" id="clear-draft" value="<?php echo $clearDraft ? '1' : '0'; ?>">
-        <input type="hidden" id="draft-dismiss" value="<?php echo $saved ? '1' : '0'; ?>">
-        <input type="hidden" id="has-server-record" value="<?php echo $currentItem ? '1' : '0'; ?>">
-        <input type="hidden" id="has-lookup-sku" value="<?php echo $lookupSkuNormalized !== '' ? '1' : '0'; ?>">
-        <div class="draft-restore-wrap">
-          <button type="button" class="button-link subtle" id="restore-draft-button" hidden>Restore last draft</button>
-          <span class="hint" id="restore-hint" hidden>Appears after a clear if a draft is saved locally.</span>
-        </div>
-        <input type="hidden" name="id" value="<?php echo h(isset($formData['id']) ? (string)$formData['id'] : ''); ?>">
-        <div class="form-columns">
-        <div class="row">
-          <label>SKU
-              <input type="text" name="sku" value="<?php echo h($formData['sku'] ?? ''); ?>" required autofocus>
-          </label>
-          <div class="copy-sku">
-            <input type="text" id="copy-sku-input" placeholder="Copy fields from SKU">
-            <div class="copy-actions">
-              <button type="button" class="ghost" id="copy-sku-button">Copy fields</button>
-              <button type="button" class="ghost subtle" id="find-sku-button">Find SKU</button>
+            <input type="hidden" id="draft-dismiss" value="<?php echo $saved ? '1' : '0'; ?>">
+            <input type="hidden" id="has-server-record" value="<?php echo $currentItem ? '1' : '0'; ?>">
+            <input type="hidden" id="has-lookup-sku" value="<?php echo $lookupSkuNormalized !== '' ? '1' : '0'; ?>">
+            <div class="draft-restore-wrap">
+              <button type="button" class="button-link subtle" id="restore-draft-button" hidden>Restore last draft</button>
+              <span class="hint" id="restore-hint" hidden>Appears after a clear if a draft is saved locally.</span>
             </div>
-            <span class="hint" id="copy-sku-status" hidden></span>
-          </div>
-          <?php
+            <input type="hidden" name="id" value="<?php echo h(isset($formData['id']) ? (string)$formData['id'] : ''); ?>">
+            <div class="form-columns">
+              <div class="row">
+                <label>SKU
+                  <input type="text" name="sku" value="<?php echo h($formData['sku'] ?? ''); ?>" required autofocus>
+                </label>
+                <div class="copy-sku">
+                  <input type="text" id="copy-sku-input" placeholder="Copy fields from SKU">
+                  <div class="copy-actions">
+                    <button type="button" class="ghost" id="copy-sku-button">Copy fields</button>
+                    <button type="button" class="ghost subtle" id="find-sku-button">Find SKU</button>
+                  </div>
+                  <span class="hint" id="copy-sku-status" hidden></span>
+                </div>
+              <?php
             $currentWhat = trim((string)($formData['what_is_it'] ?? ''));
             $whatOptionsList = $whatIsItOptions;
             if ($currentWhat !== '' && !in_array($currentWhat, $whatOptionsList, true)) {
                 $whatOptionsList[] = $currentWhat;
             }
           ?>
-          <label>What is it?
+              <label>What is it?
             <div class="what-field dropdown-mode">
               <input type="text"
                      id="what-is-it-input"
@@ -813,22 +813,22 @@ function checked(string $name, string $value, array $formData): string
               </div>
             </div>
           </label>
-        </div>
-        <p class="error client-error" id="what-error" hidden>Please enter a value for "What is it?".</p>
+            </div>
+            <p class="error client-error" id="what-error" hidden>Please enter a value for "What is it?".</p>
 
-          <div class="row">
-            <label>Date Received
-              <input type="date" name="date_received" value="<?php echo h($formData['date_received'] ?? ''); ?>">
-            </label>
-            <label>Where did it come from?
-              <input type="text" name="source" value="<?php echo h($formData['source'] ?? ''); ?>">
-            </label>
-          </div>
-
-          <div class="section">
-            <h2>(D1) Intake Tasks</h2>
             <div class="row">
-              <fieldset>
+              <label>Date Received
+                <input type="date" name="date_received" value="<?php echo h($formData['date_received'] ?? ''); ?>">
+              </label>
+              <label>Where did it come from?
+                <input type="text" name="source" value="<?php echo h($formData['source'] ?? ''); ?>">
+              </label>
+            </div>
+
+            <div class="section">
+              <h2>(D1) Intake Tasks</h2>
+              <div class="row">
+                <fieldset>
                 <legend>Functional</legend>
                 <label><input type="radio" name="functional" value="Yes" <?php echo checked('functional','Yes', $formData); ?>> Yes</label>
                 <label><input type="radio" name="functional" value="No" <?php echo checked('functional','No', $formData); ?>> No</label>
@@ -842,10 +842,10 @@ function checked(string $name, string $value, array $formData): string
                   <?php endforeach; ?>
                 </select>
               </label>
-            </div>
+              </div>
 
-            <div class="row">
-              <div class="conjoined">
+              <div class="row">
+                <div class="conjoined">
                 <label class="segment">
                   <input type="checkbox" name="is_square" <?php echo !empty($formData['is_square']) ? 'checked' : ''; ?>>
                   <span>Is it square?</span>
@@ -855,10 +855,10 @@ function checked(string $name, string $value, array $formData): string
                   <span>Do we care?</span>
                 </label>
               </div>
-            </div>
+              </div>
 
-            <div class="row">
-              <fieldset>
+              <div class="row">
+                <fieldset>
                 <legend>Cords / adapters included?</legend>
                 <label><input type="radio" name="cords_adapters" value="Yes" <?php echo checked('cords_adapters','Yes', $formData); ?>> Yes</label>
                 <label><input type="radio" name="cords_adapters" value="No" <?php echo checked('cords_adapters','No', $formData); ?>> No</label>
@@ -978,35 +978,36 @@ function checked(string $name, string $value, array $formData): string
             <?php endif; ?>
           </div>
 
-          <div class="section">
-            <h2>E-Bay Status</h2>
-            <div class="row">
-              <label>Ebay Status
-                <input type="text" name="ebay_status" value="<?php echo h($formData['ebay_status'] ?? ''); ?>">
-              </label>
+            <div class="section">
+              <h2>E-Bay Status</h2>
+              <div class="row">
+                <label>Ebay Status
+                  <input type="text" name="ebay_status" value="<?php echo h($formData['ebay_status'] ?? ''); ?>">
+                </label>
+              </div>
+              <div class="row">
+                <fieldset>
+                  <legend>Is it in the EBay Room?</legend>
+                  <label><input type="radio" name="in_ebay_room" value="Yes" <?php echo checked('in_ebay_room','Yes', $formData); ?>> Yes</label>
+                  <label><input type="radio" name="in_ebay_room" value="No" <?php echo checked('in_ebay_room','No', $formData); ?>> No</label>
+                </fieldset>
+                <label>What Box?
+                  <input type="text" name="what_box" value="<?php echo h($formData['what_box'] ?? ''); ?>">
+                </label>
+              </div>
             </div>
-            <div class="row">
-              <fieldset>
-                <legend>Is it in the EBay Room?</legend>
-                <label><input type="radio" name="in_ebay_room" value="Yes" <?php echo checked('in_ebay_room','Yes', $formData); ?>> Yes</label>
-                <label><input type="radio" name="in_ebay_room" value="No" <?php echo checked('in_ebay_room','No', $formData); ?>> No</label>
-              </fieldset>
-              <label>What Box?
-                <input type="text" name="what_box" value="<?php echo h($formData['what_box'] ?? ''); ?>">
-              </label>
+
+            <div class="section notes">
+              <h2>Notes</h2>
+              <textarea name="notes" rows="3"><?php echo h($formData['notes'] ?? ''); ?></textarea>
+            </div>
+
+            <div class="actions">
+              <button type="submit">Save Intake Item</button>
+              <button type="submit" name="save_mode" value="duplicate" id="save-duplicate" class="ghost">Save &amp; Duplicate</button>
             </div>
           </div>
-
-        <div class="section notes">
-          <h2>Notes</h2>
-          <textarea name="notes" rows="3"><?php echo h($formData['notes'] ?? ''); ?></textarea>
-        </div>
-
-        <div class="actions">
-          <button type="submit">Save Intake Item</button>
-          <button type="submit" name="save_mode" value="duplicate" id="save-duplicate" class="ghost">Save &amp; Duplicate</button>
-        </div>
-      </form>
+        </form>
 
       <section class="section recent-items">
         <h2><?php echo $lookupStatus !== '' ? 'Status Results' : 'Recent SKUs'; ?></h2>
