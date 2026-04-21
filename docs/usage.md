@@ -11,6 +11,7 @@
 - **Find SKU:** click **Find SKU** to search existing records, then open the one you want in intake.
 - **Bulk actions:** on the intake table, select rows, choose a status, then click **Apply to selected**. Use **Delete selected** only after confirming the DELETE prompt.
 - **Single delete:** each row has its own delete button and requires confirmation.
+- **Archive:** use `archive.php` to search legacy sold/history rows imported from old DBeaver exports. The archive is read-only and stores no photos.
 - **Home dashboard:** use the quick action buttons to open intake, lookup, the script builder, the status board, backup, and backup verification.
 - **SKU lookup:** the lookup page provides status chips, gap filters, live preview, inline edits, and row actions like duplicate and open in intake.
 - **eBay Script Builder:** open `prompt_builder.php`, load a SKU, build the ChatGPT prompt, paste the response, and build the final script.
@@ -26,6 +27,7 @@
 - **Refresh preview / Load more:** on lookup, refreshes the live table or shows more matches.
 - **Copy to ChatGPT / Copy final script:** copies the generated text to the clipboard.
 - **Build ChatGPT prompt / Build final eBay script:** generates the prompt or final listing text from the current SKU data.
+- **Archive filters:** use search, status, source, legacy source, and sold date range to narrow old records.
 
 ## Appearance And Printing
 - **Theme colors:** light mode uses a warm pink background with soft rose surfaces. Dark mode uses deep plum and dark rose surfaces, not neutral gray.
@@ -40,3 +42,4 @@
 
 - Use the **What is it?** field for fast classification in lookup and intake.
 - **Photos** live under `data/sku_photos/` per SKU. Deleting a row **does not** remove photo files automatically.
+- **Archive imports** keep raw legacy row JSON in `archive_items.legacy_payload` so nothing is lost when the old schema is messy.

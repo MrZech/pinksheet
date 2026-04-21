@@ -40,11 +40,39 @@
 | `what_box` | TEXT | |
 | `notes` | TEXT | |
 
+## archive_items (SQLite)
+
+Read-only historical store for legacy exports and sold inventory. Photos are intentionally not part of this archive.
+
+| Column | Type | Notes |
+|--------|------|--------|
+| `id` | INTEGER | PK, autoincrement |
+| `created_at` | TEXT | Import/creation timestamp |
+| `updated_at` | TEXT | Last known update timestamp |
+| `sku` | TEXT | Original SKU from the legacy system |
+| `sku_normalized` | TEXT | Uppercase trimmed SKU (**indexed**) |
+| `title` | TEXT | Item title or description |
+| `status` | TEXT | Legacy status / sold state |
+| `sold_at` | TEXT | Sold date if available |
+| `sold_price` | REAL | Sale price if available |
+| `purchase_price` | REAL | Cost if available |
+| `source` | TEXT | Where it came from |
+| `buyer` | TEXT | Buyer/customer if available |
+| `notes` | TEXT | Legacy notes |
+| `legacy_source` | TEXT | File or server label used during import |
+| `legacy_table` | TEXT | Original table name from the export |
+| `legacy_id` | TEXT | Original row identifier |
+| `legacy_payload` | TEXT | Raw row JSON preserved for audit/search |
+
 ### Indexes
 
 | Name | Column(s) |
 |------|-------------|
 | `idx_intake_items_sku_normalized` | `sku_normalized` |
+| `idx_archive_items_sku_normalized` | `sku_normalized` |
+| `idx_archive_items_status_sold_at` | `status, sold_at` |
+| `idx_archive_items_legacy_source` | `legacy_source, legacy_table` |
+| `idx_archive_items_legacy_identity` | `legacy_source, legacy_table, legacy_id` |
 
 ### Save behavior
 

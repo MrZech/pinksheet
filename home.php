@@ -172,6 +172,7 @@ if (is_dir($backupDir)) {
         <ul class="menu-links">
           <li><a class="menu-link <?php echo $currentPage === 'home' ? 'is-active' : ''; ?>" href="home.php">Home</a></li>
           <li><a class="menu-link <?php echo $currentPage === 'lookup' ? 'is-active' : ''; ?>" href="lookup.php">SKU Lookup</a></li>
+          <li><a class="menu-link <?php echo $currentPage === 'archive' ? 'is-active' : ''; ?>" href="archive.php">Archive</a></li>
           <li><a class="menu-link <?php echo $currentPage === 'intake' ? 'is-active' : ''; ?>" href="intake.php?clear_draft=1" data-new-intake>New Intake</a></li>
           <li><a class="menu-link" href="prompt_builder.php">eBay Script Builder</a></li>
         </ul>
@@ -203,6 +204,7 @@ if (is_dir($backupDir)) {
         <div class="quick-links">
           <a class="button-link" href="intake.php?clear_draft=1" data-new-intake>New Intake</a>
           <a class="button-link" href="lookup.php">Search SKUs</a>
+          <a class="button-link" href="archive.php">Archive</a>
           <a class="button-link" href="prompt_builder.php">eBay Script Builder</a>
           <a class="button-link" href="docs/maintenance.md">Maintenance docs</a>
           <a class="button-link" href="kanban.php">Status Board</a>

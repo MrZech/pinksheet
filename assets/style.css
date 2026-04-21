@@ -691,6 +691,17 @@ label select {
   width: min(1120px, 100%);
 }
 
+.archive-page .page {
+  max-width: 1480px;
+  margin-inline: auto;
+  width: 100%;
+}
+
+.archive-page .app-menu,
+.archive-sheet {
+  width: min(1480px, 100%);
+}
+
 .home-sheet {
   width: min(1120px, 100%);
 }
@@ -1080,6 +1091,59 @@ body.dark-mode .filter-chips button.is-active {
   max-width: 220px;
 }
 
+.archive-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.archive-filters .row {
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+.archive-table td {
+  vertical-align: top;
+}
+
+.archive-notes {
+  white-space: normal;
+  min-width: 320px;
+}
+
+.archive-raw {
+  margin-top: 8px;
+}
+
+.archive-raw summary {
+  cursor: pointer;
+  color: var(--accent-strong);
+  font-weight: 600;
+}
+
+.archive-raw pre {
+  white-space: pre-wrap;
+  word-break: break-word;
+  margin: 8px 0 0;
+  padding: 10px;
+  border-radius: 10px;
+  background: var(--surface-primary);
+  border: 1px solid var(--line);
+}
+
+.archive-pager {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.button-link.disabled {
+  pointer-events: none;
+  opacity: 0.45;
+}
+
 .bulk-checkbox-cell {
   text-align: center;
   width: 48px;
@@ -1194,6 +1258,10 @@ body.dark-mode .filter-chips button.is-active {
 
 .sheet.intake .form-columns > .section {
   grid-column: span 1;
+}
+
+.sheet.intake .form-columns > .actions {
+  grid-column: 1 / -1;
 }
 
 .row {
@@ -1500,8 +1568,13 @@ body.dark-mode .conjoined .segment {
 .actions {
   display: flex;
   justify-content: flex-end;
+  align-items: center;
   gap: 10px;
   padding-top: 8px;
+}
+
+.actions > * {
+  flex: 0 0 auto;
 }
 
 button,

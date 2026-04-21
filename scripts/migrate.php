@@ -78,6 +78,33 @@ if (!in_array('os', $names, true)) {
 $pdo->exec("CREATE INDEX IF NOT EXISTS idx_intake_items_sku_normalized ON intake_items (sku_normalized)");
 $pdo->exec("CREATE INDEX IF NOT EXISTS idx_intake_items_status_updated ON intake_items (status, updated_at)");
 $pdo->exec(<<<'SQL'
+CREATE TABLE IF NOT EXISTS archive_items (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+    sku TEXT,
+    sku_normalized TEXT,
+    title TEXT,
+    status TEXT,
+    sold_at TEXT,
+    sold_price REAL,
+    purchase_price REAL,
+    source TEXT,
+    buyer TEXT,
+    notes TEXT,
+    legacy_source TEXT,
+    legacy_table TEXT,
+    legacy_id TEXT,
+    legacy_location_id TEXT,
+    legacy_category_id TEXT,
+    legacy_payload TEXT NOT NULL
+);
+SQL);
+$pdo->exec("CREATE INDEX IF NOT EXISTS idx_archive_items_sku_normalized ON archive_items (sku_normalized)");
+$pdo->exec("CREATE INDEX IF NOT EXISTS idx_archive_items_status_sold_at ON archive_items (status, sold_at)");
+$pdo->exec("CREATE INDEX IF NOT EXISTS idx_archive_items_legacy_source ON archive_items (legacy_source, legacy_table)");
+$pdo->exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_archive_items_legacy_identity ON archive_items (legacy_source, legacy_table, legacy_id)");
+$pdo->exec(<<<'SQL'
 CREATE TABLE IF NOT EXISTS sku_photos (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     sku_normalized TEXT NOT NULL,

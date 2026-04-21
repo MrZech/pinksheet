@@ -18,6 +18,8 @@ php scripts/smoke.php
 ## Data storage
 - Records live in `data/intake.sqlite`.
 - SKU photos live in `data/sku_photos/<SKU_NORMALIZED>/`; indexed in `sku_photos` table.
+- Legacy sold/history records live in `archive_items` and are searchable from `archive.php`.
+- Import DBeaver CSV exports with `php scripts/import_archive_csv.php <csv-path> --source=<label> --table=<legacy_table>`.
 
 ## Home & lookup
 - `home.php` shows an ops dashboard (totals, today’s count, in-progress vs. sold, latest backup age/size badge), recent activity, quick actions, and a “Run backup now” button (local only).

@@ -150,6 +150,7 @@ $initialItemJson = $currentItem ? json_encode($currentItem, JSON_HEX_TAG | JSON_
         <ul class="menu-links">
           <li><a class="menu-link <?php echo $currentPage === 'home' ? 'is-active' : ''; ?>" href="home.php">Home</a></li>
           <li><a class="menu-link <?php echo $currentPage === 'lookup' ? 'is-active' : ''; ?>" href="lookup.php">SKU Lookup</a></li>
+          <li><a class="menu-link <?php echo $currentPage === 'archive' ? 'is-active' : ''; ?>" href="archive.php">Archive</a></li>
           <li><a class="menu-link <?php echo $currentPage === 'intake' ? 'is-active' : ''; ?>" href="intake.php?clear_draft=1" data-new-intake>New Intake</a></li>
           <li><a class="menu-link <?php echo $currentPage === 'script' ? 'is-active' : ''; ?>" href="prompt_builder.php">eBay Script Builder</a></li>
         </ul>
