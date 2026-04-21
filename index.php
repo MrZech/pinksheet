@@ -979,20 +979,6 @@ function checked(string $name, string $value, array $formData): string
           </div>
 
           <div class="section">
-            <h2>Where did it go?</h2>
-            <div class="row">
-              <label>
-                <select name="where_it_goes">
-                  <option value="">Select</option>
-                  <?php foreach (['D2 - Description','Scrap Room'] as $opt): ?>
-                    <option value="<?php echo $opt; ?>" <?php echo (($formData['where_it_goes'] ?? '') === $opt) ? 'selected' : ''; ?>><?php echo $opt; ?></option>
-                  <?php endforeach; ?>
-                </select>
-              </label>
-            </div>
-          </div>
-
-          <div class="section">
             <h2>E-Bay Status</h2>
             <div class="row">
               <label>Ebay Status
@@ -1010,7 +996,6 @@ function checked(string $name, string $value, array $formData): string
               </label>
             </div>
           </div>
-        </div>
 
         <div class="section notes">
           <h2>Notes</h2>
