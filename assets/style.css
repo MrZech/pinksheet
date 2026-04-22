@@ -381,6 +381,10 @@ body.dark-mode .form-grid {
   gap: 10px;
 }
 
+.print-summary {
+  display: none;
+}
+
 .sheet-header-right .new-intake-cta {
   padding: 6px 14px;
   font-size: 0.82rem;

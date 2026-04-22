@@ -59,6 +59,9 @@ body.print-pink .sheet { background: #f4a4bb !important; }
   page-break-after: avoid;
 }
 .sheet.intake .sheet-header .status {
+  display: none !important;
+}
+.sheet.intake .sheet-header .print-summary {
   position: absolute;
   top: 0;
   right: 0;
@@ -68,11 +71,16 @@ body.print-pink .sheet { background: #f4a4bb !important; }
   gap: 4pt;
   max-width: 175pt;
 }
-.sheet.intake .sheet-header .status label {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  gap: 6pt;
+.sheet.intake .sheet-header .print-summary-label {
+  font-size: 8pt;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+.sheet.intake .sheet-header .print-summary-value {
+  font-size: 10pt;
+  font-weight: 700;
+  margin-bottom: 4pt;
 }
 .sheet h1 { font-size: 0; margin: 0; padding: 0; }
 
@@ -170,4 +178,9 @@ tbody tr:nth-child(even) { background: rgba(0, 0, 0, 0.025); }
 .sheet-header-right,
 .print-toggle {
   display: none !important;
+}
+
+body.print-pink .sheet.intake .sheet-header .print-summary-label,
+body.print-pink .sheet.intake .sheet-header .print-summary-value {
+  color: #000;
 }

@@ -700,6 +700,18 @@ function checked(string $name, string $value, array $formData): string
                    value="<?php echo h(isset($formData['dispotech_price']) ? (string)$formData['dispotech_price'] : (isset($formData['ebay_price']) ? (string)$formData['ebay_price'] : '')); ?>">
           </label>
         </div>
+        <?php
+          $printStatus = trim((string)($formData['status'] ?? ''));
+          $printPrice = isset($formData['dispotech_price']) && $formData['dispotech_price'] !== ''
+            ? $formData['dispotech_price']
+            : (isset($formData['ebay_price']) && $formData['ebay_price'] !== '' ? $formData['ebay_price'] : null);
+        ?>
+        <div class="print-summary" aria-hidden="true">
+          <div class="print-summary-label">Status</div>
+          <div class="print-summary-value"><?php echo h($printStatus !== '' ? $printStatus : 'Select'); ?></div>
+          <div class="print-summary-label">Price</div>
+          <div class="print-summary-value"><?php echo $printPrice !== null ? '$' . number_format((float)$printPrice, 2) : '—'; ?></div>
+        </div>
       </header>
       <nav class="breadcrumbs" aria-label="Breadcrumb">
         <a href="home.php">Home</a>
