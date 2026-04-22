@@ -42,7 +42,7 @@
 
 ## archive_items (SQLite)
 
-Read-only historical store for legacy exports and sold inventory. Photos are intentionally not part of this archive.
+Read-only historical store for legacy exports and sold inventory. Photos are intentionally not part of this archive. The standalone archive database lives in `data/archive.sqlite`.
 
 | Column | Type | Notes |
 |--------|------|--------|
@@ -80,3 +80,10 @@ Read-only historical store for legacy exports and sold inventory. Photos are int
 > **Upsert:** saves match on **normalized SKU** — new SKU inserts; existing SKU updates the **newest** row for that normalized value.
 >
 > **Bulk status:** bulk updates only change **`status`** and **`updated_at`** for the selected row IDs.
+
+## Database files
+
+| File | Purpose |
+|------|---------|
+| `data/intake.sqlite` | Active intake and lookup data |
+| `data/archive.sqlite` | Standalone archive database used by `archive.php` |

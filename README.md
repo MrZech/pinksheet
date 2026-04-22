@@ -16,10 +16,10 @@ php scripts/smoke.php
 ```
 
 ## Data storage
-- Records live in `data/intake.sqlite`.
+- Active intake records live in `data/intake.sqlite`.
+- Legacy archive rows live in `data/archive.sqlite` and are shown in `archive.php`.
 - SKU photos live in `data/sku_photos/<SKU_NORMALIZED>/`; indexed in `sku_photos` table.
-- Legacy sold/history records live in `archive_items` and are searchable from `archive.php`.
-- Import DBeaver CSV exports with `php scripts/import_archive_csv.php <csv-path> --source=<label> --table=<legacy_table>`.
+- Import DBeaver CSV exports with `php scripts/import_archive_csv.php <csv-path> --source=<label> --table=<legacy_table>`, then rebuild the standalone archive DB with `php scripts/build_archive_db.php`.
 
 ## Home & lookup
 - `home.php` shows an ops dashboard (totals, today’s count, in-progress vs. sold, latest backup age/size badge), recent activity, quick actions, and a “Run backup now” button (local only).
@@ -48,14 +48,14 @@ php scripts/smoke.php
 
 ## Maintenance / fixes
 - Run `php scripts/migrate.php` to ensure required dirs/tables, set WAL (`journal_mode=WAL`, `synchronous=NORMAL`), and add indexes (`sku_normalized`, `(status, updated_at)`).
-- Keep live DB out of git: `git update-index --skip-worktree data/intake.sqlite` (undo with `--no-skip-worktree`).
+- Keep live DBs out of git: `git update-index --skip-worktree data/intake.sqlite data/archive.sqlite` (undo with `--no-skip-worktree`).
 
 ## SKU photos
 - Drag/drop/paste or click to queue; uploads chunked at 512KB. Download-all as ZIP; `photo.php?id=...` streams individual files; thumbnails surface in lookup preview, recent SKUs, and home activity when available (placeholder shown otherwise).
 
 ## Docs
 - `docs/usage.md` — core flows, themes, print guidance.
-- `docs/schema.md` — intake_items columns and notes.
+- `docs/schema.md` — intake_items, archive_items, and database notes.
 - `docs/maintenance.md` — backups, hooks, alerts, restore steps.
 - `docs/dev.md` — file map, run instructions, smoke test.
 - `docs/ops.md` — operator SOP: daily/weekly checks, backups, bulk delete safeguards, restore playbook.

@@ -1,6 +1,6 @@
 # Archive Workflow
 
-Legacy sold/history data lives in the `archive_items` table and is exposed through `archive.php`.
+Legacy sold/history data lives in `data/archive.sqlite`, in the `archive_items` table, and is exposed through `archive.php`.
 
 ## What belongs here
 - Old sold items
@@ -22,7 +22,13 @@ Legacy sold/history data lives in the `archive_items` table and is exposed throu
 php scripts/import_archive_csv.php "C:\path\to\legacy_export.csv" --source="Old Server Name" --table="old_table_name"
 ```
 
-3. Open `archive.php` and search by SKU, title, notes, buyer, or legacy ID.
+3. Rebuild the standalone archive DB:
+
+```bash
+php scripts/build_archive_db.php
+```
+
+4. Open `archive.php` and search by SKU, title, notes, buyer, or legacy ID.
 
 ### Example mapping for `inventory_202604211554.csv`
 
@@ -39,6 +45,7 @@ php scripts/import_archive_csv.php "C:\path\to\legacy_export.csv" --source="Old 
 - Common columns are mapped automatically when their names match obvious variants.
 - The raw CSV row is preserved in `legacy_payload` as JSON.
 - If `legacy_source`, `legacy_table`, and `legacy_id` match an existing row, the importer skips the duplicate.
+- `archive.php` reads `data/archive.sqlite` first. If that file is missing, it falls back to `data/intake.sqlite`.
 
 ## Notes
 - The archive is read-only in the UI.
