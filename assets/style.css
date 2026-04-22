@@ -850,6 +850,25 @@ body.dark-mode .dash-card {
   margin-top: 4px;
 }
 
+.status-price-stack {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+
+.status-price {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  line-height: 1;
+}
+
+.status-price-missing {
+  font-weight: 600;
+  opacity: 0.75;
+}
+
 .status-chip {
   display: inline-flex;
   align-items: center;

@@ -53,7 +53,7 @@ if (is_readable(HOME_DB_PATH)) {
 
         // Recent activity list
         $stmtRecent = $pdo->query("
-            SELECT sku, status, what_is_it, updated_at
+            SELECT sku, status, what_is_it, updated_at, dispotech_price, ebay_price
             FROM intake_items
             WHERE sku IS NOT NULL AND TRIM(sku) <> ''
             ORDER BY updated_at DESC, id DESC
@@ -281,7 +281,11 @@ if (is_dir($backupDir)) {
             <?php foreach ($recentActivity as $row): ?>
               <li>
                 <div class="activity-main">
-                  <?php $skuVal = trim((string)($row['sku'] ?? '')); $thumbId = $recentThumbs[strtoupper($skuVal)] ?? null; ?>
+                  <?php
+                    $skuVal = trim((string)($row['sku'] ?? ''));
+                    $thumbId = $recentThumbs[strtoupper($skuVal)] ?? null;
+                    $rowPrice = isset($row['dispotech_price']) && $row['dispotech_price'] !== '' ? $row['dispotech_price'] : ($row['ebay_price'] ?? null);
+                  ?>
                   <?php if ($thumbId): ?>
                     <a class="thumb" href="photo.php?id=<?php echo $thumbId; ?>" target="_blank" rel="noopener">
                       <img src="photo.php?id=<?php echo $thumbId; ?>" alt="Photo for <?php echo htmlspecialchars($skuVal ?: 'SKU', ENT_QUOTES, 'UTF-8'); ?>">
@@ -290,7 +294,12 @@ if (is_dir($backupDir)) {
                     <span class="thumb placeholder" title="No photo added">No photo</span>
                   <?php endif; ?>
                   <span class="sku"><?php echo htmlspecialchars($skuVal ?: 'Unknown', ENT_QUOTES, 'UTF-8'); ?></span>
-                  <span class="status-chip"><?php echo htmlspecialchars($row['status'] ?: '—', ENT_QUOTES, 'UTF-8'); ?></span>
+                  <span class="status-price-stack">
+                    <span class="status-chip"><?php echo htmlspecialchars($row['status'] ?: '—', ENT_QUOTES, 'UTF-8'); ?></span>
+                    <?php if ($rowPrice !== null && $rowPrice !== ''): ?>
+                      <span class="status-price"><?php echo '$' . number_format((float)$rowPrice, 2); ?></span>
+                    <?php endif; ?>
+                  </span>
                   <span class="what"><?php echo htmlspecialchars($row['what_is_it'] ?: '—', ENT_QUOTES, 'UTF-8'); ?></span>
                 </div>
                 <div class="activity-meta">
@@ -382,6 +391,7 @@ if (is_dir($backupDir)) {
                       $dispotechPrice = $row['dispotech_price'] ?? null;
                       $ebayPrice = $row['ebay_price'] ?? null;
                       $missingPrice = ($dispotechPrice === null || $dispotechPrice === '') && ($ebayPrice === null || $ebayPrice === '');
+                      $rowPrice = $dispotechPrice !== null && $dispotechPrice !== '' ? $dispotechPrice : $ebayPrice;
                     ?>
                     <tr data-lookup-row="1"
                         data-sku="<?php echo htmlspecialchars($skuVal, ENT_QUOTES, 'UTF-8'); ?>"
@@ -396,7 +406,16 @@ if (is_dir($backupDir)) {
                           <span class="thumb-wrap"><img class="preview-thumb" src="photo.php?id=<?php echo $thumbId; ?>" alt="Photo for <?php echo htmlspecialchars($skuVal ?: 'SKU', ENT_QUOTES, 'UTF-8'); ?>"></span>
                         <?php endif; ?>
                       </td>
-                      <td><span class="status-chip"><?php echo htmlspecialchars($row['status'] ?: 'Listed', ENT_QUOTES, 'UTF-8'); ?></span></td>
+                      <td>
+                        <span class="status-price-stack">
+                          <span class="status-chip"><?php echo htmlspecialchars($row['status'] ?: 'Listed', ENT_QUOTES, 'UTF-8'); ?></span>
+                          <?php if ($rowPrice !== null && $rowPrice !== ''): ?>
+                            <span class="status-price"><?php echo '$' . number_format((float)$rowPrice, 2); ?></span>
+                          <?php elseif ($missingPrice): ?>
+                            <span class="status-price status-price-missing">No price</span>
+                          <?php endif; ?>
+                        </span>
+                      </td>
                       <td><?php echo htmlspecialchars($row['what_is_it'] ?: '—', ENT_QUOTES, 'UTF-8'); ?></td>
                       <td><?php echo htmlspecialchars($row['updated_at'] ?: '', ENT_QUOTES, 'UTF-8'); ?></td>
                     </tr>
@@ -941,10 +960,30 @@ if (is_dir($backupDir)) {
             }
             row.appendChild(skuTd);
             var statusTd = document.createElement('td');
+            statusTd.className = 'status-price-cell';
+            var statusStack = document.createElement('span');
+            statusStack.className = 'status-price-stack';
             var statusSpan = document.createElement('span');
             statusSpan.className = 'status-chip';
             statusSpan.textContent = entry.status || '—';
-            statusTd.appendChild(statusSpan);
+            statusStack.appendChild(statusSpan);
+            if (entry.dispotech_price !== null && entry.dispotech_price !== undefined && entry.dispotech_price !== '') {
+              var priceText = document.createElement('span');
+              priceText.className = 'status-price';
+              priceText.textContent = '$' + Number(entry.dispotech_price).toFixed(2);
+              statusStack.appendChild(priceText);
+            } else if (entry.ebay_price !== null && entry.ebay_price !== undefined && entry.ebay_price !== '') {
+              var priceTextAlt = document.createElement('span');
+              priceTextAlt.className = 'status-price';
+              priceTextAlt.textContent = '$' + Number(entry.ebay_price).toFixed(2);
+              statusStack.appendChild(priceTextAlt);
+            } else if (entry.missing_price) {
+              var missingPriceText = document.createElement('span');
+              missingPriceText.className = 'status-price status-price-missing';
+              missingPriceText.textContent = 'No price';
+              statusStack.appendChild(missingPriceText);
+            }
+            statusTd.appendChild(statusStack);
           row.appendChild(statusTd);
           row.appendChild(createCell(entry.what_is_it));
           row.appendChild(createCell(relativeTime(entry.updated_at)));
@@ -977,7 +1016,9 @@ if (is_dir($backupDir)) {
           priceInput.type = 'number';
           priceInput.step = '0.01';
           priceInput.placeholder = 'Price';
-          priceInput.value = entry.dispotech_price || entry.ebay_price || '';
+          priceInput.value = (entry.dispotech_price !== null && entry.dispotech_price !== undefined && entry.dispotech_price !== '')
+            ? entry.dispotech_price
+            : ((entry.ebay_price !== null && entry.ebay_price !== undefined && entry.ebay_price !== '') ? entry.ebay_price : '');
           priceInput.addEventListener('change', function () {
             updateField(entry.sku, 'price', priceInput.value);
           });
@@ -989,8 +1030,8 @@ if (is_dir($backupDir)) {
           dupBtn.addEventListener('click', function () {
               if (!entry.sku) return;
               window.location.href = 'intake.php?copy_sku=' + encodeURIComponent(entry.sku);
-            });
-            actionsTd.appendChild(dupBtn);
+          });
+          actionsTd.appendChild(dupBtn);
           var promptBtn = document.createElement('button');
           promptBtn.type = 'button';
           promptBtn.className = 'ghost subtle';

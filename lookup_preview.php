@@ -9,17 +9,27 @@ const DB_PATH = __DIR__ . '/data/intake.sqlite';
 
 header('Content-Type: application/json; charset=utf-8');
 
+function safeStringLength(string $value): int
+{
+    return function_exists('mb_strlen') ? mb_strlen($value) : strlen($value);
+}
+
+function safeStringSubstring(string $value, int $start, int $length): string
+{
+    return function_exists('mb_substr') ? mb_substr($value, $start, $length) : substr($value, $start, $length);
+}
+
 $sku = trim((string)($_GET['sku'] ?? ''));
 $status = trim((string)($_GET['status'] ?? ''));
 $limit = (int)($_GET['limit'] ?? PREVIEW_LIMIT);
 $withPhotos = isset($_GET['with_photos']);
 if ($limit < 1) { $limit = PREVIEW_LIMIT; }
 if ($limit > 100) { $limit = 100; }
-if (mb_strlen($sku) > MAX_QUERY_LENGTH) {
-    $sku = mb_substr($sku, 0, MAX_QUERY_LENGTH);
+if (safeStringLength($sku) > MAX_QUERY_LENGTH) {
+    $sku = safeStringSubstring($sku, 0, MAX_QUERY_LENGTH);
 }
-if (mb_strlen($status) > MAX_STATUS_LENGTH) {
-    $status = mb_substr($status, 0, MAX_STATUS_LENGTH);
+if (safeStringLength($status) > MAX_STATUS_LENGTH) {
+    $status = safeStringSubstring($status, 0, MAX_STATUS_LENGTH);
 }
 if ($sku === '' && $status === '') {
     echo '[]';
