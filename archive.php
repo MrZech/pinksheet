@@ -5,7 +5,6 @@ require_once __DIR__ . '/config.php';
 checkMaintenance();
 ensureStorageWritable();
 
-const ARCHIVE_DB_PATH = __DIR__ . '/data/intake.sqlite';
 const ARCHIVE_PAGE_SIZE = 50;
 
 $currentPage = 'archive';
@@ -18,6 +17,15 @@ function h(string $value): string
 function normalizeSku(string $sku): string
 {
     return strtoupper(trim($sku));
+}
+
+function resolveArchiveDbPath(): string
+{
+    $preferred = __DIR__ . '/data/archive.sqlite';
+    if (is_file($preferred)) {
+        return $preferred;
+    }
+    return __DIR__ . '/data/intake.sqlite';
 }
 
 function ensureArchiveItemsTable(PDO $pdo): void
@@ -53,7 +61,8 @@ if (!is_dir(__DIR__ . '/data')) {
     mkdir(__DIR__ . '/data', 0777, true);
 }
 
-$pdo = new PDO('sqlite:' . ARCHIVE_DB_PATH, null, null, [
+$archiveDbPath = resolveArchiveDbPath();
+$pdo = new PDO('sqlite:' . $archiveDbPath, null, null, [
     PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
 ]);
 ensureArchiveItemsTable($pdo);
@@ -188,6 +197,11 @@ function buildArchiveUrl(array $overrides = []): string
         <span>Archive</span>
       </nav>
       <p class="lead">Search old records here. This page is read-only and intended for legacy purchase history, sold inventory, and other historical references.</p>
+      <section class="section archive-summary">
+        <div class="badge">Archive DB: <?php echo h($archiveDbPath); ?></div>
+        <div class="badge">Total rows: <?php echo h((string)$overallTotal); ?></div>
+        <div class="badge">Filtered rows: <?php echo h((string)$totalRows); ?></div>
+      </section>
 
       <section class="section archive-summary">
         <div class="badge">Showing <?php echo h((string)$rangeStart); ?>-<?php echo h((string)$rangeEnd); ?> of <?php echo h((string)$totalRows); ?><?php echo h($queryLabel); ?></div>
