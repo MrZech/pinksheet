@@ -191,7 +191,7 @@ if (is_dir($backupDir)) {
           <a class="button-link new-intake-cta" href="intake.php?clear_draft=1" data-new-intake>New Intake</a>
       </div>
       </header>
-      <h1><?php echo $isLookupPage ? 'SKU Lookup' : 'Ops Home'; ?></h1>
+      <h1><?php echo $isLookupPage ? 'SKU Lookup' : 'Operations Home'; ?></h1>
       <nav class="breadcrumbs" aria-label="Breadcrumb">
         <a href="home.php">Home</a>
         <span><?php echo $isLookupPage ? 'SKU Lookup' : 'Dashboard'; ?></span>
@@ -224,7 +224,7 @@ if (is_dir($backupDir)) {
       <?php endif; ?>
 
       <section class="section dashboard">
-        <h2>Ops Snapshot</h2>
+        <h2>Operations Snapshot</h2>
         <div class="dashboard-grid">
           <div class="dash-card">
             <p class="dash-label">Total items</p>
