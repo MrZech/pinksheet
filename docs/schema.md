@@ -64,6 +64,24 @@ Read-only historical store for legacy exports and sold inventory. Photos are int
 | `legacy_id` | TEXT | Original row identifier |
 | `legacy_payload` | TEXT | Raw row JSON preserved for audit/search |
 
+## square_catalog_sync (SQLite)
+
+Tracks which Square catalog objects belong to each pinksheet SKU. The Square access token is never stored here; only returned object IDs, versions, the last synced payload hash, and the last sync error are retained.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `sku_normalized` | TEXT | PK, matches `intake_items.sku_normalized` |
+| `square_item_id` | TEXT | Square `ITEM` catalog object ID |
+| `square_item_version` | INTEGER | Last synced Square item version |
+| `square_variation_id` | TEXT | Square `ITEM_VARIATION` catalog object ID |
+| `square_variation_version` | INTEGER | Last synced Square variation version |
+| `square_image_id` | TEXT | Last uploaded Square image ID |
+| `square_image_photo_id` | INTEGER | Local `sku_photos.id` uploaded to Square |
+| `payload_hash` | TEXT | Hash of synced item/photo fields |
+| `last_synced_at` | TEXT | Timestamp of last successful Square sync |
+| `last_error` | TEXT | Last Square API error, if any |
+| `updated_at` | TEXT | Local sync metadata update time |
+
 ### Indexes
 
 | Name | Column(s) |

@@ -1,6 +1,8 @@
 <?php
 declare(strict_types=1);
 
+loadDotEnv(__DIR__ . '/.env');
+
 // Expose any runtime errors immediately so the server can report the failing endpoint.
 ini_set('display_errors', '1');
 ini_set('display_startup_errors', '1');
@@ -16,6 +18,47 @@ const MAX_QUERY_LENGTH = 50;
 const MAX_STATUS_LENGTH = 30;
 const SUGGESTION_LIMIT = 40;
 const PREVIEW_LIMIT = 7;
+
+function loadDotEnv(string $path): void
+{
+    if (!is_file($path) || !is_readable($path)) {
+        return;
+    }
+
+    $lines = file($path, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+    if ($lines === false) {
+        return;
+    }
+
+    foreach ($lines as $line) {
+        $line = trim($line);
+        if ($line === '' || str_starts_with($line, '#')) {
+            continue;
+        }
+
+        $parts = explode('=', $line, 2);
+        if (count($parts) !== 2) {
+            continue;
+        }
+
+        $name = trim($parts[0]);
+        if ($name === '' || !preg_match('/^[A-Z0-9_]+$/i', $name)) {
+            continue;
+        }
+
+        $value = trim($parts[1]);
+        if ($value !== '' && (
+            ($value[0] === '"' && str_ends_with($value, '"'))
+            || ($value[0] === "'" && str_ends_with($value, "'"))
+        )) {
+            $value = substr($value, 1, -1);
+        }
+
+        putenv($name . '=' . $value);
+        $_ENV[$name] = $value;
+        $_SERVER[$name] = $value;
+    }
+}
 
 /**
  * Ensure on-disk storage (SQLite + uploads + logs) is writable. Exit with 500 if not.

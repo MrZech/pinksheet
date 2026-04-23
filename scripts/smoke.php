@@ -115,7 +115,6 @@ if (function_exists('curl_init')) {
     $respBody = curl_exec($ch);
     $err = curl_error($ch);
     $status = curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
-    curl_close($ch);
     $pass = !$err && $status >= 200 && $status < 400 && strpos((string)$respBody, '"status":"ok"') !== false;
     $ok = $ok && $pass;
     echo '[' . ($pass ? 'OK' : 'FAIL') . '] photo upload' . PHP_EOL;
