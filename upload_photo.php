@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/square_sync.php';
 checkMaintenance(true);
 ensureStorageWritable();
 
@@ -90,6 +91,7 @@ if ($extension === null) {
 $pdo = new PDO('sqlite:' . DB_PATH, null, null, [
     PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
 ]);
+squareSyncEnsureSchema($pdo);
 $pdo->exec(<<<'SQL'
 CREATE TABLE IF NOT EXISTS sku_photos (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -131,8 +133,15 @@ SQL);
         'mime_type' => $mimeType,
         'file_size' => $size,
     ]);
+    $photoId = $pdo->lastInsertId();
 } catch (Throwable $e) {
     errorResponse('Database error: ' . $e->getMessage(), 500);
 }
 
-echo json_encode(['status' => 'ok', 'message' => 'Uploaded', 'id' => $pdo->lastInsertId()]);
+$squareSync = squareSyncItemBySku($pdo, $sku);
+echo json_encode([
+    'status' => 'ok',
+    'message' => 'Uploaded',
+    'id' => $photoId,
+    'square_sync' => $squareSync['status'] ?? 'skipped',
+]);

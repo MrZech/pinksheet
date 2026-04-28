@@ -10,3 +10,6 @@ logs/archive/
 
 # Alerts config (contains secrets if created)
 scripts/alert.config.ps1
+
+# Local app secrets
+.env
