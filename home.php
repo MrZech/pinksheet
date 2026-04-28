@@ -546,6 +546,37 @@ if (is_dir($backupDir)) {
         }
       });
 
+        var toastBox = null;
+        var ensureToast = function () {
+          if (toastBox) return toastBox;
+          toastBox = document.createElement('div');
+          toastBox.id = 'toast-box';
+          toastBox.style.position = 'fixed';
+          toastBox.style.bottom = '16px';
+          toastBox.style.right = '16px';
+          toastBox.style.zIndex = '9999';
+          toastBox.style.display = 'flex';
+          toastBox.style.flexDirection = 'column';
+          toastBox.style.gap = '8px';
+          document.body.appendChild(toastBox);
+          return toastBox;
+        };
+        var showToast = function (message, ok) {
+          var box = ensureToast();
+          var el = document.createElement('div');
+          el.textContent = message;
+          el.style.padding = '10px 14px';
+          el.style.borderRadius = '6px';
+          el.style.color = '#0b1721';
+          el.style.background = ok ? '#c5f7d7' : '#ffd7d7';
+          el.style.boxShadow = '0 4px 10px rgba(0,0,0,0.1)';
+          el.style.fontWeight = '600';
+          box.appendChild(el);
+          setTimeout(function () {
+            if (el.parentNode) el.parentNode.removeChild(el);
+          }, 4200);
+        };
+
         var backupButtons = Array.prototype.slice.call(document.querySelectorAll('[data-run-backup]'));
         var backupIndicator = document.getElementById('backup-indicator');
         var backupIndicatorTitle = document.getElementById('backup-indicator-title');
@@ -1204,36 +1235,6 @@ if (is_dir($backupDir)) {
             applyInventoryFilters();
           });
         }
-        var toastBox = null;
-        var ensureToast = function () {
-          if (toastBox) return toastBox;
-          toastBox = document.createElement('div');
-          toastBox.id = 'toast-box';
-          toastBox.style.position = 'fixed';
-          toastBox.style.bottom = '16px';
-          toastBox.style.right = '16px';
-          toastBox.style.zIndex = '9999';
-          toastBox.style.display = 'flex';
-          toastBox.style.flexDirection = 'column';
-          toastBox.style.gap = '8px';
-          document.body.appendChild(toastBox);
-          return toastBox;
-        };
-        var showToast = function (message, ok) {
-          var box = ensureToast();
-          var el = document.createElement('div');
-          el.textContent = message;
-          el.style.padding = '10px 14px';
-          el.style.borderRadius = '6px';
-          el.style.color = '#0b1721';
-          el.style.background = ok ? '#c5f7d7' : '#ffd7d7';
-          el.style.boxShadow = '0 4px 10px rgba(0,0,0,0.1)';
-          el.style.fontWeight = '600';
-          box.appendChild(el);
-          setTimeout(function () {
-            if (el.parentNode) el.parentNode.removeChild(el);
-          }, 4200);
-        };
         var healthChip = document.getElementById('health-chip');
         if (healthChip && window.fetch) {
           fetch('health.php')
