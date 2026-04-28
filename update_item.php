@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/square_sync.php';
 checkMaintenance(true);
 ensureStorageWritable();
 
@@ -41,6 +42,7 @@ try {
         PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
     ]);
     $pdo->exec('PRAGMA foreign_keys = ON');
+    squareSyncEnsureSchema($pdo);
 
     $columns = $pdo->query('PRAGMA table_info(intake_items)')->fetchAll(PDO::FETCH_ASSOC);
     $columnNames = array_map(static fn($row) => (string)($row['name'] ?? ''), $columns);
@@ -69,7 +71,8 @@ try {
             exit;
         }
     }
-    echo json_encode(['ok' => true]);
+    $squareSync = squareSyncItemBySku($pdo, $sku);
+    echo json_encode(['ok' => true, 'square_sync' => $squareSync['status'] ?? 'skipped']);
 } catch (Throwable $e) {
     http_response_code(500);
     echo json_encode(['ok' => false, 'error' => 'DB error']);

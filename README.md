@@ -53,6 +53,12 @@ php scripts/smoke.php
 ## SKU photos
 - Drag/drop/paste or click to queue; uploads chunked at 512KB. Download-all as ZIP; `photo.php?id=...` streams individual files; thumbnails surface in lookup preview, recent SKUs, and home activity when available (placeholder shown otherwise).
 
+## Square sync
+- Create a local `.env` file in the repo root and set `SQUARE_ACCESS_TOKEN` and `SQUARE_LOCATION_ID` there to enable automatic sync. Start from `.env.example`. Optional: `SQUARE_ENVIRONMENT=sandbox|production`, `SQUARE_API_VERSION=2026-01-22`, `SQUARE_CURRENCY=USD`, `SQUARE_DEFAULT_QUANTITY=1`, `SQUARE_SYNC_ENABLED=0` to force-disable.
+- On save, quick price/status edits, bulk status updates, photo upload, and thumbnail changes, pinksheet upserts a Square catalog item + variation, attaches the selected/latest photo when Square supports the image type, and sets inventory count to `1` or `0` when status is `SOLD`.
+- Backfill existing SKUs with `php scripts/sync_square.php --all` or sync one SKU with `php scripts/sync_square.php SKU123`.
+- Sync metadata and last errors are stored in `square_catalog_sync`; detailed errors are appended to `logs/square_sync.log`.
+
 ## Docs
 - `docs/usage.md` — core flows, themes, print guidance.
 - `docs/schema.md` — intake_items, archive_items, and database notes.
