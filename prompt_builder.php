@@ -401,7 +401,7 @@ $initialItemJson = $currentItem ? json_encode($currentItem, JSON_HEX_TAG | JSON_
         'Please note that prices are subject to change.',
         '',
         'Shipping Times',
-        'Estimated shipping times are provided as general guidelines and may vary. Orders are processed in the order received, Monday through Friday, from 9:00 AM to 3:30 PM CST. Please remember that weather, carrier workloads, and holiday delivery schedules can affect delivery times.',
+        'Estimated shipping times are provided as general guidelines and may vary. Orders are processed in the order received, Tuesday through Saturday, from 9:00 AM to 3:30 PM CST. Please remember that weather, carrier workloads, and holiday delivery schedules can affect delivery times.',
         '',
         '—'
       ].join('\n');

@@ -8,7 +8,7 @@ Several support tables are created lazily by the feature that uses them, so a fr
 
 | Path | Purpose |
 |---|---|
-| `data/intake.sqlite` | Live intake records, drafts, photos metadata, soft deletes, and prompt cache |
+| `data/intake.sqlite` | Live intake records, drafts, photos metadata, soft deletes, prompt cache, and Square sync metadata |
 | `data/archive.sqlite` | Standalone read-only archive database used by `archive.php` |
 | `data/sku_photos/` | Photo files stored by normalized SKU |
 | `data/chunks/` | Temporary staging area for chunked uploads |
@@ -118,6 +118,30 @@ This table caches the eBay prompt builder state per SKU.
 
 - `prompt_builder.php` loads and saves this cache through `script_cache.php`.
 - The cache lets the builder reopen with the last prompt and final text intact.
+
+## `square_catalog_sync`
+
+This table stores Square catalog IDs and the last sync state for each SKU.
+
+| Column | Type | Notes |
+|---|---|---|
+| `sku_normalized` | TEXT | Primary key, matches `intake_items.sku_normalized` |
+| `square_item_id` | TEXT | Square `ITEM` catalog object ID |
+| `square_item_version` | INTEGER | Last synced Square item version |
+| `square_variation_id` | TEXT | Square `ITEM_VARIATION` catalog object ID |
+| `square_variation_version` | INTEGER | Last synced Square variation version |
+| `square_image_id` | TEXT | Last uploaded Square image ID |
+| `square_image_photo_id` | INTEGER | Local `sku_photos.id` uploaded to Square |
+| `payload_hash` | TEXT | Hash of synced item and photo fields |
+| `last_synced_at` | TEXT | Timestamp of last successful Square sync |
+| `last_error` | TEXT | Last Square API error, if any |
+| `updated_at` | TEXT | Local sync metadata update time |
+
+### How `square_catalog_sync` is used
+
+- `square_sync.php` creates the table if needed.
+- `scripts/sync_square.php` uses it when syncing one SKU or all SKUs.
+- The app uses it to skip unchanged Square payloads and to store the last sync error.
 
 ## `intake_deleted`
 

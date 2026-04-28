@@ -118,6 +118,22 @@ SQL);
 $pdo->exec("CREATE INDEX IF NOT EXISTS idx_sku_photos_sku_normalized ON sku_photos (sku_normalized)");
 
 $pdo->exec(<<<'SQL'
+CREATE TABLE IF NOT EXISTS square_catalog_sync (
+    sku_normalized TEXT PRIMARY KEY,
+    square_item_id TEXT,
+    square_item_version INTEGER,
+    square_variation_id TEXT,
+    square_variation_version INTEGER,
+    square_image_id TEXT,
+    square_image_photo_id INTEGER,
+    payload_hash TEXT,
+    last_synced_at TEXT,
+    last_error TEXT,
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+SQL);
+
+$pdo->exec(<<<'SQL'
 CREATE TABLE IF NOT EXISTS script_cache (
     sku_normalized TEXT PRIMARY KEY,
     sku_display TEXT NOT NULL,
