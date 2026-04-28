@@ -644,9 +644,17 @@ if (is_dir($backupDir)) {
                   var summary = data.summary || {};
                   var okCount = summary.ok || 0;
                   var skippedCount = summary.skipped || 0;
-                  showToast('Square sync finished: ' + okCount + ' updated, ' + skippedCount + ' unchanged.', true);
-                  setBackupIndicator('done', 'Square sync finished', okCount + ' updated, ' + skippedCount + ' unchanged.');
-                  hideBackupIndicatorSoon(1200);
+                  var errorCount = summary.error || 0;
+                  if (data.all_ok) {
+                    showToast('Square sync finished: ' + okCount + ' updated, ' + skippedCount + ' unchanged.', true);
+                    setBackupIndicator('done', 'Square sync finished', okCount + ' updated, ' + skippedCount + ' unchanged.');
+                    hideBackupIndicatorSoon(1200);
+                  } else {
+                    var detail = (data.errors && data.errors[0] && data.errors[0].message) || 'Some SKUs failed.';
+                    showToast('Square sync partial: ' + okCount + ' updated, ' + errorCount + ' failed.', false);
+                    setBackupIndicator('error', 'Square sync partial', okCount + ' updated, ' + errorCount + ' failed. ' + detail);
+                    hideBackupIndicatorSoon(5200);
+                  }
                 } else {
                   var detail = data.error || ((data.errors && data.errors[0] && data.errors[0].message) || 'Unknown error');
                   showToast('Square sync failed: ' + detail, false);
