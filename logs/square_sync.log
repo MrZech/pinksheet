@@ -1,0 +1,16 @@
+[2026-04-23T17:48:26+00:00] Catalog search failed for D-2620-58: Square request failed: SSL certificate OpenSSL verify result: unable to get local issuer certificate (20)
+[2026-04-23T17:48:26+00:00] SKU D-2620-58: Square request failed: SSL certificate OpenSSL verify result: unable to get local issuer certificate (20)
+[2026-04-23T17:48:40+00:00] Catalog search failed for TEST3: Square request failed: SSL certificate OpenSSL verify result: unable to get local issuer certificate (20)
+[2026-04-23T17:48:40+00:00] SKU TEST3: Square request failed: SSL certificate OpenSSL verify result: unable to get local issuer certificate (20)
+[2026-04-23T17:48:40+00:00] Catalog search failed for TEST4: Square request failed: SSL certificate OpenSSL verify result: unable to get local issuer certificate (20)
+[2026-04-23T17:48:40+00:00] SKU TEST4: Square request failed: SSL certificate OpenSSL verify result: unable to get local issuer certificate (20)
+[2026-04-23T17:48:40+00:00] Catalog search failed for TEST5: Square request failed: SSL certificate OpenSSL verify result: unable to get local issuer certificate (20)
+[2026-04-23T17:48:41+00:00] SKU TEST5: Square request failed: SSL certificate OpenSSL verify result: unable to get local issuer certificate (20)
+[2026-04-23T17:48:41+00:00] Catalog search failed for TEST6: Square request failed: SSL certificate OpenSSL verify result: unable to get local issuer certificate (20)
+[2026-04-23T17:48:41+00:00] SKU TEST6: Square request failed: SSL certificate OpenSSL verify result: unable to get local issuer certificate (20)
+[2026-04-23T17:48:41+00:00] Catalog search failed for TEST7: Square request failed: SSL certificate OpenSSL verify result: unable to get local issuer certificate (20)
+[2026-04-23T17:48:41+00:00] SKU TEST7: Square request failed: SSL certificate OpenSSL verify result: unable to get local issuer certificate (20)
+[2026-04-23T17:48:41+00:00] Catalog search failed for D-2620-58: Square request failed: SSL certificate OpenSSL verify result: unable to get local issuer certificate (20)
+[2026-04-23T17:48:41+00:00] SKU D-2620-58: Square request failed: SSL certificate OpenSSL verify result: unable to get local issuer certificate (20)
+[2026-04-23T17:49:50+00:00] Catalog search failed for D-2620-58: Square request failed: Failed to connect to connect.squareupsandbox.com port 443 after 38 ms: Could not connect to server
+[2026-04-23T17:49:50+00:00] SKU D-2620-58: Square request failed: Failed to connect to connect.squareupsandbox.com port 443 after 40 ms: Could not connect to server

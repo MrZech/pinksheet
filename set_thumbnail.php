@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/square_sync.php';
 checkMaintenance(true);
 ensureStorageWritable();
 
@@ -42,6 +43,7 @@ try {
     $pdo = new PDO('sqlite:' . __DIR__ . '/data/intake.sqlite', null, null, [
         PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
     ]);
+    squareSyncEnsureSchema($pdo);
     $pdo->beginTransaction();
     $clear = $pdo->prepare('UPDATE sku_photos SET is_thumb = 0 WHERE sku_normalized = :sku');
     $clear->execute([':sku' => $sku]);
@@ -53,7 +55,8 @@ try {
         echo json_encode(['ok' => false, 'error' => 'Photo not found for that SKU']);
         exit;
     }
-    echo json_encode(['ok' => true]);
+    $squareSync = squareSyncItemBySku($pdo, $sku);
+    echo json_encode(['ok' => true, 'square_sync' => $squareSync['status'] ?? 'skipped']);
 } catch (Throwable $e) {
     if ($pdo && $pdo->inTransaction()) {
         $pdo->rollBack();

@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/square_sync.php';
 checkMaintenance();
 ensureStorageWritable();
 
@@ -102,6 +103,7 @@ CREATE TABLE IF NOT EXISTS intake_drafts (
 );
 SQL);
 $pdo->exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_intake_drafts_sku ON intake_drafts (sku_normalized)");
+squareSyncEnsureSchema($pdo);
 
 function normalizeSku(string $sku): string
 {
@@ -255,6 +257,7 @@ foreach ($existingWhatIsIt as $label) {
 }
 
 $saved = isset($_GET['saved']);
+$squareSyncStatus = trim((string)($_GET['square_sync'] ?? ''));
 // Preserve save mode across redirect; prefer GET (after redirect) but capture POST so we can include it.
 $saveMode = trim($_GET['save_mode'] ?? ($_POST['save_mode'] ?? ''));
 $errors = [];
@@ -371,9 +374,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         if (!$bulkErrors) {
             $placeholders = implode(',', array_fill(0, count($bulkIds), '?'));
+            $skuFetch = $pdo->prepare("SELECT sku_normalized FROM intake_items WHERE id IN ($placeholders)");
+            $skuFetch->execute($bulkIds);
+            $bulkSkus = array_filter(array_map('strval', $skuFetch->fetchAll(PDO::FETCH_COLUMN)));
             $stmt = $pdo->prepare("UPDATE intake_items SET status = ?, updated_at = datetime('now') WHERE id IN ($placeholders)");
             $params = array_merge([$bulkStatus], $bulkIds);
             $stmt->execute($params);
+            foreach ($bulkSkus as $bulkSku) {
+                squareSyncItemBySku($pdo, $bulkSku);
+            }
             $bulkMessage = 'Updated ' . count($bulkIds) . ' SKU' . (count($bulkIds) === 1 ? '' : 's') . ' to ' . $bulkStatus . '.';
         }
         $saved = false;
@@ -563,7 +572,9 @@ SQL);
             }
 
             if (!$errors) {
+                $squareSyncResult = squareSyncItemBySku($pdo, $data['sku_normalized']);
                 $redirect = $_SERVER['PHP_SELF'] . '?saved=1&save_mode=' . urlencode($saveMode);
+                $redirect .= '&square_sync=' . urlencode((string)($squareSyncResult['status'] ?? 'skipped'));
                 if ($data['sku'] !== '') {
                     $redirect .= '&sku=' . urlencode($data['sku']);
                 }
@@ -618,6 +629,13 @@ if ($saved) {
         $toastMessage = 'Saved as new SKU record.';
     } else {
         $toastMessage = 'Saved and synced to this SKU.';
+    }
+    if ($squareSyncStatus === 'ok') {
+        $toastMessage .= ' Square updated.';
+    } elseif ($squareSyncStatus === 'error') {
+        $toastMessage .= ' Square sync failed; check logs/square_sync.log.';
+    } elseif ($squareSyncStatus === 'disabled') {
+        $toastMessage .= ' Square sync is not configured.';
     }
 }
 if (isset($_GET['photo_notice']) && trim((string)$_GET['photo_notice']) !== '') {

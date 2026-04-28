@@ -191,7 +191,7 @@ if (is_dir($backupDir)) {
           <a class="button-link new-intake-cta" href="intake.php?clear_draft=1" data-new-intake>New Intake</a>
       </div>
       </header>
-      <h1><?php echo $isLookupPage ? 'SKU Lookup' : 'Ops Home'; ?></h1>
+      <h1><?php echo $isLookupPage ? 'SKU Lookup' : 'Operations Home'; ?></h1>
       <nav class="breadcrumbs" aria-label="Breadcrumb">
         <a href="home.php">Home</a>
         <span><?php echo $isLookupPage ? 'SKU Lookup' : 'Dashboard'; ?></span>
@@ -208,6 +208,9 @@ if (is_dir($backupDir)) {
           <a class="button-link" href="prompt_builder.php">eBay Script Builder</a>
           <a class="button-link" href="docs/maintenance.md">Maintenance docs</a>
           <a class="button-link" href="kanban.php">Status Board</a>
+          <button type="button" class="button-link ghost" data-run-square-sync>
+            Sync Square now
+          </button>
           <button type="button" class="button-link ghost" id="run-backup-now" data-run-backup>
             Run backup now<?php if ($latestBackup): ?> (<?php echo htmlspecialchars($backupSummary, ENT_QUOTES, 'UTF-8'); ?>)<?php endif; ?>
           </button>
@@ -224,7 +227,7 @@ if (is_dir($backupDir)) {
       <?php endif; ?>
 
       <section class="section dashboard">
-        <h2>Ops Snapshot</h2>
+        <h2>Operations Snapshot</h2>
         <div class="dashboard-grid">
           <div class="dash-card">
             <p class="dash-label">Total items</p>
@@ -257,6 +260,10 @@ if (is_dir($backupDir)) {
               <?php else: ?>
                 Backups will display here once created.
               <?php endif; ?>
+            </p>
+            <p class="dash-sub">
+              <button type="button" class="button-link ghost" data-run-square-sync>Sync Square now</button>
+              <span class="hint">Local only; pushes current intake inventory to Square.</span>
             </p>
             <p class="dash-sub">
               <button type="button" class="button-link ghost" data-run-backup>
@@ -539,6 +546,37 @@ if (is_dir($backupDir)) {
         }
       });
 
+        var toastBox = null;
+        var ensureToast = function () {
+          if (toastBox) return toastBox;
+          toastBox = document.createElement('div');
+          toastBox.id = 'toast-box';
+          toastBox.style.position = 'fixed';
+          toastBox.style.bottom = '16px';
+          toastBox.style.right = '16px';
+          toastBox.style.zIndex = '9999';
+          toastBox.style.display = 'flex';
+          toastBox.style.flexDirection = 'column';
+          toastBox.style.gap = '8px';
+          document.body.appendChild(toastBox);
+          return toastBox;
+        };
+        var showToast = function (message, ok) {
+          var box = ensureToast();
+          var el = document.createElement('div');
+          el.textContent = message;
+          el.style.padding = '10px 14px';
+          el.style.borderRadius = '6px';
+          el.style.color = '#0b1721';
+          el.style.background = ok ? '#c5f7d7' : '#ffd7d7';
+          el.style.boxShadow = '0 4px 10px rgba(0,0,0,0.1)';
+          el.style.fontWeight = '600';
+          box.appendChild(el);
+          setTimeout(function () {
+            if (el.parentNode) el.parentNode.removeChild(el);
+          }, 4200);
+        };
+
         var backupButtons = Array.prototype.slice.call(document.querySelectorAll('[data-run-backup]'));
         var backupIndicator = document.getElementById('backup-indicator');
         var backupIndicatorTitle = document.getElementById('backup-indicator-title');
@@ -610,6 +648,62 @@ if (is_dir($backupDir)) {
           };
           backupButtons.forEach(function (btn) {
             btn.addEventListener('click', runBackup);
+          });
+        }
+
+        var squareSyncButtons = Array.prototype.slice.call(document.querySelectorAll('[data-run-square-sync]'));
+        if (squareSyncButtons.length) {
+          var setSquareSyncState = function (running) {
+            squareSyncButtons.forEach(function (btn) {
+              btn.disabled = running;
+              if (running) {
+                btn.dataset.originalText = btn.dataset.originalText || btn.textContent;
+                btn.textContent = 'Syncing...';
+              } else if (btn.dataset.originalText) {
+                btn.textContent = btn.dataset.originalText;
+              }
+            });
+          };
+          var runSquareSync = function () {
+            setSquareSyncState(true);
+            showToast('Square sync started', true);
+            setBackupIndicator('running', 'Square sync running...', 'Pushing current intake inventory to Square.');
+            fetch('sync_square_now.php', { method: 'POST', credentials: 'same-origin', cache: 'no-store' })
+              .then(function (r) { return r.json(); })
+              .then(function (data) {
+                if (data.ok) {
+                  var summary = data.summary || {};
+                  var okCount = summary.ok || 0;
+                  var skippedCount = summary.skipped || 0;
+                  var errorCount = summary.error || 0;
+                  if (data.all_ok) {
+                    showToast('Square sync finished: ' + okCount + ' updated, ' + skippedCount + ' unchanged.', true);
+                    setBackupIndicator('done', 'Square sync finished', okCount + ' updated, ' + skippedCount + ' unchanged.');
+                    hideBackupIndicatorSoon(1200);
+                  } else {
+                    var detail = (data.errors && data.errors[0] && data.errors[0].message) || 'Some SKUs failed.';
+                    showToast('Square sync partial: ' + okCount + ' updated, ' + errorCount + ' failed.', false);
+                    setBackupIndicator('error', 'Square sync partial', okCount + ' updated, ' + errorCount + ' failed. ' + detail);
+                    hideBackupIndicatorSoon(5200);
+                  }
+                } else {
+                  var detail = data.error || ((data.errors && data.errors[0] && data.errors[0].message) || 'Unknown error');
+                  showToast('Square sync failed: ' + detail, false);
+                  setBackupIndicator('error', 'Square sync failed', detail);
+                  hideBackupIndicatorSoon(4200);
+                }
+              })
+              .catch(function () {
+                showToast('Square sync failed.', false);
+                setBackupIndicator('error', 'Square sync failed', 'Request failed.');
+                hideBackupIndicatorSoon(4200);
+              })
+              .finally(function () {
+                setSquareSyncState(false);
+              });
+          };
+          squareSyncButtons.forEach(function (btn) {
+            btn.addEventListener('click', runSquareSync);
           });
         }
 
@@ -1141,36 +1235,6 @@ if (is_dir($backupDir)) {
             applyInventoryFilters();
           });
         }
-        var toastBox = null;
-        var ensureToast = function () {
-          if (toastBox) return toastBox;
-          toastBox = document.createElement('div');
-          toastBox.id = 'toast-box';
-          toastBox.style.position = 'fixed';
-          toastBox.style.bottom = '16px';
-          toastBox.style.right = '16px';
-          toastBox.style.zIndex = '9999';
-          toastBox.style.display = 'flex';
-          toastBox.style.flexDirection = 'column';
-          toastBox.style.gap = '8px';
-          document.body.appendChild(toastBox);
-          return toastBox;
-        };
-        var showToast = function (message, ok) {
-          var box = ensureToast();
-          var el = document.createElement('div');
-          el.textContent = message;
-          el.style.padding = '10px 14px';
-          el.style.borderRadius = '6px';
-          el.style.color = '#0b1721';
-          el.style.background = ok ? '#c5f7d7' : '#ffd7d7';
-          el.style.boxShadow = '0 4px 10px rgba(0,0,0,0.1)';
-          el.style.fontWeight = '600';
-          box.appendChild(el);
-          setTimeout(function () {
-            if (el.parentNode) el.parentNode.removeChild(el);
-          }, 4200);
-        };
         var healthChip = document.getElementById('health-chip');
         if (healthChip && window.fetch) {
           fetch('health.php')
