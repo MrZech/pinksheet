@@ -5,6 +5,8 @@ require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/square_sync.php';
 checkMaintenance(true);
 ensureStorageWritable();
+@set_time_limit(0);
+@ignore_user_abort(true);
 
 header('Content-Type: application/json; charset=utf-8');
 
@@ -83,13 +85,16 @@ try {
         }
     }
 
-    $ok = $summary['error'] === 0;
-    http_response_code($ok ? 200 : 500);
+    $allOk = $summary['error'] === 0;
+    $partial = $summary['ok'] > 0 && $summary['error'] > 0;
+    http_response_code(200);
     echo json_encode([
-        'ok' => $ok,
+        'ok' => true,
+        'all_ok' => $allOk,
+        'partial' => $partial,
         'summary' => $summary,
         'errors' => $errors,
-        'message' => 'Square sync completed',
+        'message' => $allOk ? 'Square sync completed' : ($partial ? 'Square sync partially completed' : 'Square sync completed with errors'),
     ]);
 } catch (Throwable $e) {
     http_response_code(500);
