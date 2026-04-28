@@ -67,6 +67,8 @@ function squareDebugJson(array $config, string $path): array
 
 $config = squareSyncConfig();
 $envPath = __DIR__ . '/.env';
+$syncSku = strtoupper(trim((string)($_GET['sku'] ?? '')));
+$runSync = isset($_GET['run_sync']) && $_GET['run_sync'] === '1';
 $response = [
     'ok' => true,
     'server' => [
@@ -98,12 +100,27 @@ $response = [
         'currency' => $config['currency'],
         'default_quantity' => $config['default_quantity'],
     ],
+    'requested_sync' => [
+        'run_sync' => $runSync,
+        'sku' => $syncSku !== '' ? $syncSku : null,
+    ],
 ];
 
 try {
     $response['square_test'] = [
         'locations' => squareDebugJson($config, '/v2/locations'),
     ];
+
+    if ($runSync) {
+        if ($syncSku === '') {
+            throw new RuntimeException('Missing sku query parameter for run_sync=1.');
+        }
+        $pdo = new PDO('sqlite:' . __DIR__ . '/data/intake.sqlite', null, null, [
+            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+        ]);
+        squareSyncEnsureSchema($pdo);
+        $response['square_test']['sync_result'] = squareSyncItemBySku($pdo, $syncSku);
+    }
 } catch (Throwable $e) {
     $response['ok'] = false;
     $response['square_test_error'] = $e->getMessage();
