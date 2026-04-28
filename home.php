@@ -208,6 +208,9 @@ if (is_dir($backupDir)) {
           <a class="button-link" href="prompt_builder.php">eBay Script Builder</a>
           <a class="button-link" href="docs/maintenance.md">Maintenance docs</a>
           <a class="button-link" href="kanban.php">Status Board</a>
+          <button type="button" class="button-link ghost" data-run-square-sync>
+            Sync Square now
+          </button>
           <button type="button" class="button-link ghost" id="run-backup-now" data-run-backup>
             Run backup now<?php if ($latestBackup): ?> (<?php echo htmlspecialchars($backupSummary, ENT_QUOTES, 'UTF-8'); ?>)<?php endif; ?>
           </button>
@@ -257,6 +260,10 @@ if (is_dir($backupDir)) {
               <?php else: ?>
                 Backups will display here once created.
               <?php endif; ?>
+            </p>
+            <p class="dash-sub">
+              <button type="button" class="button-link ghost" data-run-square-sync>Sync Square now</button>
+              <span class="hint">Local only; pushes current intake inventory to Square.</span>
             </p>
             <p class="dash-sub">
               <button type="button" class="button-link ghost" data-run-backup>
@@ -610,6 +617,54 @@ if (is_dir($backupDir)) {
           };
           backupButtons.forEach(function (btn) {
             btn.addEventListener('click', runBackup);
+          });
+        }
+
+        var squareSyncButtons = Array.prototype.slice.call(document.querySelectorAll('[data-run-square-sync]'));
+        if (squareSyncButtons.length) {
+          var setSquareSyncState = function (running) {
+            squareSyncButtons.forEach(function (btn) {
+              btn.disabled = running;
+              if (running) {
+                btn.dataset.originalText = btn.dataset.originalText || btn.textContent;
+                btn.textContent = 'Syncing...';
+              } else if (btn.dataset.originalText) {
+                btn.textContent = btn.dataset.originalText;
+              }
+            });
+          };
+          var runSquareSync = function () {
+            setSquareSyncState(true);
+            showToast('Square sync started', true);
+            setBackupIndicator('running', 'Square sync running...', 'Pushing current intake inventory to Square.');
+            fetch('sync_square_now.php', { method: 'POST', credentials: 'same-origin', cache: 'no-store' })
+              .then(function (r) { return r.json(); })
+              .then(function (data) {
+                if (data.ok) {
+                  var summary = data.summary || {};
+                  var okCount = summary.ok || 0;
+                  var skippedCount = summary.skipped || 0;
+                  showToast('Square sync finished: ' + okCount + ' updated, ' + skippedCount + ' unchanged.', true);
+                  setBackupIndicator('done', 'Square sync finished', okCount + ' updated, ' + skippedCount + ' unchanged.');
+                  hideBackupIndicatorSoon(1200);
+                } else {
+                  var detail = data.error || ((data.errors && data.errors[0] && data.errors[0].message) || 'Unknown error');
+                  showToast('Square sync failed: ' + detail, false);
+                  setBackupIndicator('error', 'Square sync failed', detail);
+                  hideBackupIndicatorSoon(4200);
+                }
+              })
+              .catch(function () {
+                showToast('Square sync failed.', false);
+                setBackupIndicator('error', 'Square sync failed', 'Request failed.');
+                hideBackupIndicatorSoon(4200);
+              })
+              .finally(function () {
+                setSquareSyncState(false);
+              });
+          };
+          squareSyncButtons.forEach(function (btn) {
+            btn.addEventListener('click', runSquareSync);
           });
         }
 
