@@ -1,52 +1,85 @@
 # Archive Workflow
 
-Legacy sold/history data lives in `data/archive.sqlite`, in the `archive_items` table, and is exposed through `archive.php`.
+The archive is for historical records that are no longer part of the active intake workflow.
 
-## What belongs here
-- Old sold items
-- Purchase history
-- Legacy customer/source notes
-- Anything from previous servers that should remain searchable but not active in intake
+## What The Archive Is
 
-## What does not belong here
-- Photos
+- `archive.php` is the read-only browser.
+- `archive_items` is the table that stores legacy history rows.
+- `data/archive.sqlite` is the standalone archive database used by the page.
+- `data/intake.sqlite` can also contain the live archive table until the standalone database is rebuilt.
+
+## What Belongs Here
+
+- Sold inventory
+- Legacy purchase history
+- Historical buyer or source notes
+- Imported records from older systems that still need to be searchable
+
+## What Does Not Belong Here
+
 - Active intake work
-- Records you still need to edit day-to-day
+- Photo files
+- Records that should still be edited day to day
 
-## Importing a DBeaver CSV export
+## How The Page Works
 
-1. Export the old table from DBeaver as CSV with headers.
-2. Run the importer:
+`archive.php` loads the archive database and builds filters for:
+
+- Search text
+- Status
+- Source
+- Legacy source
+- Sold date range
+- Pagination
+
+The search term is matched against SKU, title, status, source, buyer, notes, and the raw legacy payload.
+
+## Importing CSV Exports
+
+Use the importer when you export a legacy table from DBeaver or another system.
 
 ```bash
 php scripts/import_archive_csv.php "C:\path\to\legacy_export.csv" --source="Old Server Name" --table="old_table_name"
 ```
 
-3. Rebuild the standalone archive DB:
+### Import Behavior
+
+- Common column names are normalized automatically.
+- Missing status values default to `Archived`.
+- The raw CSV row is preserved in `legacy_payload`.
+- Duplicate rows are skipped when `legacy_source`, `legacy_table`, and `legacy_id` match an existing row.
+- The import writes into the live archive table inside `data/intake.sqlite`.
+
+## Rebuilding The Standalone Archive DB
+
+After importing or restoring archive data, rebuild the standalone database:
 
 ```bash
 php scripts/build_archive_db.php
 ```
 
-4. Open `archive.php` and search by SKU, title, notes, buyer, or legacy ID.
+This copies the live archive table into `data/archive.sqlite`, which is the file `archive.php` prefers.
 
-### Example mapping for `inventory_202604211554.csv`
+## Useful Legacy Fields
 
-- `inventory_id` -> `legacy_id`
-- `item_sku` -> `sku`
-- `description` -> `title`
-- `location_id` -> `legacy_location_id`
-- `ebay_category_id` -> `legacy_category_id`
-- `created_at` -> `created_at`
-- `updated_at` -> `updated_at`
-- Missing status -> defaults to `Archived`
+- `legacy_source` records where the import came from.
+- `legacy_table` records the old table name.
+- `legacy_id` records the original row identifier.
+- `legacy_location_id` and `legacy_category_id` are preserved when present.
+- `legacy_payload` keeps the original row JSON for auditing and troubleshooting.
 
-## Import behavior
-- Common columns are mapped automatically when their names match obvious variants.
-- The raw CSV row is preserved in `legacy_payload` as JSON.
-- If `legacy_source`, `legacy_table`, and `legacy_id` match an existing row, the importer skips the duplicate.
-- `archive.php` reads `data/archive.sqlite` first. If that file is missing, it falls back to `data/intake.sqlite`.
+## Example Search Patterns
 
-## Notes
-- The archive is read-only in the UI.
-- If your legacy data uses unusual column names, export a small sample first and adjust the importer mapping as needed.
+- SKU only
+- Buyer name
+- Old source name
+- Sold date window
+- Raw legacy row content
+
+## Troubleshooting
+
+- If the archive page is empty, check whether `data/archive.sqlite` exists.
+- If the archive page is stale, rebuild `data/archive.sqlite`.
+- If search results look wrong, inspect `legacy_payload` for the original CSV data.
+- If the archive database will not open, run the migration helper and rebuild it again.

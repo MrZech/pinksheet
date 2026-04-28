@@ -1,141 +1,104 @@
-# Maintenance - Pinksheet
+# Maintenance
 
-Keep the SQLite databases, backups, and scheduled jobs healthy. For day-to-day app use, see **[Usage](usage.md)** and **[Operator SOP](ops.md)**. For restores, see **[Restore playbook](restore_playbook.md)**.
+This page covers backups, verification, scheduling, health checks, and restore-adjacent maintenance tasks.
 
----
+## Quick Reference
 
-## Quick reference
+| Task | Tool |
+|---|---|
+| Run backup from the UI | Home -> `Run backup now` -> `backup_now.php` |
+| Verify latest backup from the UI | Home -> `Verify latest backup` -> `verify_now.php` |
+| Run the PowerShell backup directly | `scripts/backup.ps1` |
+| Verify integrity directly | `scripts/verify_backup.ps1` |
+| Register a nightly task | `scripts/register_backup_task.ps1` |
+| Rebuild the archive database | `scripts/build_archive_db.php` |
 
-| Topic | Where to look |
-|--------|----------------|
-| Run backup from browser | Home -> **Run backup now** -> `backup_now.php` -> `scripts/backup.ps1` |
-| Verify backup + DB | `scripts/verify_backup.ps1` or Home -> **Verify latest backup** |
-| Schedule nightly job | `scripts/register_backup_task.ps1` (elevated) |
-| Restore latest file | `scripts/restore_latest_backup.ps1` (`-DryRun` to preview) |
-| Health JSON | `health.php` |
-| Downtime banner | `config.php` -> `MAINTENANCE_MODE` |
+## Backup Flow
 
----
+The main backup script is `scripts/backup.ps1`.
 
-## Backups & logs
+- Default retention is `0`, which means keep everything.
+- The script copies `data/intake.sqlite` into `data/backups/`.
+- A SHA256 checksum file is written next to the backup.
+- `logs/lookup.csv` is rotated into `logs/archive/`.
+- By default, OneDrive is used as an off-box mirror when it exists.
+- `-CopyTo` mirrors the backup folder to another destination.
+- `-CopyPhotosTo` mirrors `data/sku_photos/` when you want photo backups too.
+- `-SleepIfIdleMinutes` can put the machine to sleep after the backup completes if the user has been idle long enough.
 
-> [!TIP]
-> **Retention:** the backup script defaults to **no pruning** (`RetentionDays` **0**). Only pass `-RetentionDays N` if you intentionally want old backups removed.
+### Browser Trigger
 
-### What `scripts/backup.ps1` does
+- `backup_now.php` is the browser-triggered backup endpoint.
+- It only allows local or private-network requests.
+- It prefers PowerShell when available.
+- If PowerShell is unavailable, it falls back to a PHP backup implementation.
 
-- Copies **`data/intake.sqlite`** into **`data/backups/`** with a dated name.
-- Writes **`intake-*.sha256`** checksum files alongside backups.
-- Rotates **`logs/lookup.csv`** into **`logs/archive/`** when configured.
+## Verification Flow
 
-### Archive database note
+The verification stack is split across `verify_now.php`, `scripts/verify_backup.ps1`, and `scripts/check_db.php`.
 
-- The archive UI reads **`data/archive.sqlite`** when that file exists.
-- `data/archive.sqlite` is a standalone copy of the legacy archive rows.
-- If you restore `data/intake.sqlite` from backup or import fresh archive CSVs, run `php scripts/build_archive_db.php` so the archive DB stays in sync.
+- `verify_now.php` checks the live database and the latest backup.
+- It validates the latest backup checksum when a checksum file is present.
+- It runs `PRAGMA integrity_check` through `scripts/check_db.php`.
+- `scripts/verify_backup.ps1` does the same work from PowerShell and can send email alerts.
 
-### OneDrive & mirrors
+### Alerts
 
-- **OneDrive (default):** when OneDrive is present, backups + checksums are also copied to **`%UserProfile%\OneDrive\pinksheet-backups`**.
-- **Custom mirror:** use **`-CopyTo <path>`** for another folder, UNC, or a staging area before upload elsewhere.
+- Copy `scripts/alert.config.sample.ps1` to `scripts/alert.config.ps1` to enable email.
+- The verify script can send a success message when `-NotifyAlways` is set.
+- Failures are sent automatically when alert config is present and configured.
 
-### Photos (optional)
+## Scheduling
 
-| Flag | Behavior |
-|------|----------|
-| **`-CopyPhotosTo <path>`** | Mirrors **`data/sku_photos/`** with robocopy **`/MIR`** (can be large). |
-| **`-CopyTo`** only | Photos can mirror to **`<CopyTo>\sku_photos`** when the photo flag is omitted (see script help for your version). |
+`scripts/register_backup_task.ps1` creates a scheduled task that runs backup first and verification second.
 
-### Sleep after backup
+- Default task name: `PinksheetNightlyBackup`
+- Default time: 00:15
+- Default retention: `0`
+- Default idle sleep threshold: 5 minutes
 
-- **`-SleepIfIdleMinutes N`:** if the machine has been idle at least **N** minutes after backup, it may be put to sleep. Use **`0`** to disable.
+The script runs the task in the current user context with highest available privileges.
 
-### Integrity & alerts
+## Health Endpoint
 
-- **`scripts/verify_backup.ps1`** - checksum (if present) + **`PRAGMA integrity_check`** on the live DB and the newest backup.
-- **Email:** copy **`scripts/alert.config.sample.ps1`** -> **`scripts/alert.config.ps1`**, set SMTP. A scheduled task can pass **`-NotifyAlways`** for nightly success + failure mail.
+`health.php` exposes a small JSON summary for dashboard and monitoring use.
 
-### Scheduled task (Windows)
+- Maintenance mode status
+- Latest backup name
+- Backup age in hours
+- Backup size in bytes
+- Backup checksum result
+- Lookup and preview limits
 
-Example (run **elevated**):
+The dashboard uses this data to warn when backups are stale or checksums look wrong.
 
-```powershell
-scripts/register_backup_task.ps1 -Hour 0 -Minute 15 -RetentionDays 0 -SleepIfIdleMinutes 5
-```
+## Restore-Adjacent Work
 
-Chains **backup -> integrity check**. Default task name: **`PinksheetNightlyBackup`**.
+- After restoring `data/intake.sqlite`, run `scripts/build_archive_db.php` if you want `archive.php` to match the imported archive rows.
+- If legacy CSV data changed, rebuild `data/archive.sqlite` from the live archive table.
+- If you restored or copied photo folders manually, spot-check `photo.php?id=...` and the lookup thumbnails.
 
-### Restore (manual)
+## Disk And Retention
 
-> [!WARNING]
-> **Stop the app** (or block writes) before replacing **`data/intake.sqlite`**, then copy a known-good file from **`data/backups/`** and start again. If the archive page is out of sync, rerun `php scripts/build_archive_db.php` after the restore.
+- The backup scripts do not prune old files unless you explicitly set a positive retention value.
+- Use retention only when you have a clear storage policy.
+- Keep an eye on `data/backups/`, `logs/archive/`, and any off-box mirror that is in use.
 
-### Restore (helper)
+## Git Hooks
 
-```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts/restore_latest_backup.ps1
-```
+- `.githooks/pre-commit` protects the repository from accidentally staging live databases and backup artifacts.
+- `.githooks/pre-push` runs a backup before pushing.
+- On a fresh clone, enable them with `git config core.hooksPath .githooks`.
 
-Creates a **safety copy** of the current DB, then restores the **newest** backup. Use **`-DryRun`** to preview only.
+## Database Repair
 
-### Git hooks
+- `scripts/migrate.php` can recreate missing directories, tables, and indexes.
+- It also sets `journal_mode=WAL` and `synchronous=NORMAL`.
+- Run it after moving the database file or after a very old schema is introduced into a new checkout.
 
-- **`.githooks/pre-commit`** - blocks staging DB/backups/logs; can run backup.
-- **`.githooks/pre-push`** - backup before push.
+## When Something Looks Wrong
 
-> [!NOTE]
-> On a **fresh clone**, enable hooks: `git config core.hooksPath .githooks`
-
-### Status board
-
-- **`kanban.php`** updates status via **`update_item.php`**. Keep that endpoint **local / private** (not exposed to the public internet without auth).
-
----
-
-## Health & maintenance mode
-
-| Asset | Role |
-|-------|------|
-| **`health.php`** | JSON for probes: maintenance flag, backup name/age/size, checksum status |
-| **`config.php`** | **`MAINTENANCE_MODE`** - when **true**, downtime banner + **503**-style behavior for checks |
-
----
-
-## Database care
-
-| Action | How |
-|--------|-----|
-| Occasional tidy | `VACUUM;` and `ANALYZE;` via `sqlite3 data/intake.sqlite` if the DB grows/shrinks a lot |
-| Off-box copies | After backups, mirror **`data/backups/`** (robocopy, NAS, SharePoint, etc.) |
-| WAL / settings | **`scripts/migrate.php`** sets **`journal_mode=WAL`**, **`synchronous=NORMAL`**, and indexes (**`sku_normalized`**, **`status, updated_at`**). Rerun after moving the DB file. |
-
----
-
-## Space management
-
-> [!IMPORTANT]
-> Pruning only happens when you set **retention** in the backup flow. If disks are tight, either mirror off-box first or lower **`RetentionDays`** in the **scheduled** command - not blindly on production without a policy.
-
----
-
-## Task visibility (Windows)
-
-- Enable **Task Scheduler -> View -> Enable All Tasks History** to see run history.
-- Inspect the task:
-
-```powershell
-Get-ScheduledTask -TaskName PinksheetNightlyBackup | Format-List TaskName, State, LastRunTime, NextRunTime
-```
-
----
-
-## Related documentation
-
-| Doc | Purpose |
-|-----|---------|
-| [Restore playbook](restore_playbook.md) | DB + photo restore, rollback |
-| [Ops SOP](ops.md) | Daily / weekly operator checks |
-| [Testing](testing.md) | Smoke + manual checklist |
-| [Dev](dev.md) | File map, local run, conventions |
-| [Usage](usage.md) | End-user flows and buttons |
-| [Schema](schema.md) | `intake_items`, `archive_items`, and database files |
+- If the backup badge on Home is older than expected, run a backup and verify it immediately.
+- If `verify_now.php` fails, check the checksum file, the live database, and the latest backup side by side.
+- If `health.php` says maintenance mode is on, the app is intentionally returning maintenance responses.
+- If the archive page is stale after an import or restore, rebuild `data/archive.sqlite`.

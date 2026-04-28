@@ -1,130 +1,90 @@
-# Backup & Restore Playbook (Dispo.Tech Intake)
+# Backup and Restore Playbook
 
-> [!TIP]
-> **Related:** [Maintenance](maintenance.md) (backups & scheduling) · [Ops](ops.md) · [Testing](testing.md)
+Use this when the live database is corrupt, a restore is needed, or the archive and photo stores need to be rolled back with the data.
 
-Use this when intake data is missing/corrupt, or when rolling back after a bad deploy. Steps assume local access to the server filesystem. Times are in local server time.
+## Before You Start
 
-## What is covered
-- Restore `data/intake.sqlite` from backup.
-- Restore or rebuild `data/archive.sqlite`.
-- Restore SKU photos for one or many SKUs.
-- Verify integrity after restore.
-- Roll back from a bad deploy using the last known-good backup.
+1. Pause writes to the app if you can.
+2. Note the current timestamps of `data/intake.sqlite` and `data/archive.sqlite`.
+3. Find the newest backup that predates the incident.
+4. Decide whether this is a full restore, an archive refresh, or a photo-only recovery.
 
-## Before you start (checklist)
-1. Confirm no one is actively writing to the app (coordinate a short freeze).
-2. Note current `data/intake.sqlite` timestamp/size (for potential forensic diff).
-3. Note current `data/archive.sqlite` timestamp/size if the archive page is stale.
-4. Identify the target backup file in `data/backups/` (choose the newest that predates the incident).
-5. If only a few SKUs lost photos, prefer a targeted photo restore (see below).
+## Restore `data/intake.sqlite`
 
-## Restore the database
-> Goal: replace `data/intake.sqlite` with a known-good backup safely.
+### Manual Restore
 
-1. Stop the PHP server / block writes (if using `php -S`, just stop it; otherwise disable the site briefly).
-2. Backup the broken file (just in case):
+1. Stop the site or block writes.
+2. Make a safety copy of the current database.
+3. Copy the chosen backup over `data/intake.sqlite`.
+4. Restart the app.
+5. Rebuild the archive database if needed.
 
-   ```text
-   copy data\intake.sqlite data\intake.sqlite.broken.%DATE:~-4%%DATE:~4,2%%DATE:~7,2%.bak
-   ```
+### Helper Restore
 
-3. Pick a backup file from `data\backups\` (example: `intake-2026-04-02-0100.sqlite`).
-4. Restore:
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/restore_latest_backup.ps1
+```
 
-   ```text
-   copy /Y data\backups\intake-YYYY-MM-DD-HHMM.sqlite data\intake.sqlite
-   ```
+Add `-DryRun` to preview the action without copying anything.
 
-5. Rebuild the archive database if needed:
+The helper script makes a safety copy of the current database before restoring the newest backup.
 
-   ```text
-   php scripts/build_archive_db.php
-   ```
+## Restore `data/archive.sqlite`
 
-6. Restart the server.
-7. If your primary copy is in OneDrive, you can restore directly from there:
+Use this when the archive page is stale or the standalone archive database is missing.
 
-   ```text
-   copy /Y "%UserProfile%\OneDrive\pinksheet-backups\intake-YYYYMMDD-HHMMSS.sqlite" data\intake.sqlite
-   ```
+1. If the live archive table is still present in `data/intake.sqlite`, rebuild the archive database.
+2. If you have a known-good standalone copy, replace `data/archive.sqlite` directly.
+3. Reopen `archive.php` and confirm the row count looks right.
 
-8. Shortcut (latest backup, with safety copy):
+```bash
+php scripts/build_archive_db.php
+```
 
-   ```text
-   powershell -NoProfile -ExecutionPolicy Bypass -File scripts/restore_latest_backup.ps1
-   ```
+## Restore Photos
 
-   Add `-DryRun` to see what it would do without copying.
+Photos are stored on disk, not inside the SQLite database.
 
-## Restore the archive database
-> Use this if `archive.php` is stale or `data/archive.sqlite` is missing.
+1. Find the matching SKU folder in your backup mirror.
+2. Copy that folder back into `data/sku_photos/`.
+3. Confirm the photo metadata rows still exist in `sku_photos`.
+4. Open `photo.php?id=...` and confirm the file streams correctly.
 
-1. If `data/intake.sqlite` already has the archive rows, rebuild the archive DB:
+If only one SKU is affected, restoring that SKU folder is usually enough.
 
-   ```text
-   php scripts/build_archive_db.php
-   ```
+## Full Photo Rollback
 
-2. If you need to restore the archive database from a copy, replace `data\archive.sqlite` with the known-good file.
-3. Open `archive.php` and confirm the badge shows the expected archive DB path and row count.
+Use this only when many photo folders need to be replaced.
 
-## Restore photos (per-SKU)
-> Only if certain SKU folders are missing/corrupt.
+1. Back up the current `data/sku_photos/` tree.
+2. Mirror the backup copy over the live photo tree.
+3. Spot-check a few known images.
 
-1. Locate the SKU folder in the backup mirror (or prior copy) under `data\sku_photos\<SKU_NORMALIZED>\`.
-2. Copy that folder into `data\sku_photos\` on the live server. Example:
+## Verify After Restore
 
-   ```text
-   robocopy "backup_mirror\data\sku_photos\ABCD123" "data\sku_photos\ABCD123" /E
-   ```
+1. Run the database check.
+2. Verify the newest backup.
+3. Open Home and make sure the alert banner is clear.
+4. Search a restored SKU in lookup.
+5. Open the archive page and confirm the archive row count looks right.
+6. Run the smoke test if you changed more than one layer.
 
-3. No DB change is needed if `sku_photos` entries exist. If records are missing:
-   - Option A: re-upload via the app (fastest).
-   - Option B: insert rows manually (advanced): match `stored_name`, `mime_type`, `file_size`, `sku_normalized`.
+```bash
+php scripts/check_db.php data/intake.sqlite
+php scripts/smoke.php
+```
 
-## Full photo rollback (rare)
-1. Backup current `data\sku_photos`:
+## Common Recovery Paths
 
-   ```text
-   robocopy data\sku_photos data\sku_photos.broken /MIR
-   ```
+- One bad row: use `Copy fields from SKU` or `undo_delete.php`.
+- A few bad rows: restore from the soft-delete table or an autosave draft.
+- Corrupt live database: restore `data/intake.sqlite` from backup.
+- Stale archive: rebuild `data/archive.sqlite`.
+- Missing photos: restore the affected SKU folders only.
 
-2. Restore from mirror:
+## After Action
 
-   ```text
-   robocopy backup_mirror\data\sku_photos data\sku_photos /MIR
-   ```
-
-## Verification steps
-1. Run integrity check on the restored DB and verify checksum (optional):
-
-   ```text
-   php scripts/check_db.php
-   ```
-
-   Expect `integrity_check: ok`.
-   - If using the UI button flow, you can also hit `backup_now.php` after restore to ensure backups still run (should return `{"ok":true,...}`).
-   - To verify checksum of a backup: `certutil -hashfile data\backups\intake-YYYYMMDD-HHMMSS.sqlite SHA256` and compare to the adjacent `.sha256` file.
-2. Spot-check in the UI:
-   - Open Home (counts load, no alerts).
-   - Lookup a restored SKU; verify status + thumbnail loads.
-   - Open `photo.php?id=...` for a restored SKU photo.
-   - Open `archive.php` and confirm the archive badge shows the expected DB path and row count.
-3. Optional smoke suite:
-
-   ```text
-   php -S 127.0.0.1:8765 -t .
-   php scripts/smoke.php
-   ```
-
-## Rollback decision tree
-- **Only a few records wrong?** Use "Copy fields from SKU" to reapply fields or restore from draft/autosave; avoid full DB rollback.
-- **DB corrupt or many records missing?** Restore `intake.sqlite` from the newest good backup, then rebuild `archive.sqlite`.
-- **Archive page stale but intake fine?** Run `php scripts/build_archive_db.php`.
-- **Photos missing but DB fine?** Restore only affected SKU folders from photo backup.
-
-## After-action
-1. Re-enable the site; notify users the window is over.
-2. Note the incident time, chosen backup, and verification outcome in your ops log.
-3. If backups were stale or failed, prioritize fixing backup schedule/alerts before next shift.
+- Write down what was restored.
+- Record which backup was used.
+- Note whether archive or photo data needed extra rebuilds.
+- Fix the cause of the failure before the next shift if possible.

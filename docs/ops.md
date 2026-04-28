@@ -1,69 +1,79 @@
-# Operator SOP (Dispo.Tech Intake)
+# Operator SOP
 
-> [!TIP]
-> **Related:** [Restore playbook](restore_playbook.md) (DB + photos) · [Maintenance](maintenance.md) (backups & tasks) · [Usage](usage.md) · [Testing](testing.md)
+This is the day-to-day checklist for keeping the app healthy.
 
-## Daily checklist (AM)
-1. **Open Home dashboard** (`home.php`):
-   - Cards load; counts are non-null.
-   - Backup badge is <=36h; if older, check `data/backups/` and run "Run backup now".
-   - Alerts banner empty; if present, read and act.
-2. **SKU lookup sanity**:
-   - Type a known SKU (or 2 letters); preview shows status + thumb/placeholder.
-   - "Refresh preview" works; "Load more" adds rows.
-3. **Intake smoke**:
-   - Open `intake.php?clear_draft=1`.
-   - Type in a few fields; autosave chip shows "Saved ...".
-   - Click "New Intake" then "Restore last draft" to confirm recovery works.
+## Morning Check
 
-## Weekly checklist
-1. **Run automated smoke** (requires local server):
+1. Open `home.php`.
+2. Confirm the dashboard cards load and counts are not blank.
+3. Check the backup badge.
+4. Read the alerts area.
+5. Open the lookup panel and confirm search still returns recent items.
+6. Open `intake.php?clear_draft=1` and confirm autosave works.
 
-   ```text
-   php -S 127.0.0.1:8765 -t .
-   php scripts/smoke.php
-   ```
+## What Good Looks Like
 
-   All lines should be `[OK]`; photo upload step needs curl extension.
-2. **Backup integrity**: run `scripts/verify_backup.ps1` or `php scripts/check_db.php` against the live intake DB and newest backup; confirm `ok: true`.
-3. **Archive refresh**: after importing legacy CSVs, run `php scripts/build_archive_db.php` so `archive.php` sees the latest rows in `data/archive.sqlite`.
-4. **Storage**: ensure `data/sku_photos`, `data/backups`, and `data/archive.sqlite` have space; clean old temp files if any.
+- The backup badge is recent.
+- The alert list is empty.
+- Lookup preview updates when you type.
+- Thumbnails appear when photos exist.
+- Autosave reports a saved state instead of a conflict or error.
 
-## Bulk delete safety
+## Weekly Check
 
-> [!WARNING]
-> **Bulk delete** is permanent for selected **rows** (with archive/undo per app design). Confirm SKUs twice before confirming.
+1. Run the smoke test.
+2. Verify the latest backup.
+3. Confirm the archive database is current after any import work.
+4. Check free disk space for `data/backups/`, `data/sku_photos/`, and `logs/`.
+5. Spot-check a known SKU in intake, lookup, archive, and the prompt builder.
 
-- Use intake table checkboxes + "Delete selected" only after selecting the correct SKUs.
-- Two confirmations: (1) browser confirm, (2) type `DELETE`. If unsure, cancel.
-- Deleting records **does not delete photos**; if photos must be removed, handle manually in `data/sku_photos/<SKU>/`.
-- Single-row delete also requires double confirm and redirects with a success message.
+## Bulk Delete Safety
 
-## Copy/duplicate policy
-- **Copy fields from SKU** pulls latest record fields except SKU/photos/ids; always set a new SKU manually.
-- **Save & Duplicate** pre-fills a fresh form with the previous values (SKU/photos blank). Review and adjust status/notes before saving.
+- Bulk delete is permanent from the live table.
+- The UI requires selected rows and the confirmation word `DELETE`.
+- Deleted rows are copied into `intake_deleted` first so `undo_delete.php` can recover the most recent one.
+- Deleting a record does not delete photo files.
 
-## Restore / incident playbook
-1. **Missing data?** Check `data/intake.sqlite` timestamp; if corrupted, restore the newest backup from `data/backups/` (copy over while server is stopped). Then rerun `php scripts/build_archive_db.php` if the archive page needs a refresh. Detailed steps: `docs/restore_playbook.md`.
-2. **Archive page empty?** Check `data/archive.sqlite` timestamp. If missing or stale, rebuild it from the current archive rows with `php scripts/build_archive_db.php`.
-3. **Photos missing?** Locate SKU folder under `data/sku_photos/`; if absent, recover from backup mirror. Detailed steps: `docs/restore_playbook.md`.
-4. **Autosave lost?** If the form cleared, click "Restore last draft." If still missing and SKU exists, use "Copy fields from SKU" to pull the latest saved record.
+## Photo Safety
 
-## Operational commands (local)
-- Start server: `php -S 127.0.0.1:8765 -t .`
-- Smoke test: `php scripts/smoke.php`
-- Backup now (PowerShell): `php backup_now.php` (or press button on Home)
-- Rebuild archive DB: `php scripts/build_archive_db.php`
-- Verify DB: `php scripts/check_db.php`
+- If a SKU loses its photo files, the database rows can still exist.
+- If you restore files manually, check that the stored file names still match the database metadata.
+- If you need a single thumbnail, use `set_thumbnail.php` or the related UI control.
 
-## Logging
-- Lookup events: `logs/lookup.csv`
-- Upload errors: `logs/upload_errors.log`
-- Backups: `data/backups/` (latest file is most recent)
-- Archive DB: `data/archive.sqlite`
+## Archive Safety
 
-## When to escalate
-- Backup badge >36h and backup scripts failing.
-- Smoke test FAIL on autosave, uploads, or lookup preview.
-- Rebuild archive DB fails or `archive.php` still shows stale rows after import.
-- Repeated DB lock/permission errors in logs or UI.
+- The archive page is read-only.
+- If imported rows are missing, rebuild `data/archive.sqlite`.
+- If a legacy CSV import produced duplicates, check the `legacy_source`, `legacy_table`, and `legacy_id` values.
+
+## Common Commands
+
+```bash
+php -S 127.0.0.1:8765 -t .
+php scripts/smoke.php
+php scripts/check_db.php data/intake.sqlite
+php scripts/build_archive_db.php
+```
+
+## Incident Triage
+
+- Backup stale: run backup, then verify the newest backup.
+- Autosave broken: test `autosave.php` directly and confirm the SKU is present.
+- Lookup broken: test `lookup_preview.php` and `suggestions.php`.
+- Photos missing: check `photo.php`, `upload_photo.php`, and the `data/sku_photos/` folder.
+- Kanban move broken: test `update_item.php`.
+
+## Escalation Triggers
+
+- The database fails integrity checks.
+- The backup script fails repeatedly.
+- The archive database will not rebuild.
+- File permissions prevent writes to `data/` or `logs/`.
+- A local-only endpoint is somehow reachable from outside the private network.
+
+## Notes For The Next Shift
+
+- Record the backup status you saw.
+- Record any manual restore or repair work.
+- Record whether photos, archive rows, or drafts needed recovery.
+- If you changed retention or mirror settings, leave a note about why.
