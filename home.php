@@ -6,7 +6,7 @@ $scriptName = basename($_SERVER['SCRIPT_NAME'] ?? $_SERVER['PHP_SELF'] ?? '');
 $isLookupPage = $scriptName === 'lookup.php';
 $currentPage = $isLookupPage ? 'lookup' : 'home';
 const HOME_DB_PATH = __DIR__ . '/data/intake.sqlite';
-$statusOptions = ['Intake', 'Description', 'Tested', 'Listed', 'SOLD'];
+$statusOptions = ['Intake', 'Tested', 'Dispo Tech Store', 'eBay', 'SOLD'];
 $lookupSuggestions = [];
 $listedItems = [];
 $listedThumbs = [];
@@ -354,9 +354,9 @@ if (is_dir($backupDir)) {
             <div class="filter-chips" id="lookup-chips">
               <button type="button" data-lookup-status="">Any</button>
               <button type="button" data-lookup-status="Intake">Intake</button>
-              <button type="button" data-lookup-status="Description">Description</button>
               <button type="button" data-lookup-status="Tested">Tested</button>
-              <button type="button" data-lookup-status="Listed">Listed</button>
+              <button type="button" data-lookup-status="Dispo Tech Store">Dispo Tech Store</button>
+              <button type="button" data-lookup-status="eBay">eBay</button>
               <button type="button" data-lookup-status="SOLD">Sold</button>
             </div>
             <div class="actions lookup-actions">
@@ -415,7 +415,7 @@ if (is_dir($backupDir)) {
                       </td>
                       <td>
                         <span class="status-price-stack">
-                          <span class="status-chip"><?php echo htmlspecialchars($row['status'] ?: 'Listed', ENT_QUOTES, 'UTF-8'); ?></span>
+                          <span class="status-chip"><?php echo htmlspecialchars($row['status'] ?: 'Intake', ENT_QUOTES, 'UTF-8'); ?></span>
                           <?php if ($rowPrice !== null && $rowPrice !== ''): ?>
                             <span class="status-price"><?php echo '$' . number_format((float)$rowPrice, 2); ?></span>
                           <?php elseif ($missingPrice): ?>
@@ -1095,7 +1095,7 @@ if (is_dir($backupDir)) {
             actionsTd.appendChild(priceBadge);
           }
           var inlineStatus = document.createElement('select');
-          ['','Intake','Description','Tested','Listed','SOLD'].forEach(function (opt) {
+          ['','Intake','Tested','Dispo Tech Store','eBay','SOLD'].forEach(function (opt) {
             var o = document.createElement('option');
             o.value = opt;
             o.textContent = opt || 'Set status';
