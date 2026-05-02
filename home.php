@@ -179,18 +179,20 @@ if (is_dir($backupDir)) {
       padding: 6px 16px;
       border-radius: 8px;
       font-size: 13px;
-      font-weight: 600;
+      font-weight: 700;
       cursor: pointer;
-      border: 1px solid var(--line, #ddd);
-      background: var(--surface-primary, #fff);
-      transition: background 0.15s, opacity 0.15s;
+      border: 2px solid #888;
+      background: #555;
+      color: #fff;
+      transition: background 0.15s, border-color 0.15s, opacity 0.15s;
     }
     .pagination-bar button:disabled {
-      opacity: 0.35;
+      opacity: 0.25;
       cursor: default;
     }
     .pagination-bar button:not(:disabled):hover {
-      background: var(--surface-secondary, #f5f5f5);
+      background: #333;
+      border-color: #555;
     }
     .pagination-page-btns {
       display: flex;
