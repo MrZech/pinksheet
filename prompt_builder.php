@@ -515,6 +515,25 @@ $initialItemJson = $currentItem ? json_encode($currentItem, JSON_HEX_TAG | JSON_
           });
       };
 
+      var sendScriptCacheSnapshot = function (sku, promptText, chatgptText, finalText) {
+        if (!sku || !navigator.sendBeacon) {
+          return false;
+        }
+        try {
+          var payload = JSON.stringify({
+            sku: sku,
+            sku_display: sku,
+            prompt_text: promptText || '',
+            chatgpt_text: chatgptText || '',
+            final_text: finalText || ''
+          });
+          var blob = new Blob([payload], { type: 'application/json' });
+          return navigator.sendBeacon('script_cache.php', blob);
+        } catch (e) {
+          return false;
+        }
+      };
+
       var scheduleScriptCacheSave = function () {
         if (!currentSkuNormalized) {
           return;
@@ -817,6 +836,14 @@ $initialItemJson = $currentItem ? json_encode($currentItem, JSON_HEX_TAG | JSON_
           return;
         }
         if (!promptOutput.value && !chatgptOutput.value && !finalOutput.value) {
+          return;
+        }
+        if (sendScriptCacheSnapshot(
+          currentSkuNormalized,
+          promptOutput.value,
+          chatgptOutput.value,
+          finalOutput.value
+        )) {
           return;
         }
         saveScriptCache(

@@ -17,11 +17,18 @@ try {
     // ignore
 }
 
-$lanes = ['Intake', 'Description', 'Tested', 'Listed', 'SOLD'];
+// Ensure reviewed column exists.
+try {
+    $pdo->exec("ALTER TABLE intake_items ADD COLUMN reviewed INTEGER NOT NULL DEFAULT 0");
+} catch (Throwable $e) {
+    // ignore
+}
+
+$lanes = ['Intake', 'Tested', 'Dispo Tech Store', 'eBay', 'SOLD'];
 $cards = [];
 $thumbs = [];
 $items = $pdo->query("
-    SELECT id, sku, status, what_is_it, updated_at, dispotech_price
+    SELECT id, sku, status, what_is_it, updated_at, dispotech_price, reviewed
     FROM intake_items
     WHERE sku IS NOT NULL AND TRIM(sku) <> ''
     ORDER BY updated_at DESC, id DESC
@@ -168,6 +175,46 @@ foreach ($items as $item) {
       user-select: none;
       -webkit-user-drag: none;
     }
+    .kanban-card .reviewed-checkbox {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 8px;
+      padding: 6px 8px;
+      background: linear-gradient(135deg, #9ca3af 0%, #6b7280 100%);
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      color: white;
+      box-shadow: 0 2px 4px rgba(107, 114, 128, 0.3);
+      transition: all 0.3s ease;
+    }
+    .kanban-card .reviewed-checkbox.checked {
+      background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+      box-shadow: 0 2px 4px rgba(34, 197, 94, 0.3);
+    }
+    .kanban-card .reviewed-checkbox:hover {
+      box-shadow: 0 4px 8px rgba(107, 114, 128, 0.4);
+      transform: translateY(-1px);
+    }
+    .kanban-card .reviewed-checkbox.checked:hover {
+      background: linear-gradient(135deg, #16a34a 0%, #15803d 100%);
+      box-shadow: 0 4px 8px rgba(34, 197, 94, 0.4);
+    }
+    .kanban-card .reviewed-checkbox input[type="checkbox"] {
+      width: 18px;
+      height: 18px;
+      cursor: pointer;
+      accent-color: white;
+      pointer-events: auto;
+      filter: brightness(1.2);
+    }
+    .kanban-card .reviewed-checkbox label {
+      cursor: pointer;
+      user-select: none;
+      flex: 1;
+    }
   </style>
 </head>
 <body class="home status-board">
@@ -205,6 +252,12 @@ foreach ($items as $item) {
                 <?php if ($thumb): ?>
                   <img src="photo.php?id=<?php echo $thumb; ?>" alt="" draggable="false">
                 <?php endif; ?>
+                <div class="reviewed-checkbox<?php echo !empty($card['reviewed']) ? ' checked' : ''; ?>">
+                  <input type="checkbox" id="reviewed-<?php echo htmlspecialchars($norm, ENT_QUOTES, 'UTF-8'); ?>" 
+                         data-sku="<?php echo htmlspecialchars($sku, ENT_QUOTES, 'UTF-8'); ?>"
+                         <?php echo !empty($card['reviewed']) ? 'checked' : ''; ?>>
+                  <label for="reviewed-<?php echo htmlspecialchars($norm, ENT_QUOTES, 'UTF-8'); ?>">Active</label>
+                </div>
               </div>
             <?php endforeach; ?>
             </div>
@@ -339,6 +392,52 @@ foreach ($items as $item) {
           .catch(function () {
             alert('Update failed');
           });
+      });
+
+      // Handle reviewed checkbox changes
+      board.addEventListener('change', function (e) {
+        if (e.target.type === 'checkbox' && e.target.hasAttribute('data-sku')) {
+          var checkbox = e.target;
+          var sku = checkbox.getAttribute('data-sku');
+          var reviewed = checkbox.checked ? '1' : '0';
+          var container = checkbox.closest('.reviewed-checkbox');
+
+          // Toggle the checked class for visual feedback
+          if (checkbox.checked) {
+            container.classList.add('checked');
+          } else {
+            container.classList.remove('checked');
+          }
+
+          fetch('update_item.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: 'sku=' + encodeURIComponent(sku) + '&field=reviewed&value=' + encodeURIComponent(reviewed)
+          })
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+              if (!data.ok) {
+                alert('Failed to update reviewed status: ' + (data.error || 'error'));
+                checkbox.checked = !checkbox.checked; // Revert on error
+                // Revert the class too
+                if (checkbox.checked) {
+                  container.classList.add('checked');
+                } else {
+                  container.classList.remove('checked');
+                }
+              }
+            })
+            .catch(function () {
+              alert('Failed to update reviewed status');
+              checkbox.checked = !checkbox.checked; // Revert on error
+              // Revert the class too
+              if (checkbox.checked) {
+                container.classList.add('checked');
+              } else {
+                container.classList.remove('checked');
+              }
+            });
+        }
       });
     })();
   </script>

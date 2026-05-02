@@ -61,6 +61,37 @@ $tests = [
     [
         'name' => 'script cache GET',
         'url' => $base . '/script_cache.php?sku=SMOKE123',
+        'expect_json' => [
+            'has_cache' => true,
+            'data.prompt_text' => 'Prompt text',
+            'data.chatgpt_text' => 'ChatGPT text',
+            'data.final_text' => 'Final text',
+        ],
+    ],
+    [
+        'name' => 'script cache exact whitespace POST',
+        'url' => $base . '/script_cache.php',
+        'method' => 'POST',
+        'body' => json_encode([
+            'sku' => 'SMOKE124',
+            'sku_display' => 'SMOKE124',
+            'prompt_text' => "  Prompt\nLine 2  ",
+            'chatgpt_text' => "\nChatGPT draft\n",
+            'final_text' => "  Final script  \n",
+        ], JSON_THROW_ON_ERROR),
+        'headers' => [
+            'Content-Type: application/json',
+        ],
+    ],
+    [
+        'name' => 'script cache exact whitespace GET',
+        'url' => $base . '/script_cache.php?sku=SMOKE124',
+        'expect_json' => [
+            'has_cache' => true,
+            'data.prompt_text' => "  Prompt\nLine 2  ",
+            'data.chatgpt_text' => "\nChatGPT draft\n",
+            'data.final_text' => "  Final script  \n",
+        ],
     ],
 ];
 
@@ -84,6 +115,28 @@ foreach ($tests as $test) {
     [$httpVer, $statusCode] = array_pad(explode(' ', $statusLine, 3), 2, '000');
     $statusCode = (int)$statusCode;
     $pass = $statusCode >= 200 && $statusCode < 400;
+    $respJson = null;
+    if (isset($test['expect_json']) && $resp !== false) {
+        $respJson = json_decode($resp, true);
+        if (!is_array($respJson)) {
+            $pass = false;
+        } else {
+            foreach ($test['expect_json'] as $path => $expectedValue) {
+                $actualValue = $respJson;
+                foreach (explode('.', $path) as $segment) {
+                    if (!is_array($actualValue) || !array_key_exists($segment, $actualValue)) {
+                        $actualValue = null;
+                        break;
+                    }
+                    $actualValue = $actualValue[$segment];
+                }
+                if ($actualValue !== $expectedValue) {
+                    $pass = false;
+                    break;
+                }
+            }
+        }
+    }
     $ok = $ok && $pass;
     echo '[' . ($pass ? 'OK' : 'FAIL') . '] ' . $test['name'] . ' -> ' . $statusCode . PHP_EOL;
     if (!$pass) {
