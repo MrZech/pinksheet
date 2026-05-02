@@ -160,6 +160,52 @@ if (is_dir($backupDir)) {
   <link rel="stylesheet" href="assets/style.css">
   <link rel="stylesheet" media="print" href="assets/print.css">
   <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
+  <style>
+    .pagination-bar {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      padding: 14px 0 4px;
+      flex-wrap: wrap;
+    }
+    .pagination-info {
+      font-size: 13px;
+      opacity: 0.75;
+      min-width: 120px;
+      text-align: center;
+    }
+    .pagination-bar button {
+      padding: 6px 16px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      border: 1px solid var(--line, #ddd);
+      background: var(--surface-primary, #fff);
+      transition: background 0.15s, opacity 0.15s;
+    }
+    .pagination-bar button:disabled {
+      opacity: 0.35;
+      cursor: default;
+    }
+    .pagination-bar button:not(:disabled):hover {
+      background: var(--surface-secondary, #f5f5f5);
+    }
+    .pagination-page-btns {
+      display: flex;
+      gap: 4px;
+    }
+    .pagination-page-btns button {
+      min-width: 34px;
+      padding: 6px 8px;
+    }
+    .pagination-page-btns button.is-current-page {
+      background: var(--accent-strong, #e879a0);
+      color: #fff;
+      border-color: var(--accent-strong, #e879a0);
+    }
+  </style>
 </head>
 <body class="home<?php echo $isLookupPage ? ' lookup-page' : ''; ?>">
   <main class="page">
@@ -372,7 +418,7 @@ if (is_dir($backupDir)) {
               <p class="hint">Recent records from the full inventory.</p>
             </div>
             <div class="lookup-results-actions">
-              <span class="badge subtle"><?php echo count($listedItems); ?> items</span>
+              <span class="badge subtle" id="inventory-badge"><?php echo count($listedItems); ?> items</span>
             </div>
           </div>
           <div class="table-wrap">
@@ -434,6 +480,12 @@ if (is_dir($backupDir)) {
                 <?php endif; ?>
               </tbody>
             </table>
+          </div>
+          <!-- Pagination controls -->
+          <div class="pagination-bar" id="pagination-bar">
+            <button type="button" id="page-prev" class="ghost" disabled>← Prev</button>
+            <span id="page-info" class="pagination-info"></span>
+            <button type="button" id="page-next" class="ghost">Next →</button>
           </div>
         </div>
       </div>
@@ -799,10 +851,75 @@ if (is_dir($backupDir)) {
             inventoryBadge.textContent += ' of ' + total;
           }
         };
+
+        // --- Pagination state ---
+        var PAGE_SIZE = 25;
+        var currentPage = 1;
+        var currentFilteredRows = [];
+        var prevBtn = document.getElementById('page-prev');
+        var nextBtn = document.getElementById('page-next');
+        var pageInfo = document.getElementById('page-info');
+        var pageBar = document.getElementById('pagination-bar');
+
+        var renderPageButtons = function (totalPages) {
+          // Remove old page number buttons
+          var existing = pageBar ? pageBar.querySelector('.pagination-page-btns') : null;
+          if (existing) existing.parentNode.removeChild(existing);
+          if (!pageBar || totalPages <= 1) return;
+          var btnGroup = document.createElement('div');
+          btnGroup.className = 'pagination-page-btns';
+          // Show up to 7 page buttons with ellipsis logic
+          var pages = [];
+          for (var i = 1; i <= totalPages; i++) {
+            if (i === 1 || i === totalPages || (i >= currentPage - 2 && i <= currentPage + 2)) {
+              pages.push(i);
+            }
+          }
+          var last = 0;
+          pages.forEach(function (p) {
+            if (last && p - last > 1) {
+              var dots = document.createElement('span');
+              dots.textContent = '…';
+              dots.style.padding = '6px 4px';
+              dots.style.opacity = '0.5';
+              btnGroup.appendChild(dots);
+            }
+            var pb = document.createElement('button');
+            pb.type = 'button';
+            pb.textContent = p;
+            if (p === currentPage) pb.classList.add('is-current-page');
+            pb.addEventListener('click', (function (pg) {
+              return function () { goToPage(pg); };
+            })(p));
+            btnGroup.appendChild(pb);
+            last = p;
+          });
+          // Insert between prev and next
+          pageBar.insertBefore(btnGroup, nextBtn);
+        };
+
+        var goToPage = function (page) {
+          var totalPages = Math.ceil(currentFilteredRows.length / PAGE_SIZE);
+          currentPage = Math.max(1, Math.min(page, totalPages || 1));
+          var start = (currentPage - 1) * PAGE_SIZE;
+          var end = start + PAGE_SIZE;
+          inventoryRows.forEach(function (row) { row.hidden = true; });
+          currentFilteredRows.slice(start, end).forEach(function (row) { row.hidden = false; });
+          if (prevBtn) prevBtn.disabled = currentPage <= 1;
+          if (nextBtn) nextBtn.disabled = currentPage >= totalPages;
+          if (pageInfo) pageInfo.textContent = 'Page ' + currentPage + ' of ' + (totalPages || 1);
+          renderPageButtons(totalPages);
+          updateInventoryBadge(currentFilteredRows.length);
+        };
+
+        if (prevBtn) prevBtn.addEventListener('click', function () { goToPage(currentPage - 1); });
+        if (nextBtn) nextBtn.addEventListener('click', function () { goToPage(currentPage + 1); });
+
         var applyInventoryFilters = function () {
           if (!inventoryBody || !inventoryRows.length) {
             return;
           }
+          currentFilteredRows = [];
           var skuValue = normalizeValue(skuInput && skuInput.value);
           var statusValue = normalizeValue(statusSelect && statusSelect.value);
           var cutoff = filterState.staleDays > 0 ? (Date.now() - (filterState.staleDays * 86400000)) : 0;
@@ -831,14 +948,13 @@ if (is_dir($backupDir)) {
             if (matches && gapState.missingPrice) {
               matches = rowMissingPrice;
             }
-            row.hidden = !matches;
-            row.setAttribute('aria-hidden', matches ? 'false' : 'true');
+            row.hidden = true; // hide all first; pagination will show the right slice
             if (matches) {
-              matchCount++;
+              currentFilteredRows.push(row);
             }
           });
           var emptyRow = inventoryBody.querySelector('[data-inventory-empty]');
-          if (matchCount === 0) {
+          if (currentFilteredRows.length === 0) {
             if (!emptyRow) {
               emptyRow = document.createElement('tr');
               emptyRow.setAttribute('data-inventory-empty', '1');
@@ -849,10 +965,13 @@ if (is_dir($backupDir)) {
               inventoryBody.appendChild(emptyRow);
             }
             emptyRow.hidden = false;
-          } else if (emptyRow) {
-            emptyRow.parentNode.removeChild(emptyRow);
+            if (pageBar) pageBar.style.display = 'none';
+          } else {
+            if (emptyRow) emptyRow.parentNode.removeChild(emptyRow);
+            if (pageBar) pageBar.style.display = '';
+            currentPage = 1;
+            goToPage(1);
           }
-          updateInventoryBadge(matchCount);
         };
 
         var saveFilter = function () {
