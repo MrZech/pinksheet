@@ -87,7 +87,7 @@ if (is_readable(HOME_DB_PATH)) {
             WHERE sku IS NOT NULL
               AND TRIM(sku) <> ''
             ORDER BY updated_at DESC, id DESC
-            LIMIT 30
+            LIMIT 500
         ");
         $listedItems = $stmtListed->fetchAll(PDO::FETCH_ASSOC);
         $listedSkus = array_values(array_filter(array_map(static fn($r) => trim((string)($r['sku'] ?? '')), $listedItems)));
@@ -773,7 +773,7 @@ if (is_dir($backupDir)) {
         var filterState = { staleDays: 0 };
         var loadMoreBtn = document.getElementById('lookup-load-more');
         var exportBtn = document.getElementById('lookup-export-csv');
-        var previewLimit = 20;
+        var previewLimit = 500;
         var recentSkuKey = 'pinksheetRecentSkus';
         var filterKey = 'pinksheetLookupFilter';
         var gapChips = document.getElementById('gap-chips');

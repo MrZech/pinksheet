@@ -17,7 +17,7 @@ const MAINTENANCE_MESSAGE = 'The intake system is temporarily offline for mainte
 const MAX_QUERY_LENGTH = 50;
 const MAX_STATUS_LENGTH = 30;
 const SUGGESTION_LIMIT = 40;
-const PREVIEW_LIMIT = 50;
+const PREVIEW_LIMIT = 500;
 
 function loadDotEnv(string $path): void
 {
