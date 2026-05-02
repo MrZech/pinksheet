@@ -1,0 +1,100 @@
+[Tue Apr 28 14:14:17 2026] PHP 8.5.4 Development Server (http://127.0.0.1:8765) started
+[Tue Apr 28 14:14:42 2026] 127.0.0.1:56997 Accepted
+[Tue Apr 28 14:14:43 2026] 127.0.0.1:56997 [200]: GET /prompt_builder.php?sku=TESTSKU1
+[Tue Apr 28 14:14:43 2026] 127.0.0.1:56997 Closing
+[Tue Apr 28 14:14:43 2026] 127.0.0.1:52638 Accepted
+[Tue Apr 28 14:14:43 2026] 127.0.0.1:52638 [200]: GET /assets/style.css
+[Tue Apr 28 14:14:43 2026] 127.0.0.1:52638 Closing
+[Tue Apr 28 14:14:44 2026] 127.0.0.1:49671 Accepted
+[Tue Apr 28 14:14:44 2026] 127.0.0.1:49671 [200]: GET /assets/print.css
+[Tue Apr 28 14:14:44 2026] 127.0.0.1:49671 Closing
+[Tue Apr 28 14:14:44 2026] 127.0.0.1:56114 Accepted
+[Tue Apr 28 14:14:44 2026] 127.0.0.1:49887 Accepted
+[Tue Apr 28 14:14:44 2026] 127.0.0.1:56114 [404]: GET /copy_item.php?sku=TESTSKU1
+[Tue Apr 28 14:14:44 2026] 127.0.0.1:56114 Closing
+[Tue Apr 28 14:14:44 2026] 127.0.0.1:49887 [200]: GET /script_cache.php?sku=TESTSKU1
+[Tue Apr 28 14:14:44 2026] 127.0.0.1:49887 Closing
+[Tue Apr 28 14:15:33 2026] 127.0.0.1:49672 Accepted
+[Tue Apr 28 14:15:33 2026] 127.0.0.1:49672 [200]: GET /health.php
+[Tue Apr 28 14:15:33 2026] 127.0.0.1:49672 Closing
+[Tue Apr 28 14:15:33 2026] 127.0.0.1:49673 Accepted
+[Tue Apr 28 14:15:33 2026] 127.0.0.1:49673 [200]: GET /home.php
+[Tue Apr 28 14:15:33 2026] 127.0.0.1:49673 Closing
+[Tue Apr 28 14:15:33 2026] 127.0.0.1:49674 Accepted
+[Tue Apr 28 14:15:33 2026] 127.0.0.1:49674 [200]: GET /lookup.php
+[Tue Apr 28 14:15:33 2026] 127.0.0.1:49674 Closing
+[Tue Apr 28 14:15:33 2026] 127.0.0.1:49675 Accepted
+[Tue Apr 28 14:15:33 2026] 127.0.0.1:49675 [200]: GET /intake.php
+[Tue Apr 28 14:15:33 2026] 127.0.0.1:49675 Closing
+[Tue Apr 28 14:15:33 2026] 127.0.0.1:49676 Accepted
+[Tue Apr 28 14:15:33 2026] 127.0.0.1:49676 [200]: GET /prompt_builder.php
+[Tue Apr 28 14:15:33 2026] 127.0.0.1:49676 Closing
+[Tue Apr 28 14:15:33 2026] 127.0.0.1:49677 Accepted
+[Tue Apr 28 14:15:33 2026] 127.0.0.1:49677 [200]: GET /lookup_preview.php?sku=TEST&limit=3
+[Tue Apr 28 14:15:33 2026] 127.0.0.1:49677 Closing
+[Tue Apr 28 14:15:33 2026] 127.0.0.1:49678 Accepted
+[Tue Apr 28 14:15:33 2026] 127.0.0.1:49678 [200]: POST /autosave.php
+[Tue Apr 28 14:15:33 2026] 127.0.0.1:49678 Closing
+[Tue Apr 28 14:15:33 2026] 127.0.0.1:49679 Accepted
+[Tue Apr 28 14:15:33 2026] 127.0.0.1:49679 [200]: POST /script_cache.php
+[Tue Apr 28 14:15:33 2026] 127.0.0.1:49679 Closing
+[Tue Apr 28 14:15:33 2026] 127.0.0.1:49680 Accepted
+[Tue Apr 28 14:15:33 2026] 127.0.0.1:49680 [200]: GET /script_cache.php?sku=SMOKE123
+[Tue Apr 28 14:15:33 2026] 127.0.0.1:49680 Closing
+[Tue Apr 28 14:15:33 2026] 127.0.0.1:49681 Accepted
+[Tue Apr 28 14:15:33 2026] 127.0.0.1:49681 [200]: POST /script_cache.php
+[Tue Apr 28 14:15:33 2026] 127.0.0.1:49681 Closing
+[Tue Apr 28 14:15:33 2026] 127.0.0.1:49682 Accepted
+[Tue Apr 28 14:15:33 2026] 127.0.0.1:49682 [200]: GET /script_cache.php?sku=SMOKE124
+[Tue Apr 28 14:15:33 2026] 127.0.0.1:49682 Closing
+[Tue Apr 28 14:15:33 2026] 127.0.0.1:49683 Accepted
+[Tue Apr 28 14:15:33 2026] 127.0.0.1:49683 [200]: POST /upload_photo.php
+[Tue Apr 28 14:15:33 2026] 127.0.0.1:49683 Closing
+[Tue Apr 28 14:15:41 2026] 127.0.0.1:63744 Accepted
+[Tue Apr 28 14:15:41 2026] 127.0.0.1:63744 [200]: GET /prompt_builder.php?sku=TESTSKU1
+[Tue Apr 28 14:15:41 2026] 127.0.0.1:63744 Closing
+[Tue Apr 28 14:15:41 2026] 127.0.0.1:51055 Accepted
+[Tue Apr 28 14:15:41 2026] 127.0.0.1:51055 [200]: GET /assets/style.css
+[Tue Apr 28 14:15:41 2026] 127.0.0.1:51055 Closing
+[Tue Apr 28 14:15:42 2026] 127.0.0.1:51957 Accepted
+[Tue Apr 28 14:15:42 2026] 127.0.0.1:51957 [200]: GET /assets/print.css
+[Tue Apr 28 14:15:42 2026] 127.0.0.1:51957 Closing
+[Tue Apr 28 14:15:42 2026] 127.0.0.1:54426 Accepted
+[Tue Apr 28 14:15:42 2026] 127.0.0.1:54426 [404]: GET /copy_item.php?sku=TESTSKU1
+[Tue Apr 28 14:15:42 2026] 127.0.0.1:54426 Closing
+[Tue Apr 28 14:15:42 2026] 127.0.0.1:63471 Accepted
+[Tue Apr 28 14:15:42 2026] 127.0.0.1:63471 [200]: GET /script_cache.php?sku=TESTSKU1
+[Tue Apr 28 14:15:42 2026] 127.0.0.1:63471 Closing
+[Tue Apr 28 14:15:43 2026] 127.0.0.1:56887 Accepted
+[Tue Apr 28 14:15:43 2026] 127.0.0.1:56887 [200]: POST /script_cache.php
+[Tue Apr 28 14:15:43 2026] 127.0.0.1:56887 Closing
+[Tue Apr 28 14:15:43 2026] 127.0.0.1:49673 Accepted
+[Tue Apr 28 14:15:43 2026] 127.0.0.1:49673 [200]: GET /script_cache.php?sku=TESTSKU1
+[Tue Apr 28 14:15:43 2026] 127.0.0.1:49673 Closing
+[Tue Apr 28 14:23:52 2026] 127.0.0.1:65241 Accepted
+[Tue Apr 28 14:23:52 2026] 127.0.0.1:65241 [200]: GET /copy_item.php?sku=D-2620-58
+[Tue Apr 28 14:23:52 2026] 127.0.0.1:65241 Closing
+[Tue Apr 28 14:23:58 2026] 127.0.0.1:51342 Accepted
+[Tue Apr 28 14:23:58 2026] 127.0.0.1:51342 [200]: GET /copy_item.php?sku=D-2620-58
+[Tue Apr 28 14:23:58 2026] 127.0.0.1:51342 Closing
+[Tue Apr 28 14:24:03 2026] 127.0.0.1:50187 Accepted
+[Tue Apr 28 14:24:03 2026] 127.0.0.1:61506 Accepted
+[Tue Apr 28 14:24:03 2026] 127.0.0.1:50187 [200]: POST /script_cache.php
+[Tue Apr 28 14:24:03 2026] 127.0.0.1:50187 Closing
+[Tue Apr 28 14:24:03 2026] 127.0.0.1:61506 [200]: GET /prompt_builder.php?sku=D-2620-58
+[Tue Apr 28 14:24:03 2026] 127.0.0.1:61506 Closing
+[Tue Apr 28 14:24:03 2026] 127.0.0.1:61354 Accepted
+[Tue Apr 28 14:24:03 2026] 127.0.0.1:61354 [200]: GET /assets/style.css
+[Tue Apr 28 14:24:03 2026] 127.0.0.1:61354 Closing
+[Tue Apr 28 14:24:03 2026] 127.0.0.1:54999 Accepted
+[Tue Apr 28 14:24:03 2026] 127.0.0.1:54999 [200]: GET /assets/print.css
+[Tue Apr 28 14:24:03 2026] 127.0.0.1:54999 Closing
+[Tue Apr 28 14:24:03 2026] 127.0.0.1:54182 Accepted
+[Tue Apr 28 14:24:03 2026] 127.0.0.1:61300 Accepted
+[Tue Apr 28 14:24:03 2026] 127.0.0.1:54182 [200]: GET /copy_item.php?sku=D-2620-58
+[Tue Apr 28 14:24:03 2026] 127.0.0.1:54182 Closing
+[Tue Apr 28 14:24:03 2026] 127.0.0.1:61300 [200]: GET /script_cache.php?sku=D-2620-58
+[Tue Apr 28 14:24:03 2026] 127.0.0.1:61300 Closing
+[Tue Apr 28 14:24:04 2026] 127.0.0.1:55213 Accepted
+[Tue Apr 28 14:24:04 2026] 127.0.0.1:55213 [200]: POST /script_cache.php
+[Tue Apr 28 14:24:04 2026] 127.0.0.1:55213 Closing
