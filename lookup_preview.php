@@ -49,11 +49,15 @@ try {
     $conditions = [];
     $params = [];
     if ($sku !== '') {
+        $normalizedQuery = strtoupper(trim($sku));
         $escaped = '%' . str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $sku) . '%';
+        $normalizedEscaped = '%' . str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $normalizedQuery) . '%';
         $matchClause = "(sku IS NOT NULL AND sku <> '' AND sku LIKE :sku ESCAPE '\\')"
+            . " OR (sku_normalized IS NOT NULL AND sku_normalized <> '' AND sku_normalized LIKE :sku_normalized ESCAPE '\\')"
             . " OR (what_is_it IS NOT NULL AND what_is_it <> '' AND what_is_it LIKE :sku ESCAPE '\\')";
         $conditions[] = '(' . $matchClause . ')';
         $params['sku'] = $escaped;
+        $params['sku_normalized'] = $normalizedEscaped;
     }
     if ($status !== '') {
         $conditions[] = 'status = :status';

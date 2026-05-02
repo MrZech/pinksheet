@@ -34,17 +34,23 @@ try {
         PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
         PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
     ]);
+    $normalizedTerm = strtoupper(trim($term));
     $like = '%' . str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $term) . '%';
+    $normalizedLike = '%' . str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $normalizedTerm) . '%';
     $sql = <<<SQL
         SELECT sku, what_is_it
         FROM intake_items
         WHERE (sku IS NOT NULL AND sku <> '' AND sku LIKE :term ESCAPE '\\')
+          OR (sku_normalized IS NOT NULL AND sku_normalized <> '' AND sku_normalized LIKE :term_normalized ESCAPE '\\')
           OR (what_is_it IS NOT NULL AND what_is_it <> '' AND what_is_it LIKE :term ESCAPE '\\')
         ORDER BY updated_at DESC, id DESC
         LIMIT {SUGGESTION_LIMIT}
     SQL;
     $stmt = $pdo->prepare(str_replace('{SUGGESTION_LIMIT}', (string)SUGGESTION_LIMIT, $sql));
-    $stmt->execute(['term' => $like]);
+    $stmt->execute([
+        'term' => $like,
+        'term_normalized' => $normalizedLike,
+    ]);
     $suggestions = [];
     $seen = [];
     foreach ($stmt->fetchAll() as $row) {

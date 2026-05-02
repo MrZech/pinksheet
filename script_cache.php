@@ -75,9 +75,10 @@ if ($method !== 'POST') {
 $input = readInput();
 $sku = normalizeSku((string)($input['sku'] ?? ''));
 $skuDisplay = trim((string)($input['sku_display'] ?? $sku));
-$promptText = trim((string)($input['prompt_text'] ?? ''));
-$chatgptText = trim((string)($input['chatgpt_text'] ?? ''));
-$finalText = trim((string)($input['final_text'] ?? ''));
+// Preserve the script text exactly as the user entered it.
+$promptText = (string)($input['prompt_text'] ?? '');
+$chatgptText = (string)($input['chatgpt_text'] ?? '');
+$finalText = (string)($input['final_text'] ?? '');
 
 if ($sku === '') {
     jsonResponse(['status' => 'error', 'message' => 'SKU is required'], 400);
