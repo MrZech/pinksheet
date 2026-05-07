@@ -23,6 +23,10 @@ This page explains how the app is wired together so you can change it without gu
 | `archive.php` | Read-only legacy archive browser |
 | `kanban.php` | Status board with drag-and-drop updates |
 | `prompt_builder.php` | ChatGPT prompt and eBay script builder |
+| `config.php` | App-wide constants, `.env` loader, maintenance mode, and storage checks |
+| `square_sync.php` | Square catalog sync library — upserts items, variations, images, and inventory counts |
+| `sync_square_now.php` | Local-only endpoint that syncs every SKU in the database to Square in one pass |
+| `square_debug.php` | Local-only diagnostic endpoint that reports Square config, PHP extensions, and optional per-SKU sync test |
 | `autosave.php` | Server-backed draft storage |
 | `script_cache.php` | Prompt builder cache storage |
 | `copy_item.php` | Returns the newest row for a SKU without ids or timestamps |
@@ -43,9 +47,13 @@ This page explains how the app is wired together so you can change it without gu
 | `scripts/smoke.php` | Local smoke test suite |
 | `scripts/import_archive_csv.php` | Imports legacy CSV exports |
 | `scripts/build_archive_db.php` | Rebuilds `data/archive.sqlite` from live archive rows |
+| `scripts/check_db.php` | Runs `PRAGMA integrity_check` on a given SQLite file |
+| `scripts/sync_square.php` | CLI script to sync one SKU or all SKUs to Square |
 | `scripts/backup.ps1` | Main backup script |
 | `scripts/verify_backup.ps1` | Integrity check and optional alert script |
 | `scripts/register_backup_task.ps1` | Scheduled task helper for nightly jobs |
+| `scripts/restore_latest_backup.ps1` | Restores the newest backup over the live database with a safety copy |
+| `scripts/send_test_email.ps1` | Sends a test alert email to verify the alert config |
 
 ## Core Request Flow
 
@@ -75,6 +83,18 @@ This page explains how the app is wired together so you can change it without gu
 2. It loads cached prompt text with `script_cache.php`.
 3. It builds a ChatGPT prompt from the current record.
 4. When the user pastes generated text, the cache is updated again.
+
+### Square Sync
+
+1. After every intake save or inline status/price update, `squareSyncItemBySku()` in `square_sync.php` is called.
+2. The function computes a payload hash of the item fields and preferred photo.
+3. If the hash matches the last synced hash in `square_catalog_sync` and no error is recorded, the sync is skipped.
+4. Otherwise it upserts the catalog item and variation via the Square Catalog API.
+5. If the preferred photo has changed, it uploads the new image to Square.
+6. Inventory count is set to 1 for active items and 0 for SOLD items.
+7. The result is stored in `square_catalog_sync` including any error message.
+8. `sync_square_now.php` runs the same logic for every SKU in one local-only POST request.
+9. `square_debug.php` exposes config, PHP extension status, and an optional per-SKU sync test for local diagnostics.
 
 ### Photo Uploads
 
@@ -141,3 +161,5 @@ The embedded PHP binary in `php-8.5.4/` is available if the system PHP version i
 - Photo behavior usually touches `upload_photo.php`, `upload_photo_chunk.php`, `photo.php`, and `set_thumbnail.php`.
 - Backup changes usually touch `scripts/backup.ps1`, `backup_now.php`, `verify_now.php`, and the maintenance docs.
 - Archive import changes usually touch `scripts/import_archive_csv.php`, `scripts/build_archive_db.php`, and `archive.php`.
+- Square sync changes usually touch `square_sync.php`, `sync_square_now.php`, `square_debug.php`, `scripts/sync_square.php`, and `schema.md`.
+- UI theme changes live entirely in `assets/style.css`. Dark mode variables are in the `body[data-theme="dark"]` block. Print styles are in `assets/print.css`.

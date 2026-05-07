@@ -26,7 +26,7 @@ The intake sheet lives in `index.php`, with `intake.php` as a thin wrapper.
 - `SKU` is required.
 - `What is it?` is required.
 - SKU values are normalized to uppercase before the record is saved.
-- The status choices are `Intake`, `Description`, `Tested`, `Listed`, and `SOLD`.
+- The status choices are `Intake`, `Tested`, `Dispo Tech Store`, `eBay`, and `SOLD`.
 - Saving an existing SKU updates the newest matching record for that normalized SKU.
 
 ### Save Actions
@@ -115,6 +115,69 @@ Photos are stored separately from the item record.
 4. Paste the result back into the page.
 5. Build the final eBay script.
 6. Copy the final script into the listing workflow.
+
+### Script Status Indicator
+
+The recent items table on the intake page shows a colored dot and label in the Prompt column for each SKU:
+
+| Indicator | Meaning |
+|---|---|
+| 🟢 Script ready | A final eBay script has been saved for this SKU |
+| 🟡 Draft | A ChatGPT response has been pasted but no final script yet |
+| 🔵 Prompt only | A prompt has been generated but nothing pasted back yet |
+| ⚪ No script | Nothing has been started for this SKU |
+
+Clicking the indicator opens the prompt builder for that SKU.
+
+## Square Sync
+
+Square sync is optional. When configured it keeps the Square catalog in sync with intake records automatically.
+
+### Setup
+
+Create a `.env` file in the repo root with at minimum:
+
+```
+SQUARE_ACCESS_TOKEN=your_token_here
+SQUARE_LOCATION_ID=your_location_id_here
+```
+
+Optional settings:
+
+| Variable | Default | Notes |
+|---|---|---|
+| `SQUARE_ENVIRONMENT` | `sandbox` | Set to `production` for live Square |
+| `SQUARE_API_VERSION` | `2026-01-22` | Square API version header |
+| `SQUARE_CURRENCY` | `USD` | Price currency |
+| `SQUARE_DEFAULT_QUANTITY` | `1` | Inventory count for non-SOLD items |
+| `SQUARE_SYNC_ENABLED` | `1` | Set to `0` to disable without removing credentials |
+
+### What Gets Synced
+
+- Item name built from `brand_model` and `what_is_it`
+- All intake fields as a structured description
+- Price from `dispotech_price` or `ebay_price`
+- The preferred thumbnail photo
+- Inventory count: `1` for active items, `0` for SOLD
+
+### When Sync Runs
+
+- After every intake save
+- After every inline status or price update
+- After a thumbnail is changed
+- Manually via `sync_square_now.php` (local-only POST)
+- Manually via `scripts/sync_square.php` from the command line
+
+### Sync Is Skipped When
+
+- Square credentials are not configured
+- The payload hash matches the last synced hash and no error is recorded
+
+### Checking Sync Status
+
+- Sync results are stored in `square_catalog_sync` including the last error
+- Errors are appended to `logs/square_sync.log`
+- `square_debug.php` (local-only) shows config, PHP extension status, and can run a test sync for one SKU
 
 ## Archive
 
