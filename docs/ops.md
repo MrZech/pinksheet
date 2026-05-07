@@ -62,6 +62,7 @@ php scripts/build_archive_db.php
 - Lookup broken: test `lookup_preview.php` and `suggestions.php`.
 - Photos missing: check `photo.php`, `upload_photo.php`, and the `data/sku_photos/` folder.
 - Kanban move broken: test `update_item.php`.
+- Square sync failing: check `logs/square_sync.log`, open `square_debug.php` locally to confirm credentials and PHP extensions, then try `sync_square_now.php` for a full re-sync.
 
 ## Escalation Triggers
 

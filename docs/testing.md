@@ -48,7 +48,9 @@ php scripts/smoke.php
 8. Move items through Kanban and confirm status updates stick.
 9. Search the archive and confirm filters and paging work.
 10. Build a prompt in `prompt_builder.php`, paste a ChatGPT response, and verify the final script cache reloads correctly.
-11. Toggle dark mode and print view to make sure browser preferences still persist.
+11. Return to the intake page and confirm the script status indicator in the recent items table shows the correct dot and label for that SKU.
+12. Toggle dark mode and print view to make sure browser preferences still persist.
+13. If Square sync is configured, save an item and confirm `logs/square_sync.log` shows a successful sync or a clear error.
 
 ## Endpoint Checks
 
@@ -69,6 +71,8 @@ If you are debugging a feature directly, these are the most useful endpoints to 
 | `undo_delete.php` | Confirm soft-delete recovery |
 | `verify_now.php` | Confirm backup verification |
 | `health.php` | Confirm limits and backup metadata |
+| `sync_square_now.php` | Confirm full Square sync pass (local-only POST) |
+| `square_debug.php` | Confirm Square config, extensions, and optional per-SKU sync test |
 
 ## Useful Expectations
 
