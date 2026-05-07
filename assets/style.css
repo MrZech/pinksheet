@@ -1058,11 +1058,18 @@ body.dark-mode .lookup-table tr:hover {
 
 .lookup-actions .ghost {
   background: transparent;
-  border: 1px solid var(--line);
-  color: var(--muted);
+  border: 2px solid var(--border-strong);
+  color: var(--text-primary);
   border-radius: 10px;
   padding: 6px 10px;
   cursor: pointer;
+}
+
+body[data-theme="dark"] .lookup-actions .ghost,
+body.dark-mode .lookup-actions .ghost {
+  color: #e8eaf0;
+  border-color: rgba(255, 255, 255, 0.35);
+  background: rgba(255, 255, 255, 0.08);
 }
 
 .button-link.subtle {
@@ -1687,32 +1694,32 @@ button:active,
 /* Ghost buttons — transparent with a border, inherits context color */
 button.ghost,
 a.ghost {
-  background: transparent;
-  color: var(--text-primary);
-  border: 1px solid var(--border-color);
-  box-shadow: none;
-  text-shadow: none;
+  background: transparent !important;
+  color: var(--text-primary) !important;
+  border: 2px solid var(--border-strong) !important;
+  box-shadow: none !important;
+  text-shadow: none !important;
 }
 
 button.ghost:hover,
 a.ghost:hover {
-  background: rgba(0, 0, 0, 0.04);
-  border-color: var(--border-strong);
+  background: rgba(0, 0, 0, 0.06) !important;
+  border-color: var(--accent-primary) !important;
   filter: none;
 }
 
 button.ghost.danger,
 a.ghost.danger {
-  background: rgba(176, 42, 55, 0.07);
-  color: #b02a37;
-  border: 1px solid rgba(176, 42, 55, 0.35);
-  box-shadow: none;
-  text-shadow: none;
+  background: rgba(176, 42, 55, 0.08) !important;
+  color: #b02a37 !important;
+  border: 2px solid rgba(176, 42, 55, 0.55) !important;
+  box-shadow: none !important;
+  text-shadow: none !important;
 }
 
 button.ghost.danger:hover,
 a.ghost.danger:hover {
-  background: rgba(176, 42, 55, 0.14);
+  background: rgba(176, 42, 55, 0.16) !important;
   filter: none;
 }
 
@@ -1726,33 +1733,36 @@ body[data-theme="dark"] button.ghost,
 body.dark-mode button.ghost,
 body[data-theme="dark"] a.ghost,
 body.dark-mode a.ghost {
-  color: var(--text-primary);
-  border-color: rgba(255, 255, 255, 0.15);
-  background: transparent;
+  background: rgba(255, 255, 255, 0.08) !important;
+  color: #e8eaf0 !important;
+  border: 2px solid rgba(255, 255, 255, 0.35) !important;
+  box-shadow: none !important;
 }
 
 body[data-theme="dark"] button.ghost:hover,
 body.dark-mode button.ghost:hover,
 body[data-theme="dark"] a.ghost:hover,
 body.dark-mode a.ghost:hover {
-  background: rgba(255, 255, 255, 0.06);
-  border-color: rgba(255, 255, 255, 0.26);
+  background: rgba(255, 255, 255, 0.14) !important;
+  border-color: rgba(255, 255, 255, 0.6) !important;
 }
 
 body[data-theme="dark"] button.ghost.danger,
 body.dark-mode button.ghost.danger,
 body[data-theme="dark"] a.ghost.danger,
 body.dark-mode a.ghost.danger {
-  color: #fca5a5;
-  border-color: rgba(239, 68, 68, 0.35);
-  background: rgba(239, 68, 68, 0.08);
+  background: rgba(239, 68, 68, 0.12) !important;
+  color: #fca5a5 !important;
+  border: 2px solid rgba(239, 68, 68, 0.6) !important;
+  box-shadow: none !important;
 }
 
 body[data-theme="dark"] button.ghost.danger:hover,
 body.dark-mode button.ghost.danger:hover,
 body[data-theme="dark"] a.ghost.danger:hover,
 body.dark-mode a.ghost.danger:hover {
-  background: rgba(239, 68, 68, 0.18);
+  background: rgba(239, 68, 68, 0.22) !important;
+  border-color: rgba(239, 68, 68, 0.85) !important;
 }
 
 .success,
@@ -1966,44 +1976,56 @@ body.dark-mode .msg.err {
 
 .ghost.button {
   display: inline-block;
-  border: 1px solid var(--line);
-  background: transparent;
+  border: 2px solid var(--border-strong) !important;
+  background: transparent !important;
+  color: var(--text-primary) !important;
+  box-shadow: none !important;
+  text-shadow: none !important;
   padding: 6px 10px;
   border-radius: var(--radius-sm);
   font-size: 0.85rem;
   text-decoration: none;
-  color: inherit;
 }
 .ghost.button:hover {
   text-decoration: none;
-  border-color: var(--line-strong);
+  border-color: var(--accent-primary) !important;
+  background: rgba(0, 0, 0, 0.05) !important;
 }
 
 body[data-theme="dark"] .ghost.button,
 body.dark-mode .ghost.button {
-  color: var(--text-primary);
-  border-color: rgba(255, 255, 255, 0.15);
+  color: #e8eaf0 !important;
+  border-color: rgba(255, 255, 255, 0.35) !important;
+  background: rgba(255, 255, 255, 0.08) !important;
 }
 
 body[data-theme="dark"] .ghost.button:hover,
 body.dark-mode .ghost.button:hover {
-  border-color: rgba(255, 255, 255, 0.28);
-  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.6) !important;
+  background: rgba(255, 255, 255, 0.14) !important;
 }
 
 .sku-photo-actions .ghost {
-  border: 1px solid var(--line);
+  border: 2px solid var(--border-strong);
   background: transparent;
+  color: var(--text-primary);
   padding: 4px 8px;
   border-radius: var(--radius-sm);
   font-size: 0.78rem;
   cursor: pointer;
 }
 
+body[data-theme="dark"] .sku-photo-actions .ghost,
+body.dark-mode .sku-photo-actions .ghost {
+  color: #e8eaf0;
+  border-color: rgba(255, 255, 255, 0.35);
+  background: rgba(255, 255, 255, 0.06);
+}
+
 .sku-photo-actions .ghost.danger {
   color: #b02a37;
-  border: 1px solid rgba(176, 42, 55, 0.35);
-  background: rgba(176, 42, 55, 0.07);
+  border: 2px solid rgba(176, 42, 55, 0.55);
+  background: rgba(176, 42, 55, 0.08);
   padding: 4px 8px;
   border-radius: var(--radius-sm);
   font-size: 0.78rem;
@@ -2017,13 +2039,14 @@ body.dark-mode .ghost.button:hover {
 body[data-theme="dark"] .sku-photo-actions .ghost.danger,
 body.dark-mode .sku-photo-actions .ghost.danger {
   color: #fca5a5;
-  border-color: rgba(239, 68, 68, 0.35);
-  background: rgba(239, 68, 68, 0.08);
+  border-color: rgba(239, 68, 68, 0.6);
+  background: rgba(239, 68, 68, 0.1);
 }
 
 body[data-theme="dark"] .sku-photo-actions .ghost.danger:hover,
 body.dark-mode .sku-photo-actions .ghost.danger:hover {
-  background: rgba(239, 68, 68, 0.18);
+  background: rgba(239, 68, 68, 0.22);
+  border-color: rgba(239, 68, 68, 0.85);
 }
 
 body.dark-mode .sku-photo-item {
