@@ -609,6 +609,40 @@ foreach ($recent as $item) {
         $recentThumbnails[$skuNorm] = $photoId;
     }
 }
+
+// Build a map of sku_normalized => script status for the recent items table.
+// Possible values: 'final' (full script), 'draft' (chatgpt text only), 'prompt' (prompt only), '' (none).
+$recentScriptStatus = [];
+if ($recent) {
+    // Ensure the script_cache table exists before querying it.
+    $pdo->exec("CREATE TABLE IF NOT EXISTS script_cache (
+        sku_normalized TEXT PRIMARY KEY,
+        sku_display TEXT NOT NULL,
+        prompt_text TEXT,
+        chatgpt_text TEXT,
+        final_text TEXT,
+        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    )");
+    $recentSkuNorms = array_values(array_filter(array_unique(array_map(
+        static fn($i) => normalizeSku(trim((string)($i['sku'] ?? ''))),
+        $recent
+    )), static fn($s) => $s !== ''));
+    if ($recentSkuNorms) {
+        $placeholders = implode(',', array_fill(0, count($recentSkuNorms), '?'));
+        $scriptStmt = $pdo->prepare("SELECT sku_normalized, prompt_text, chatgpt_text, final_text FROM script_cache WHERE sku_normalized IN ($placeholders)");
+        $scriptStmt->execute($recentSkuNorms);
+        foreach ($scriptStmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+            $sn = (string)$row['sku_normalized'];
+            if (!empty($row['final_text'])) {
+                $recentScriptStatus[$sn] = 'final';
+            } elseif (!empty($row['chatgpt_text'])) {
+                $recentScriptStatus[$sn] = 'draft';
+            } elseif (!empty($row['prompt_text'])) {
+                $recentScriptStatus[$sn] = 'prompt';
+            }
+        }
+    }
+}
 $formData = $_POST;
 if (!$formData && $currentItem) {
     $formData = $currentItem;
@@ -1146,7 +1180,32 @@ function checked(string $name, string $value, array $formData): string
                       <td><input type="number" step="0.01" class="js-inline-price" data-field="price" data-sku="<?php echo h($item['sku'] ?? ''); ?>" value="<?php echo isset($rowPrice) ? h((string)$rowPrice) : ''; ?>" placeholder="—"></td>
                       <td><?php echo h($item['updated_at'] ?? ''); ?></td>
                       <td><a class="open-link" href="intake.php?sku=<?php echo urlencode((string)($item['sku'] ?? '')); ?>">Open</a></td>
-                      <td><a class="open-link" href="prompt_builder.php?sku=<?php echo urlencode((string)($item['sku'] ?? '')); ?>">eBay Script</a></td>
+                      <td>
+                        <?php
+                          $rowSkuNorm = normalizeSku(trim((string)($item['sku'] ?? '')));
+                          $scriptState = $recentScriptStatus[$rowSkuNorm] ?? '';
+                          if ($scriptState === 'final') {
+                              $scriptDot   = '🟢';
+                              $scriptLabel = 'Script ready';
+                              $scriptTitle = 'Final eBay script saved';
+                          } elseif ($scriptState === 'draft') {
+                              $scriptDot   = '🟡';
+                              $scriptLabel = 'Draft';
+                              $scriptTitle = 'ChatGPT draft saved, no final script yet';
+                          } elseif ($scriptState === 'prompt') {
+                              $scriptDot   = '🔵';
+                              $scriptLabel = 'Prompt only';
+                              $scriptTitle = 'Prompt saved, no ChatGPT response yet';
+                          } else {
+                              $scriptDot   = '⚪';
+                              $scriptLabel = 'No script';
+                              $scriptTitle = 'No script started yet';
+                          }
+                        ?>
+                        <a class="open-link script-status-link" href="prompt_builder.php?sku=<?php echo urlencode((string)($item['sku'] ?? '')); ?>" title="<?php echo h($scriptTitle); ?>">
+                          <span aria-hidden="true"><?php echo $scriptDot; ?></span> <?php echo h($scriptLabel); ?>
+                        </a>
+                      </td>
                       <td>
                         <button type="button"
                                 class="ghost danger js-delete-item"
