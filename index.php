@@ -330,7 +330,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit;
     }
 
-    if (isset($_POST['bulk_delete'])) {
+    if (!empty($_POST['bulk_delete'])) {
         $bulkIds = array_values(array_unique(array_map('intval', (array)($_POST['bulk_ids'] ?? []))));
         $bulkIds = array_filter($bulkIds, static fn ($id): bool => $id > 0);
         if (!$bulkIds) {
@@ -362,7 +362,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         $saved = false;
         $errors = [];
-    } elseif (isset($_POST['bulk_update'])) {
+    } elseif (!empty($_POST['bulk_update'])) {
         $bulkStatus = trim($_POST['bulk_status'] ?? '');
         $bulkIds = array_values(array_unique(array_map('intval', (array)($_POST['bulk_ids'] ?? []))));
         $bulkIds = array_filter($bulkIds, static fn ($id): bool => $id > 0);
@@ -1106,7 +1106,6 @@ function checked(string $name, string $value, array $formData): string
         <?php endif; ?>
         <form id="undo-delete-form" method="post" action="undo_delete.php" class="visually-hidden"></form>
         <form id="bulk-form" method="post">
-          <input type="hidden" name="bulk_update" value="1">
           <div class="bulk-actions">
             <label>
               Set selected to
