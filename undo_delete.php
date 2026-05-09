@@ -15,14 +15,24 @@ header('Content-Type: application/json; charset=utf-8');
 function ensureArchiveTable(PDO $pdo): void
 {
     $pdo->exec("CREATE TABLE IF NOT EXISTS intake_deleted AS SELECT * FROM intake_items WHERE 0");
-    $hasDeletedAt = false;
+    $archiveColumns = [];
     foreach ($pdo->query("PRAGMA table_info(intake_deleted)") as $col) {
-        if ((string)$col['name'] === 'deleted_at') {
-            $hasDeletedAt = true;
-            break;
-        }
+        $archiveColumns[(string)$col['name']] = true;
     }
-    if (!$hasDeletedAt) {
+    foreach ($pdo->query("PRAGMA table_info(intake_items)") as $col) {
+        $name = (string)$col['name'];
+        if ($name === 'id' || isset($archiveColumns[$name])) {
+            continue;
+        }
+        $type = trim((string)($col['type'] ?? ''));
+        $definition = 'ALTER TABLE intake_deleted ADD COLUMN ' . $name;
+        if ($type !== '') {
+            $definition .= ' ' . $type;
+        }
+        $pdo->exec($definition);
+        $archiveColumns[$name] = true;
+    }
+    if (!isset($archiveColumns['deleted_at'])) {
         $pdo->exec("ALTER TABLE intake_deleted ADD COLUMN deleted_at TEXT");
     }
 }

@@ -14,15 +14,26 @@ function ensureArchiveTable(PDO $pdo): void
 {
     // Create table with same schema as intake_items.
     $pdo->exec("CREATE TABLE IF NOT EXISTS intake_deleted AS SELECT * FROM intake_items WHERE 0");
-    // Add deleted_at for recovery metadata if it does not already exist.
-    $hasDeletedAt = false;
+    // Backfill any live-table columns that were added after the archive table was created.
+    $archiveColumns = [];
     foreach ($pdo->query("PRAGMA table_info(intake_deleted)") as $col) {
-        if ((string)$col['name'] === 'deleted_at') {
-            $hasDeletedAt = true;
-            break;
-        }
+        $archiveColumns[(string)$col['name']] = true;
     }
-    if (!$hasDeletedAt) {
+    foreach ($pdo->query("PRAGMA table_info(intake_items)") as $col) {
+        $name = (string)$col['name'];
+        if ($name === 'id' || isset($archiveColumns[$name])) {
+            continue;
+        }
+        $type = trim((string)($col['type'] ?? ''));
+        $definition = 'ALTER TABLE intake_deleted ADD COLUMN ' . $name;
+        if ($type !== '') {
+            $definition .= ' ' . $type;
+        }
+        $pdo->exec($definition);
+        $archiveColumns[$name] = true;
+    }
+    // Add deleted_at for recovery metadata if it does not already exist.
+    if (!isset($archiveColumns['deleted_at'])) {
         $pdo->exec("ALTER TABLE intake_deleted ADD COLUMN deleted_at TEXT");
     }
 }
