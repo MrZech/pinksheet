@@ -33,9 +33,9 @@ $id = isset($_POST['id']) ? (int)$_POST['id'] : 0;
 $sku = strtoupper(trim((string)($_POST['sku'] ?? '')));
 $confirm = strtoupper(trim((string)($_POST['confirm'] ?? '')));
 
-if ($id <= 0 || $sku === '') {
+if ($id <= 0) {
     http_response_code(400);
-    echo json_encode(['status' => 'error', 'message' => 'Missing id or sku']);
+    echo json_encode(['status' => 'error', 'message' => 'Missing id']);
     exit;
 }
 
@@ -58,9 +58,27 @@ try {
     ensureArchiveTable($pdo);
 
     // Fetch the row before deletion so we can archive it.
-    $fetch = $pdo->prepare('SELECT * FROM intake_items WHERE id = :id AND sku_normalized = :sku LIMIT 1');
-    $fetch->execute(['id' => $id, 'sku' => $sku]);
+    $fetch = $pdo->prepare('SELECT * FROM intake_items WHERE id = :id LIMIT 1');
+    $fetch->execute(['id' => $id]);
     $row = $fetch->fetch(PDO::FETCH_ASSOC);
+    if (!$row) {
+        $pdo->rollBack();
+        if ($isAjax || $acceptsJson) {
+            http_response_code(404);
+            echo json_encode(['status' => 'error', 'message' => 'Record not found']);
+        } else {
+            header('Location: index.php?deleted=0');
+        }
+        exit;
+    }
+
+    // Preserve the requested SKU in the response flow, but do not let a casing or
+    // normalization mismatch block a legitimate delete by id.
+    $rowSku = strtoupper(trim((string)($row['sku_normalized'] ?? '')));
+    if ($sku !== '' && $rowSku !== '' && $sku !== $rowSku) {
+        $sku = $rowSku;
+    }
+
     if ($row) {
         $row['deleted_at'] = (new DateTime('now'))->format('c');
         // Build an insert with column list minus any SQLite virtual columns.
@@ -71,8 +89,8 @@ try {
         $archive->execute($row);
     }
 
-    $stmt = $pdo->prepare('DELETE FROM intake_items WHERE id = :id AND sku_normalized = :sku');
-    $stmt->execute(['id' => $id, 'sku' => $sku]);
+    $stmt = $pdo->prepare('DELETE FROM intake_items WHERE id = :id');
+    $stmt->execute(['id' => $id]);
     $count = $stmt->rowCount();
 
     $pdo->commit();
@@ -80,14 +98,18 @@ try {
     $response = ['status' => 'ok', 'deleted' => $count, 'archived' => (bool)$row];
     if ($isAjax || $acceptsJson) {
         echo json_encode($response);
+        exit;
     } else {
         header('Location: index.php?deleted=' . (int)$count);
+        exit;
     }
 } catch (Throwable $e) {
     http_response_code(500);
     if ($isAjax || $acceptsJson) {
         echo json_encode(['status' => 'error', 'message' => 'Server error']);
+        exit;
     } else {
         header('Location: index.php?deleted=0');
+        exit;
     }
 }
