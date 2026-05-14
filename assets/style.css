@@ -1470,6 +1470,25 @@ label.inline {
   gap: 8px;
 }
 
+label.small-checkbox {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  align-self: end;
+  font-size: 0.82rem;
+  min-height: 46px;
+}
+
+label.small-checkbox input {
+  width: auto;
+  margin: 0;
+  flex: 0 0 auto;
+}
+
+label.small-checkbox span {
+  line-height: 1.2;
+}
+
 input[type="text"],
 input[type="date"],
 input[type="number"],

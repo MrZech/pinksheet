@@ -61,6 +61,7 @@ CREATE TABLE IF NOT EXISTS intake_items (
     battery_health TEXT,
     graphics_card TEXT,
     screen_resolution TEXT,
+    diagnostics_test_ran INTEGER,
     where_it_goes TEXT,
     ebay_status TEXT,
     ebay_price REAL,
@@ -90,6 +91,9 @@ if (!in_array('sku_normalized', $columnNames, true)) {
 }
 if (!in_array('os', $columnNames, true)) {
     $pdo->exec('ALTER TABLE intake_items ADD COLUMN os TEXT');
+}
+if (!in_array('diagnostics_test_ran', $columnNames, true)) {
+    $pdo->exec('ALTER TABLE intake_items ADD COLUMN diagnostics_test_ran INTEGER NOT NULL DEFAULT 0');
 }
 $pdo->exec("CREATE INDEX IF NOT EXISTS idx_intake_items_sku_normalized ON intake_items (sku_normalized)");
 $pdo->exec("UPDATE intake_items SET sku_normalized = UPPER(TRIM(COALESCE(sku, ''))) WHERE sku_normalized IS NULL OR sku_normalized = ''");
@@ -426,6 +430,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'battery_health' => trim($_POST['battery_health'] ?? ''),
             'graphics_card' => trim($_POST['graphics_card'] ?? ''),
             'screen_resolution' => trim($_POST['screen_resolution'] ?? ''),
+            'diagnostics_test_ran' => isset($_POST['diagnostics_test_ran']) ? 1 : 0,
             'where_it_goes' => trim($_POST['where_it_goes'] ?? ''),
             'ebay_status' => trim($_POST['ebay_status'] ?? ''),
             // Single canonical Price field. We keep both DB columns in sync for backwards compatibility.
@@ -507,6 +512,7 @@ UPDATE intake_items SET
     battery_health = :battery_health,
     graphics_card = :graphics_card,
     screen_resolution = :screen_resolution,
+    diagnostics_test_ran = :diagnostics_test_ran,
     where_it_goes = :where_it_goes,
     ebay_status = :ebay_status,
     ebay_price = :ebay_price,
@@ -534,7 +540,7 @@ INSERT INTO intake_items (
     functional, condition, is_square, care_if_square,
     cords_adapters, keep_items_together, picture_taken,
     power_on, brand_model, ram, ssd_gb, cpu, os, battery_health,
-    graphics_card, screen_resolution, where_it_goes,
+    graphics_card, screen_resolution, diagnostics_test_ran, where_it_goes,
     ebay_status, ebay_price, dispotech_price, in_ebay_room,
     what_box, notes, updated_at
 ) VALUES (
@@ -542,7 +548,7 @@ INSERT INTO intake_items (
     :functional, :condition, :is_square, :care_if_square,
     :cords_adapters, :keep_items_together, :picture_taken,
     :power_on, :brand_model, :ram, :ssd_gb, :cpu, :os, :battery_health,
-    :graphics_card, :screen_resolution, :where_it_goes,
+    :graphics_card, :screen_resolution, :diagnostics_test_ran, :where_it_goes,
     :ebay_status, :ebay_price, :dispotech_price, :in_ebay_room,
     :what_box, :notes, datetime('now')
 );
@@ -981,6 +987,10 @@ function checked(string $name, string $value, array $formData): string
               </label>
               <label>OS
                 <input type="text" name="os" value="<?php echo h($formData['os'] ?? ''); ?>">
+              </label>
+              <label class="inline small-checkbox">
+                <input type="checkbox" name="diagnostics_test_ran" <?php echo !empty($formData['diagnostics_test_ran']) ? 'checked' : ''; ?>>
+                <span>Diagnostics test was ran for me</span>
               </label>
             </div>
 
