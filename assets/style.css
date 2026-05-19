@@ -1107,9 +1107,9 @@ body.dark-mode .lookup-actions .ghost {
 }
 body[data-theme="dark"] .filter-chips button,
 body.dark-mode .filter-chips button {
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(255, 255, 255, 0.06);
   color: var(--text-primary);
-  border-color: rgba(255, 255, 255, 0.09);
+  border-color: rgba(255, 255, 255, 0.25);
 }
 
 body[data-theme="dark"] .filter-chips button.is-active,
@@ -1283,9 +1283,9 @@ body.dark-mode .filter-chips button.is-active {
 
 body[data-theme="dark"] .toast,
 body.dark-mode .toast {
-  background: rgba(244, 114, 182, 0.18);
+  background: rgba(74, 222, 128, 0.14);
   color: #e8eaf0;
-  border: 1px solid rgba(244, 114, 182, 0.3);
+  border: 1px solid rgba(74, 222, 128, 0.28);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
   backdrop-filter: blur(12px);
 }
@@ -1708,19 +1708,37 @@ button:active,
   transform: translateY(1px);
 }
 
-/* Ghost buttons — transparent with a border, inherits context color */
+/* ── Dark mode: main accent buttons use dark text (green is too light for white) ── */
+body[data-theme="dark"] button:not(.ghost):not(.theme-toggle),
+body.dark-mode button:not(.ghost):not(.theme-toggle),
+body[data-theme="dark"] .button-link:not(.ghost),
+body.dark-mode .button-link:not(.ghost) {
+  color: #0f1a12 !important;
+  text-shadow: none !important;
+}
+
+/* ── Dark mode: open-link (green pill buttons in tables) ── */
+body[data-theme="dark"] .open-link,
+body.dark-mode .open-link {
+  color: #0f1a12 !important;
+}
+
+body[data-theme="dark"] .open-link:hover,
+body.dark-mode .open-link:hover {
+  color: #0f1a12 !important;
+}
 button.ghost,
 a.ghost {
   background: transparent !important;
   color: var(--text-primary) !important;
-  border: 2px solid var(--border-strong) !important;
+  border: 2px solid var(--accent-primary-strong) !important;
   box-shadow: none !important;
   text-shadow: none !important;
 }
 
 button.ghost:hover,
 a.ghost:hover {
-  background: rgba(0, 0, 0, 0.06) !important;
+  background: rgba(22, 163, 74, 0.08) !important;
   border-color: var(--accent-primary) !important;
   filter: none;
 }
@@ -1925,7 +1943,7 @@ body.dark-mode .warning {
 
 .sku-photo-progress {
   height: 6px;
-  background: rgba(236, 72, 153, 0.12);
+  background: rgba(22, 163, 74, 0.12);
   border-radius: 999px;
   overflow: hidden;
   margin-top: 6px;
@@ -1992,7 +2010,7 @@ body.dark-mode .msg.err {
 
 .ghost.button {
   display: inline-block;
-  border: 2px solid var(--border-strong) !important;
+  border: 2px solid var(--accent-primary-strong) !important;
   background: transparent !important;
   color: var(--text-primary) !important;
   box-shadow: none !important;
@@ -2005,7 +2023,7 @@ body.dark-mode .msg.err {
 .ghost.button:hover {
   text-decoration: none;
   border-color: var(--accent-primary) !important;
-  background: rgba(0, 0, 0, 0.05) !important;
+  background: rgba(22, 163, 74, 0.08) !important;
 }
 
 body[data-theme="dark"] .ghost.button,
