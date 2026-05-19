@@ -202,6 +202,23 @@ foreach ($items as $item) {
       background: linear-gradient(135deg, #16a34a 0%, #15803d 100%);
       box-shadow: 0 4px 8px rgba(34, 197, 94, 0.4);
     }
+
+    /* SOLD lane — active/checked button shows as blue with "Sold" label */
+    .kanban-card.is-sold .reviewed-checkbox {
+      background: linear-gradient(135deg, #60a5fa 0%, #3b82f6 100%);
+      box-shadow: 0 2px 4px rgba(59, 130, 246, 0.35);
+    }
+    .kanban-card.is-sold .reviewed-checkbox.checked {
+      background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+      box-shadow: 0 2px 4px rgba(37, 99, 235, 0.4);
+    }
+    .kanban-card.is-sold .reviewed-checkbox:hover {
+      box-shadow: 0 4px 8px rgba(59, 130, 246, 0.45);
+    }
+    .kanban-card.is-sold .reviewed-checkbox.checked:hover {
+      background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+      box-shadow: 0 4px 8px rgba(37, 99, 235, 0.5);
+    }
     .kanban-card .reviewed-checkbox input[type="checkbox"] {
       width: 18px;
       height: 18px;
@@ -240,7 +257,7 @@ foreach ($items as $item) {
                 $norm = strtoupper($sku);
                 $thumb = $thumbs[$norm] ?? null;
             ?>
-              <div class="kanban-card" draggable="true" data-sku="<?php echo htmlspecialchars($sku, ENT_QUOTES, 'UTF-8'); ?>" data-sku-normalized="<?php echo htmlspecialchars($norm, ENT_QUOTES, 'UTF-8'); ?>">
+              <div class="kanban-card<?php echo $lane === 'SOLD' ? ' is-sold' : ''; ?>" draggable="true" data-sku="<?php echo htmlspecialchars($sku, ENT_QUOTES, 'UTF-8'); ?>" data-sku-normalized="<?php echo htmlspecialchars($norm, ENT_QUOTES, 'UTF-8'); ?>">
                 <div class="sku"><?php echo htmlspecialchars($sku, ENT_QUOTES, 'UTF-8'); ?></div>
                 <div class="what"><?php echo htmlspecialchars($card['what_is_it'] ?? '', ENT_QUOTES, 'UTF-8'); ?></div>
                 <div class="meta">
@@ -256,7 +273,7 @@ foreach ($items as $item) {
                   <input type="checkbox" id="reviewed-<?php echo htmlspecialchars($norm, ENT_QUOTES, 'UTF-8'); ?>" 
                          data-sku="<?php echo htmlspecialchars($sku, ENT_QUOTES, 'UTF-8'); ?>"
                          <?php echo !empty($card['reviewed']) ? 'checked' : ''; ?>>
-                  <label for="reviewed-<?php echo htmlspecialchars($norm, ENT_QUOTES, 'UTF-8'); ?>">Active</label>
+                  <label for="reviewed-<?php echo htmlspecialchars($norm, ENT_QUOTES, 'UTF-8'); ?>"><?php echo $lane === 'SOLD' ? 'Sold' : 'Active'; ?></label>
                 </div>
               </div>
             <?php endforeach; ?>
@@ -388,6 +405,14 @@ foreach ($items as $item) {
             }
             lane.appendChild(card);
             card.style.opacity = '1';
+
+            // Update is-sold class and label when card moves into or out of SOLD lane
+            var isSold = status === 'SOLD';
+            card.classList.toggle('is-sold', isSold);
+            var lbl = card.querySelector('.reviewed-checkbox label');
+            if (lbl) {
+              lbl.textContent = isSold ? 'Sold' : 'Active';
+            }
           })
           .catch(function () {
             alert('Update failed');
