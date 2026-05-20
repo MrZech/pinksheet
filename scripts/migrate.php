@@ -76,6 +76,73 @@ if (!in_array('os', $names, true)) {
 }
 
 $pdo->exec("CREATE INDEX IF NOT EXISTS idx_intake_items_sku_normalized ON intake_items (sku_normalized)");
+$pdo->exec("UPDATE intake_items SET sku_normalized = UPPER(TRIM(COALESCE(sku, ''))) WHERE sku_normalized IS NULL OR sku_normalized = ''");
+$pdo->exec("CREATE TABLE IF NOT EXISTS intake_deleted AS SELECT * FROM intake_items WHERE 0");
+$archiveColumns = [];
+foreach ($pdo->query("PRAGMA table_info(intake_deleted)") as $col) {
+    $archiveColumns[(string)$col['name']] = true;
+}
+foreach ($pdo->query("PRAGMA table_info(intake_items)") as $col) {
+    $name = (string)$col['name'];
+    if ($name === 'id' || isset($archiveColumns[$name])) {
+        continue;
+    }
+    $type = trim((string)($col['type'] ?? ''));
+    $definition = 'ALTER TABLE intake_deleted ADD COLUMN ' . $name;
+    if ($type !== '') {
+        $definition .= ' ' . $type;
+    }
+    $pdo->exec($definition);
+    $archiveColumns[$name] = true;
+}
+if (!isset($archiveColumns['deleted_at'])) {
+    $pdo->exec("ALTER TABLE intake_deleted ADD COLUMN deleted_at TEXT");
+}
+$dupStmt = $pdo->query("
+    SELECT sku_normalized
+    FROM intake_items
+    WHERE sku_normalized IS NOT NULL AND TRIM(sku_normalized) <> ''
+    GROUP BY sku_normalized
+    HAVING COUNT(*) > 1
+");
+$duplicateSkus = $dupStmt->fetchAll(PDO::FETCH_COLUMN);
+foreach ($duplicateSkus as $duplicateSku) {
+    $rowsStmt = $pdo->prepare("SELECT * FROM intake_items WHERE sku_normalized = :sku ORDER BY updated_at DESC, id DESC");
+    $rowsStmt->execute(['sku' => $duplicateSku]);
+    $rows = $rowsStmt->fetchAll(PDO::FETCH_ASSOC);
+    if (count($rows) < 2) {
+        continue;
+    }
+    $keepIndex = 0;
+    foreach ($rows as $index => $row) {
+        $combined = strtolower(trim((string)($row['what_is_it'] ?? '') . ' ' . (string)($row['notes'] ?? '')));
+        if (str_contains($combined, 'refurb')) {
+            $keepIndex = $index;
+            break;
+        }
+    }
+    $sampleColumns = array_keys($rows[0]);
+    $sampleColumns[] = 'deleted_at';
+    $archiveInsertSql = 'INSERT INTO intake_deleted (' . implode(',', $sampleColumns) . ') VALUES (' . implode(',', array_map(static fn($c) => ':' . $c, $sampleColumns)) . ')';
+    $pdo->beginTransaction();
+    try {
+        $archiveInsert = $pdo->prepare($archiveInsertSql);
+        foreach ($rows as $index => $row) {
+            if ($index === $keepIndex) {
+                continue;
+            }
+            $row['deleted_at'] = (new DateTime('now'))->format('c');
+            $archiveInsert->execute($row);
+            $pdo->prepare('DELETE FROM intake_items WHERE id = :id')->execute(['id' => $row['id']]);
+        }
+        $pdo->commit();
+    } catch (Throwable $e) {
+        if ($pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
+        throw $e;
+    }
+}
 $pdo->exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_intake_items_sku_normalized_unique ON intake_items (sku_normalized) WHERE sku_normalized IS NOT NULL AND TRIM(sku_normalized) <> ''");
 $pdo->exec("CREATE INDEX IF NOT EXISTS idx_intake_items_status_updated ON intake_items (status, updated_at)");
 $pdo->exec(<<<'SQL'
