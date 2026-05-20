@@ -75,9 +75,9 @@ $sql = 'SELECT id, sku, status, what_is_it, updated_at, dispotech_price, ebay_pr
     // Optional thumbnail: pick most recent photo per normalized SKU, preferring explicit thumbnail flags.
     $thumbs = [];
     $photoCounts = [];
-    $skus = array_filter(array_map(static fn($r) => trim((string)($r['sku'] ?? '')), $rows));
+    $skus = array_values(array_filter(array_map(static fn($r) => trim((string)($r['sku'] ?? '')), $rows)));
     if ($skus) {
-        $norms = array_map(static fn($s) => strtoupper(trim($s)), $skus);
+        $norms = array_values(array_map(static fn($s) => strtoupper(trim($s)), $skus));
         $placeholders = implode(',', array_fill(0, count($norms), '?'));
         $photoStmt = $pdo->prepare("
             SELECT sku_normalized, id, is_thumb

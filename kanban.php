@@ -34,7 +34,7 @@ $items = $pdo->query("
     ORDER BY updated_at DESC, id DESC
 ")->fetchAll();
 
-$skus = array_unique(array_filter(array_map(static fn($r) => strtoupper(trim((string)($r['sku'] ?? ''))), $items)));
+$skus = array_values(array_unique(array_filter(array_map(static fn($r) => strtoupper(trim((string)($r['sku'] ?? ''))), $items))));
 if ($skus) {
     $placeholders = implode(',', array_fill(0, count($skus), '?'));
     $stmt = $pdo->prepare("
