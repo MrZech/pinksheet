@@ -673,9 +673,7 @@ if ($activeSkuNormalized === '') {
 $skuPhotos = loadSkuPhotos($pdo, $activeSkuNormalized);
 $toastMessage = '';
 if ($saved) {
-    if ($saveMode === 'duplicate') {
-        $toastMessage = 'Saved. Form duplicated for a new SKU.';
-    } elseif ($saveMode === 'created') {
+    if ($saveMode === 'created') {
         $toastMessage = 'Saved as new SKU record.';
     } else {
         $toastMessage = 'Saved and synced to this SKU.';
@@ -1091,7 +1089,6 @@ function checked(string $name, string $value, array $formData): string
 
             <div class="actions">
               <button type="submit">Save Intake Item</button>
-              <button type="submit" name="save_mode" value="duplicate" id="save-duplicate" class="ghost">Save &amp; Duplicate</button>
             </div>
           </div>
         </form>
@@ -1494,7 +1491,6 @@ function checked(string $name, string $value, array $formData): string
       if (form) {
         var draftKey = 'intakeDraftV1';
         var backupKey = 'intakeDraftBackupV1';
-      var duplicateKey = 'intakeDuplicatePrefillV1';
         var errorEl = document.getElementById('client-error');
         var dismissDraft = document.getElementById('draft-dismiss');
         var hasRecord = document.getElementById('has-server-record');
@@ -1504,10 +1500,6 @@ function checked(string $name, string $value, array $formData): string
         var restoreHint = document.getElementById('restore-hint');
         var autosaveStatus = document.getElementById('autosave-status');
         var serverDraftBanner = document.getElementById('server-draft-banner');
-      var duplicateButton = document.getElementById('save-duplicate');
-      if (duplicateButton) {
-        duplicateButton.title = 'Save, then start a new item with the same fields (SKU/photos cleared)';
-      }
       var copySkuInput = document.getElementById('copy-sku-input');
       var copySkuButton = document.getElementById('copy-sku-button');
       var copySkuStatus = document.getElementById('copy-sku-status');
@@ -1765,24 +1757,6 @@ function checked(string $name, string $value, array $formData): string
           } catch (e) {}
         }
 
-        // Prefill from a prior entry when Save & Duplicate was used.
-        var applyDuplicatePrefill = function () {
-          var raw = null;
-          try {
-            raw = sessionStorage.getItem(duplicateKey);
-          } catch (e) {}
-          if (!raw) return;
-          if (!formLooksEmpty()) return;
-          try {
-            var payload = JSON.parse(raw);
-            applyDraftObject(payload);
-            lastSavedDraft = JSON.stringify(payload);
-            try { sessionStorage.removeItem(duplicateKey); } catch (e) {}
-            showToast('Duplicated previous item â€” enter new SKU.');
-          } catch (e) {}
-        };
-        applyDuplicatePrefill();
-
         var setStatusChip = function (el, text, tone) {
           if (!el) return;
           el.textContent = text;
@@ -1841,13 +1815,6 @@ function checked(string $name, string $value, array $formData): string
           autosaveState.dirty = true;
         };
 
-        var collectDuplicatePayload = function () {
-          var payload = collectDraftPayload();
-          delete payload.id;
-          delete payload.sku;
-          return payload;
-        };
-
         form.addEventListener('input', function (event) {
           queueDraftSave();
           markAutosaveDirty();
@@ -1876,15 +1843,6 @@ function checked(string $name, string $value, array $formData): string
           queueDraftSave();
           markAutosaveDirty();
         });
-
-        if (duplicateButton) {
-          duplicateButton.addEventListener('click', function () {
-            try {
-              var payload = collectDuplicatePayload();
-              sessionStorage.setItem(duplicateKey, JSON.stringify(payload));
-            } catch (e) {}
-          });
-        }
 
         var setCopyStatus = function (text, tone) {
           if (!copySkuStatus) return;

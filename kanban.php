@@ -28,11 +28,45 @@ $lanes = ['Intake', 'Tested', 'Dispo Tech Store', 'eBay', 'SOLD'];
 $cards = [];
 $thumbs = [];
 $items = $pdo->query("
-    SELECT id, sku, status, what_is_it, updated_at, dispotech_price, reviewed
+    SELECT id, sku, sku_normalized, status, what_is_it, notes, updated_at, dispotech_price, reviewed
     FROM intake_items
     WHERE sku IS NOT NULL AND TRIM(sku) <> ''
     ORDER BY updated_at DESC, id DESC
 ")->fetchAll();
+
+$rowMentionsRefurb = static function (array $row): bool {
+    $combined = strtolower(trim((string)($row['what_is_it'] ?? '') . ' ' . (string)($row['notes'] ?? '')));
+    return str_contains($combined, 'refurb');
+};
+
+$dedupedItems = [];
+foreach ($items as $item) {
+    $norm = strtoupper(trim((string)($item['sku_normalized'] ?? $item['sku'] ?? '')));
+    if ($norm === '') {
+        continue;
+    }
+    if (!isset($dedupedItems[$norm])) {
+        $dedupedItems[$norm] = $item;
+        continue;
+    }
+
+    $current = $dedupedItems[$norm];
+    $currentRefurb = $rowMentionsRefurb($current);
+    $incomingRefurb = $rowMentionsRefurb($item);
+    if ($incomingRefurb && !$currentRefurb) {
+        $dedupedItems[$norm] = $item;
+        continue;
+    }
+    if ($incomingRefurb === $currentRefurb) {
+        $incomingStamp = (string)($item['updated_at'] ?? '');
+        $currentStamp = (string)($current['updated_at'] ?? '');
+        if ($incomingStamp > $currentStamp || ($incomingStamp === $currentStamp && (int)$item['id'] > (int)$current['id'])) {
+            $dedupedItems[$norm] = $item;
+        }
+    }
+}
+
+$items = array_values($dedupedItems);
 
 $skus = array_values(array_unique(array_filter(array_map(static fn($r) => strtoupper(trim((string)($r['sku'] ?? ''))), $items))));
 if ($skus) {

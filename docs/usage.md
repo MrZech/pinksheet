@@ -32,7 +32,7 @@ The intake sheet lives in `index.php`, with `intake.php` as a thin wrapper.
 ### Save Actions
 
 - `Save Intake Item` writes the current form to SQLite.
-- `Save & Duplicate` writes the current form, then opens a fresh form with the same values except SKU and photos.
+- `Copy fields from SKU` loads the latest row for an existing SKU so you can start a new item from that record without cloning the old SKU.
 - If the same SKU already exists in history, a warning appears so you know the save is updating the newest row.
 
 ### Drafts And Autosave

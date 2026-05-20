@@ -66,7 +66,6 @@ PowerShell backup and verify helpers live in `scripts/`.
 ## Intake And Workflow Notes
 
 - Autosave runs while you type and can restore the last draft after a clear.
-- Save & Duplicate saves the current row and opens a fresh form with the same values except SKU and photos.
 - Copy fields from SKU loads the latest record for that SKU and excludes photos and database IDs.
 - Bulk actions let you select rows, change status, or delete with a double confirmation.
 
