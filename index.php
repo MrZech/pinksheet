@@ -97,6 +97,7 @@ if (!in_array('diagnostics_test_ran', $columnNames, true)) {
 }
 $pdo->exec("CREATE INDEX IF NOT EXISTS idx_intake_items_sku_normalized ON intake_items (sku_normalized)");
 $pdo->exec("UPDATE intake_items SET sku_normalized = UPPER(TRIM(COALESCE(sku, ''))) WHERE sku_normalized IS NULL OR sku_normalized = ''");
+$pdo->exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_intake_items_sku_normalized_unique ON intake_items (sku_normalized) WHERE sku_normalized IS NOT NULL AND TRIM(sku_normalized) <> ''");
 $pdo->exec(<<<'SQL'
 CREATE TABLE IF NOT EXISTS intake_drafts (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
