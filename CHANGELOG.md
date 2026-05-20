@@ -2,6 +2,9 @@
 
 # Changelog
 
+## 2026-05-20
+- Intake: retired the Save & Duplicate action, kept Copy fields from SKU as the supported way to start a new item from an existing record, and deduped the Kanban board so the refurbished row wins when a SKU appears twice.
+
 ## 2026-05-07
 - Intake recent items table: added script status indicator in the Prompt column showing 🟢 Script ready, 🟡 Draft, 🔵 Prompt only, or ⚪ No script based on `script_cache` state; indicator links to the prompt builder for that SKU.
 - Dark mode overhaul: shifted background from deep maroon to neutral dark grey (`#0f1117`), surfaces to blue-grey (`#1c2030`), text to clean off-white (`#e8eaf0`), muted text to neutral grey (`#9ba3b5`); reduced radial gradient blobs to one subtle accent; status chips now use semantic green/yellow/red instead of pink tints.
