@@ -1319,6 +1319,10 @@ body.dark-mode .toast {
   grid-column: span 1;
 }
 
+.sheet.intake .form-columns > .section.notes {
+  grid-column: 1 / -1;
+}
+
 .sheet.intake .form-columns > .actions {
   grid-column: 1 / -1;
 }

@@ -988,10 +988,6 @@ function checked(string $name, string $value, array $formData): string
               <label>OS
                 <input type="text" name="os" value="<?php echo h($formData['os'] ?? ''); ?>">
               </label>
-              <label class="inline small-checkbox">
-                <input type="checkbox" name="diagnostics_test_ran" <?php echo !empty($formData['diagnostics_test_ran']) ? 'checked' : ''; ?>>
-                <span>Diagnostics test was ran</span>
-              </label>
             </div>
 
             <div class="row">
@@ -1003,6 +999,12 @@ function checked(string $name, string $value, array $formData): string
               </label>
               <label>Screen Resolution
                 <input type="text" name="screen_resolution" value="<?php echo h($formData['screen_resolution'] ?? ''); ?>">
+              </label>
+            </div>
+            <div class="row">
+              <label class="inline small-checkbox">
+                <input type="checkbox" name="diagnostics_test_ran" <?php echo !empty($formData['diagnostics_test_ran']) ? 'checked' : ''; ?>>
+                <span>Diagnostics test was ran</span>
               </label>
             </div>
           </div>
@@ -1084,7 +1086,7 @@ function checked(string $name, string $value, array $formData): string
 
             <div class="section notes">
               <h2>Notes</h2>
-              <textarea name="notes" rows="3"><?php echo h($formData['notes'] ?? ''); ?></textarea>
+              <textarea name="notes" rows="5"><?php echo h($formData['notes'] ?? ''); ?></textarea>
             </div>
 
             <div class="actions">
