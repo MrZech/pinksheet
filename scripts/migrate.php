@@ -76,6 +76,7 @@ if (!in_array('os', $names, true)) {
 }
 
 $pdo->exec("CREATE INDEX IF NOT EXISTS idx_intake_items_sku_normalized ON intake_items (sku_normalized)");
+$pdo->exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_intake_items_sku_normalized_unique ON intake_items (sku_normalized) WHERE sku_normalized IS NOT NULL AND TRIM(sku_normalized) <> ''");
 $pdo->exec("CREATE INDEX IF NOT EXISTS idx_intake_items_status_updated ON intake_items (status, updated_at)");
 $pdo->exec(<<<'SQL'
 CREATE TABLE IF NOT EXISTS archive_items (
