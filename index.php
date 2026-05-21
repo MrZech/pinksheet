@@ -1391,22 +1391,55 @@ function checked(string $name, string $value, array $formData): string
         });
       };
       var copyFormValues = function (srcRoot, destRoot) {
-        var srcFields = srcRoot.querySelectorAll('input, textarea, select');
-        var destFields = destRoot.querySelectorAll('input, textarea, select');
-        destFields.forEach(function (dest, idx) {
-          var src = srcFields[idx];
-          if (!src) return;
-          if (dest.tagName === 'INPUT') {
-            if (dest.type === 'checkbox' || dest.type === 'radio') {
-              dest.checked = src.checked;
-            } else {
-              dest.value = src.value;
-            }
-          } else if (dest.tagName === 'TEXTAREA') {
-            dest.value = src.value;
-          } else if (dest.tagName === 'SELECT') {
-            dest.value = src.value;
+        var sourceFieldsByName = {};
+        srcRoot.querySelectorAll('input[name], textarea[name], select[name]').forEach(function (field) {
+          var name = field.getAttribute('name');
+          if (!name) return;
+          if (!sourceFieldsByName[name]) {
+            sourceFieldsByName[name] = [];
           }
+          sourceFieldsByName[name].push(field);
+        });
+
+        destRoot.querySelectorAll('input[name], textarea[name], select[name]').forEach(function (dest) {
+          var name = dest.getAttribute('name');
+          if (!name || !sourceFieldsByName[name] || !sourceFieldsByName[name].length) return;
+
+          var sources = sourceFieldsByName[name];
+          if (dest.tagName === 'INPUT') {
+            if (dest.type === 'checkbox') {
+              dest.checked = sources.some(function (src) {
+                return src.checked;
+              });
+              return;
+            }
+
+            if (dest.type === 'radio') {
+              dest.checked = sources.some(function (src) {
+                return src.checked && src.value === dest.value;
+              });
+              return;
+            }
+
+            dest.value = sources[0].value;
+            return;
+          }
+
+          if (dest.tagName === 'TEXTAREA') {
+            dest.value = sources[0].value;
+            return;
+          }
+
+          if (dest.tagName === 'SELECT') {
+            dest.value = sources[0].value;
+          }
+        });
+      };
+      var removePrintableNodes = function (root, selectors) {
+        selectors.forEach(function (selector) {
+          root.querySelectorAll(selector).forEach(function (node) {
+            node.parentNode.removeChild(node);
+          });
         });
       };
       var buildPrintIframe = function () {
@@ -1451,6 +1484,8 @@ function checked(string $name, string $value, array $formData): string
             // Remove the header-right buttons (print, theme, new intake)
             var headerRight = headerClone.querySelector('.sheet-header-right');
             if (headerRight) headerRight.parentNode.removeChild(headerRight);
+            var headerStatus = headerClone.querySelector('.status');
+            if (headerStatus) headerStatus.parentNode.removeChild(headerStatus);
             printRoot.appendChild(headerClone);
           }
 
@@ -1471,25 +1506,50 @@ function checked(string $name, string $value, array $formData): string
           if (intakeForm) {
             var formClone = intakeForm.cloneNode(true);
 
-            // Remove interactive elements that shouldn't print
-            var toRemove = [
+            // Remove interactive and non-essential UI from the print clone.
+            removePrintableNodes(formClone, [
               '.draft-restore-wrap',
               '.copy-sku',
+              '.copy-actions',
               '.what-menu',
+              '.what-counter',
               '.sku-photo-dropzone',
               '.sku-photo-preview',
               '.upload-messages',
-              '.actions',
               '.section.sku-photos',
-              '.recent-items'
-            ];
-            toRemove.forEach(function(selector) {
-              var el = formClone.querySelector(selector);
-              if (el) el.parentNode.removeChild(el);
+              '.inline-actions',
+              '.sku-photo-actions',
+              '.actions',
+              '.recent-items',
+              'input[type="file"]',
+              'input[type="hidden"]#clear-draft',
+              'input[type="hidden"]#draft-dismiss',
+              'input[type="hidden"]#has-server-record',
+              'input[type="hidden"]#has-lookup-sku'
+            ]);
+
+            // Convert the printable clone into a read-only snapshot while
+            // preserving the actual field values from the live form.
+            copyFormValues(intakeForm, formClone);
+            var compatGroup = formClone.querySelector('.compat-os-group');
+            if (compatGroup) {
+              var compatValue = formClone.querySelector('#compatible-os-input');
+              var compatButtons = compatGroup.querySelector('.compat-os-buttons');
+              if (compatButtons) compatButtons.parentNode.removeChild(compatButtons);
+              if (compatValue && compatValue.value) {
+                var compatText = doc.createElement('div');
+                compatText.className = 'compat-os-print-value';
+                compatText.textContent = compatValue.value;
+                compatGroup.appendChild(compatText);
+              }
+            }
+            formClone.querySelectorAll('input, textarea, select').forEach(function (field) {
+              field.setAttribute('readonly', 'readonly');
+              if (field.tagName === 'INPUT' && field.type !== 'checkbox' && field.type !== 'radio') {
+                field.setAttribute('tabindex', '-1');
+              }
             });
 
-            // Copy current form values into the cloned form
-            copyFormValues(intakeForm, formClone);
             printRoot.appendChild(formClone);
           }
 
