@@ -166,34 +166,36 @@ a { color: #111; text-decoration: none; }
   We use explicit placement below.
 */
 .form-columns {
-  display: grid !important;
-  grid-template-columns: minmax(2.2in, 2.4in) minmax(2.9in, 3.2in) !important;
-  gap: 4pt !important;
-  align-items: start;
+  display: block !important;
 }
 
 .form-col-left {
   display: flex !important;
   flex-direction: column;
   gap: 3pt;
+  width: 100%;
 }
 
 .form-col-right {
-  display: grid !important;
+  display: none !important;
+}
+
+.print-task-grid {
+  display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 4pt;
+  width: 100%;
+  margin-top: 1pt;
   align-items: start;
 }
 
-/* Top rows span the left column only */
-.form-col-left > .row,
-.form-col-left > .section {
-  grid-column: 1 / -1;
+.print-task-grid > .section {
+  grid-column: span 1;
 }
 
-/* D1 and D2 share the right column */
-.form-col-right > .section {
-  grid-column: span 1;
+.form-col-left > .row,
+.form-col-left > .section {
+  width: 100%;
 }
 
 /* Notes full width */
