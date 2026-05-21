@@ -17,6 +17,8 @@
 /* ─── BASE ─────────────────────────────────────────────────────────── */
 html, body {
   width: 100%;
+  margin: 0;
+  padding: 0;
   background: #fff !important;
   color: #111 !important;
   font-family: "Inter", "Segoe UI", Arial, sans-serif;
@@ -67,8 +69,9 @@ a { color: #111; text-decoration: none; }
 /* ─── HEADER ───────────────────────────────────────────────────────── */
 .sheet-header {
   display: flex !important;
-  justify-content: space-between;
+  justify-content: flex-start;
   align-items: flex-start;
+  gap: 8pt;
   padding-bottom: 4pt;
   margin-bottom: 4pt;
   border: none !important;
@@ -94,9 +97,9 @@ a { color: #111; text-decoration: none; }
 .sheet-header .print-summary {
   display: flex !important;
   flex-direction: column;
-  align-items: flex-end;
+  align-items: flex-start;
   gap: 2pt;
-  text-align: right;
+  text-align: left;
   max-width: 2.25in;
 }
 
@@ -122,8 +125,8 @@ a { color: #111; text-decoration: none; }
 @media print {
   .print-thumb-wrap {
     display: block !important;
-    float: right;
-    margin: 0 0 6pt 10pt;
+    float: none;
+    margin: 0 0 6pt 0;
     width: 1.1in;
     height: 1.1in;
     border: 0.75pt solid #ccc;
