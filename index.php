@@ -1493,7 +1493,7 @@ function checked(string $name, string $value, array $formData): string
 
         var section = doc.createElement('section');
         section.className = 'section print-photo-section';
-        section.style.setProperty('--print-photo-size', '0.8in');
+        section.style.setProperty('--print-photo-size', '0.52in');
 
         var heading = doc.createElement('h2');
         heading.textContent = photos.length === 1 ? 'Additional Photo' : 'Additional Photos (first 4)';
