@@ -277,6 +277,17 @@ textarea {
   max-height: none !important;
 }
 
+.print-notes-value {
+  display: block;
+  min-height: 36pt;
+  padding: 2pt 0 1pt;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 8pt;
+  line-height: 1.18;
+  color: #111;
+}
+
 /* ─── FIELDSETS ────────────────────────────────────────────────────── */
 fieldset {
   padding: 2pt 3pt 3pt;
@@ -340,17 +351,40 @@ legend {
   color: #111;
 }
 
-/* ─── FOOTER ───────────────────────────────────────────────────────── */
-.sheet-content::after {
-  content: "Dispo.Tech Intake Sheet — Confidential";
+.print-photo-section {
+  grid-column: 1 / -1 !important;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.print-photo-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(var(--print-photo-size, 0.9in), 1fr));
+  gap: 3pt;
+}
+
+.print-photo-item {
+  margin: 0;
+  padding: 2pt;
+  border: 0.5pt solid #ccc;
+  background: #fff;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.print-photo-item img {
+  width: 100%;
+  height: var(--print-photo-size, 0.9in);
+  object-fit: cover;
   display: block;
-  margin-top: 8pt;
-  padding-top: 4pt;
-  border-top: 0.5pt solid #ddd;
-  font-size: 6pt;
-  color: #bbb;
-  text-align: center;
-  letter-spacing: 0.06em;
+}
+
+.print-photo-label {
+  margin-top: 1pt;
+  font-size: 5.5pt;
+  line-height: 1.1;
+  color: #666;
+  word-break: break-word;
 }
 
 /* ─── PRINT PINK ───────────────────────────────────────────────────── */
@@ -360,7 +394,4 @@ body.print-pink .print-summary-label,
 body.print-pink .print-summary-value { color: #111; }
 
 /* Keep the printout to the essential content only. */
-.sheet-content::after {
-  display: none !important;
-  content: none !important;
-}
+.sheet-content::after { display: none !important; content: none !important; }
