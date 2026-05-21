@@ -3,7 +3,7 @@
    ═══════════════════════════════════════════════════════════════════ */
 
 @page {
-  size: letter landscape;
+  size: letter portrait;
   margin: 0.2in 0.2in 0.18in 0.2in;
 }
 
@@ -97,6 +97,7 @@ a { color: #111; text-decoration: none; }
   align-items: flex-end;
   gap: 2pt;
   text-align: right;
+  max-width: 2.25in;
 }
 
 .print-summary-label {
@@ -359,8 +360,8 @@ legend {
 
 .print-photo-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(var(--print-photo-size, 0.9in), 1fr));
-  gap: 3pt;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4pt;
 }
 
 .print-photo-item {
