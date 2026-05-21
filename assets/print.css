@@ -365,6 +365,8 @@ legend {
 }
 
 .print-photo-item {
+  display: flex;
+  flex-direction: column;
   margin: 0;
   padding: 2pt;
   border: 0.5pt solid #ccc;
@@ -375,7 +377,9 @@ legend {
 
 .print-photo-item img {
   width: 100%;
-  height: var(--print-photo-size, 0.9in);
+  aspect-ratio: 1 / 1;
+  height: auto;
+  min-height: var(--print-photo-size, 0.9in);
   object-fit: cover;
   display: block;
 }
