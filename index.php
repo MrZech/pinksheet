@@ -856,12 +856,15 @@ function checked(string $name, string $value, array $formData): string
           </label>
         </div>
         <?php
+          $printSku = trim((string)($formData['sku'] ?? $activeSkuNormalized));
           $printStatus = trim((string)($formData['status'] ?? ''));
           $printPrice = isset($formData['dispotech_price']) && $formData['dispotech_price'] !== ''
             ? $formData['dispotech_price']
             : (isset($formData['ebay_price']) && $formData['ebay_price'] !== '' ? $formData['ebay_price'] : null);
         ?>
         <div class="print-summary" aria-hidden="true">
+          <div class="print-summary-label">SKU</div>
+          <div class="print-summary-value"><?php echo h($printSku !== '' ? $printSku : '—'); ?></div>
           <div class="print-summary-label">Status</div>
           <div class="print-summary-value"><?php echo h($printStatus !== '' ? $printStatus : 'Select'); ?></div>
           <div class="print-summary-label">Price</div>
@@ -1378,8 +1381,8 @@ function checked(string $name, string $value, array $formData): string
       }
 
       var PRINT_MARGIN_IN = 0.18;
-      var PRINT_PAGE_WIDTH_IN = 11;
-      var PRINT_PAGE_HEIGHT_IN = 8.5;
+      var PRINT_PAGE_WIDTH_IN = 8.5;
+      var PRINT_PAGE_HEIGHT_IN = 11;
       var PRINT_DPI = 96;
       var MIN_PRINT_SCALE = 0.98;
       var resizeTextareas = function (root) {
@@ -1485,14 +1488,15 @@ function checked(string $name, string $value, array $formData): string
           });
         });
 
+        photos = photos.slice(0, 4);
         if (!photos.length) return null;
 
         var section = doc.createElement('section');
         section.className = 'section print-photo-section';
-        section.style.setProperty('--print-photo-size', photos.length <= 4 ? '1.15in' : (photos.length <= 8 ? '0.95in' : '0.75in'));
+        section.style.setProperty('--print-photo-size', '0.8in');
 
         var heading = doc.createElement('h2');
-        heading.textContent = photos.length === 1 ? 'Additional Photo' : 'Additional Photos';
+        heading.textContent = photos.length === 1 ? 'Additional Photo' : 'Additional Photos (first 4)';
         section.appendChild(heading);
 
         var grid = doc.createElement('div');
