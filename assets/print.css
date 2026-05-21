@@ -276,16 +276,17 @@ textarea {
   overflow: visible !important;
   height: auto !important;
   max-height: none !important;
+  padding: 2pt 3pt 3pt;
 }
 
 .print-notes-value {
   display: block;
-  min-height: 36pt;
-  padding: 2pt 0 1pt;
+  min-height: 30pt;
+  padding: 1pt 0 0.5pt;
   white-space: pre-wrap;
   word-break: break-word;
-  font-size: 8pt;
-  line-height: 1.18;
+  font-size: 7.25pt;
+  line-height: 1.15;
   color: #111;
 }
 
@@ -360,15 +361,15 @@ legend {
 
 .print-photo-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 1pt;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 2pt;
 }
 
 .print-photo-item {
   display: flex;
   flex-direction: column;
   margin: 0;
-  padding: 0.5pt;
+  padding: 1pt;
   border: 0.5pt solid #ccc;
   background: #fff;
   break-inside: avoid;
@@ -377,14 +378,14 @@ legend {
 
 .print-photo-item img {
   width: 100%;
-  height: var(--print-photo-size, 0.55in);
+  height: var(--print-photo-size, 0.95in);
   object-fit: cover;
   display: block;
 }
 
 .print-photo-label {
   margin-top: 0.25pt;
-  font-size: 4.5pt;
+  font-size: 4.25pt;
   line-height: 1.1;
   color: #666;
   word-break: break-word;
