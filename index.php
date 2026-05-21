@@ -1553,22 +1553,9 @@ function checked(string $name, string $value, array $formData): string
         setTimeout(finish, 1800);
       };
       var fitPrintToSinglePage = function (doc, root) {
-        var availableWidthPx = (PRINT_PAGE_WIDTH_IN - (PRINT_MARGIN_IN * 2)) * PRINT_DPI;
-        var availableHeightPx = (PRINT_PAGE_HEIGHT_IN - (PRINT_MARGIN_IN * 2)) * PRINT_DPI;
-        var rawWidth = Math.max(root.scrollWidth || 0, root.offsetWidth || 0, 1);
-        var rawHeight = Math.max(root.scrollHeight || 0, root.offsetHeight || 0, 1);
-        var scale = Math.min(1, availableWidthPx / rawWidth, availableHeightPx / rawHeight);
-
-        if (!isFinite(scale) || scale <= 0) {
-          scale = 1;
-        }
-        if (scale > MIN_PRINT_SCALE) {
-          scale = 1;
-        }
-
-        doc.documentElement.style.zoom = String(scale);
-        doc.body.style.zoom = String(scale);
-        return scale;
+        void doc;
+        void root;
+        return 1;
       };
       var buildPrintIframe = function () {
         var sheet = document.querySelector('.sheet.intake');
@@ -1692,7 +1679,6 @@ function checked(string $name, string $value, array $formData): string
           resizeTextareas(doc);
           waitForImages(doc, function () {
             resizeTextareas(doc);
-            fitPrintToSinglePage(doc, doc.getElementById('print-root') || doc.body);
             setTimeout(function () {
               try { iframe.contentWindow.focus(); } catch (e) {}
               iframe.contentWindow.print();
