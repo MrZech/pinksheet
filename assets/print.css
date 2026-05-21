@@ -4,7 +4,7 @@
 
 @page {
   size: letter portrait;
-  margin: 0.2in 0.2in 0.18in 0.2in;
+  margin: 0.12in;
 }
 
 * {
@@ -136,9 +136,9 @@ a { color: #111; text-decoration: none; }
   .print-thumb-wrap {
     display: block !important;
     float: none;
-    margin: 0 0 4pt 0;
-    width: 0.92in;
-    height: 0.92in;
+    margin: 0 0 3pt 0;
+    width: 0.72in;
+    height: 0.72in;
     border: 0.75pt solid #ccc;
     border-radius: 3pt;
     overflow: hidden;
@@ -382,7 +382,7 @@ legend {
 .print-photo-item {
   display: flex;
   flex-direction: column;
-  width: min(100%, var(--print-photo-size, 0.95in));
+  width: min(100%, var(--print-photo-size, 0.78in));
   margin: 0;
   padding: 1pt;
   border: 0.5pt solid #ccc;
@@ -401,7 +401,7 @@ legend {
 
 .print-photo-label {
   margin-top: 0.25pt;
-  font-size: 3.75pt;
+  font-size: 3.4pt;
   line-height: 1.1;
   color: #666;
   word-break: break-word;
