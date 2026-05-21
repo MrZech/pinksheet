@@ -189,6 +189,17 @@ foreach ($items as $item) {
     .kanban-card .sku {
       font-weight: 700;
     }
+    .kanban-card .sku a {
+      color: inherit;
+      text-decoration: none;
+      border-bottom: 1px dashed rgba(255,255,255,0.4);
+      transition: border-color 0.15s ease, color 0.15s ease;
+    }
+    .kanban-card .sku a:hover {
+      color: #4ade80;
+      border-bottom-color: #4ade80;
+      text-decoration: none;
+    }
     .kanban-card .what {
       font-size: 13px;
       opacity: 0.8;
@@ -292,7 +303,11 @@ foreach ($items as $item) {
                 $thumb = $thumbs[$norm] ?? null;
             ?>
               <div class="kanban-card<?php echo $lane === 'SOLD' ? ' is-sold' : ''; ?>" draggable="true" data-sku="<?php echo htmlspecialchars($sku, ENT_QUOTES, 'UTF-8'); ?>" data-sku-normalized="<?php echo htmlspecialchars($norm, ENT_QUOTES, 'UTF-8'); ?>">
-                <div class="sku"><?php echo htmlspecialchars($sku, ENT_QUOTES, 'UTF-8'); ?></div>
+                <div class="sku">
+                  <a href="intake.php?sku=<?php echo urlencode($sku); ?>" title="Open <?php echo htmlspecialchars($sku, ENT_QUOTES, 'UTF-8'); ?> in intake">
+                    <?php echo htmlspecialchars($sku, ENT_QUOTES, 'UTF-8'); ?>
+                  </a>
+                </div>
                 <div class="what"><?php echo htmlspecialchars($card['what_is_it'] ?? '', ENT_QUOTES, 'UTF-8'); ?></div>
                 <div class="meta">
                   <span><?php echo htmlspecialchars($card['updated_at'] ?? '', ENT_QUOTES, 'UTF-8'); ?></span>

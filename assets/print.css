@@ -1,39 +1,89 @@
+/* ─── PAGE SETUP ─────────────────────────────────────────────────── */
 @page {
   size: letter portrait;
-  margin: 0.18in;
+  margin: 0.25in;
 }
 
-* { box-shadow: none !important; text-shadow: none !important; }
+* {
+  box-shadow: none !important;
+  text-shadow: none !important;
+}
 
-html, body { width: auto; height: auto; min-height: 0; }
-
-body {
+html, body {
+  width: auto;
+  height: auto;
+  min-height: 0;
   background: #fff !important;
   color: #000 !important;
-  font-size: 10pt;
-  line-height: 1.15;
+  font-size: 9pt;
+  line-height: 1.2;
   -webkit-print-color-adjust: exact;
   print-color-adjust: exact;
 }
 
 a { color: #000; text-decoration: none; }
 
-.page { margin: 0; padding: 0; width: auto; max-width: none; min-height: 0; }
+/* ─── HIDE EVERYTHING THAT IS NOT THE INTAKE FORM ───────────────── */
+.app-menu,
+.menu-panel,
+.menu-toggle,
+.toast,
+.breadcrumbs,
+.draft-restore-wrap,
+.status-bar,
+.success,
+.warning,
+.client-error,
+.error-box,
+.print-toggle,
+.print-button,
+.theme-toggle,
+.new-intake-cta,
+.quick-actions,
+.quick-links,
+.badge,
+.sheet-header-right,
+.actions,
+.recent-items,
+.copy-sku,
+.what-menu-toggle,
+.what-menu-list,
+.what-counter,
+.sku-photo-dropzone,
+.sku-photo-preview,
+.upload-messages,
+.sku-photo-actions,
+.sku-photo-meta,
+.inline-actions,
+.photo-upload-messages,
+#photo-upload-messages,
+#restore-draft-button,
+#restore-hint,
+form#photo-delete-form,
+.status .status-chip {
+  display: none !important;
+}
+
+/* ─── PAGE / SHEET WRAPPER ───────────────────────────────────────── */
+.page {
+  margin: 0;
+  padding: 0;
+  width: auto;
+  max-width: none;
+  min-height: 0;
+  display: block;
+}
 
 .sheet {
   width: 100% !important;
-  max-width: 8.0in;
-  margin: 0 auto;
   height: auto !important;
   min-height: 0 !important;
-  padding: 8pt;
-  border: 1px solid #000;
-  border-radius: 0;
+  padding: 0 !important;
+  border: none !important;
+  border-radius: 0 !important;
   background: #fff !important;
-  overflow: visible;
-  backdrop-filter: none;
-  page-break-inside: avoid;
-  page-break-after: avoid;
+  overflow: visible !important;
+  backdrop-filter: none !important;
 }
 
 .sheet.intake,
@@ -41,144 +91,245 @@ a { color: #000; text-decoration: none; }
 .sheet-content {
   height: auto !important;
   min-height: 0 !important;
+  overflow: visible !important;
 }
 
-.sheet.intake .form-columns {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-}
-
-body.print-pink .sheet { background: #f4a4bb !important; }
-
-.sheet-content { transform: none !important; margin: 0 !important; }
-.sheet.intake .sheet-header {
-  position: relative;
-  min-height: 42pt;
-  padding-right: 190pt;
-  font-size: 9pt;
+/* ─── HEADER: SKU title + status/price on right, thumbnail top-right ── */
+.sheet-header {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: start;
+  gap: 6pt;
+  border-bottom: 2pt solid #000;
+  padding-bottom: 5pt;
   margin-bottom: 6pt;
-  page-break-after: avoid;
 }
-.sheet.intake .sheet-header .status {
+
+.sheet-header .updated {
+  font-size: 8pt;
+  color: #444;
+}
+
+.sheet-header .status {
   display: none !important;
 }
-.sheet.intake .sheet-header .print-summary {
-  position: absolute;
-  top: 0;
-  right: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 4pt;
-  max-width: 175pt;
+
+.sheet-header .print-summary {
+  display: flex !important;
+  flex-direction: row;
+  gap: 12pt;
+  align-items: center;
 }
-.sheet.intake .sheet-header .print-summary-label {
+
+.print-summary-label {
+  font-size: 7.5pt;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #555;
+}
+
+.print-summary-value {
+  font-size: 11pt;
+  font-weight: 700;
+  color: #000;
+}
+
+/* Page title — show SKU big */
+.sheet h1 {
+  font-size: 14pt !important;
+  font-weight: 800;
+  margin: 0 0 2pt !important;
+  color: #000 !important;
+  letter-spacing: 0.02em;
+}
+
+/* ─── SINGLE THUMBNAIL in top-right corner ───────────────────────── */
+/* Hide the full photo section — we use the dedicated print thumbnail instead */
+.section.sku-photos {
+  display: none !important;
+}
+
+/* Print thumbnail — hidden on screen, shown only in print */
+.print-thumb-wrap {
+  display: none;
+}
+
+@media print {
+  .print-thumb-wrap {
+    display: block !important;
+    float: right;
+    margin: 0 0 6pt 10pt;
+    width: 1.5in;
+    height: 1.5in;
+    border: 1pt solid #000;
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+
+  .print-thumb-wrap img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+}
+
+/* ─── FORM LAYOUT: 3 columns for compact fit ─────────────────────── */
+.form-grid {
+  gap: 4pt;
+  display: block;
+}
+
+/* Override the two-wrapper column layout for print */
+.form-col-left,
+.form-col-right {
+  display: contents !important;
+}
+
+.form-columns {
+  display: grid !important;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  gap: 4pt !important;
+  align-items: start;
+}
+
+/* Top rows (SKU, date, source) span all 3 columns */
+.form-columns > .row {
+  grid-column: 1 / -1;
+}
+
+/* Each section takes one column */
+.form-columns .section {
+  grid-column: span 1;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+/* Notes spans full width */
+.section.notes {
+  grid-column: 1 / -1 !important;
+}
+
+/* ─── SECTIONS ───────────────────────────────────────────────────── */
+.section {
+  padding: 3pt 4pt 4pt;
+  margin-top: 4pt;
+  border: 1pt solid #000;
+  background: transparent !important;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.section h2 {
   font-size: 8pt;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.03em;
-}
-.sheet.intake .sheet-header .print-summary-value {
-  font-size: 10pt;
-  font-weight: 700;
-  margin-bottom: 4pt;
-}
-.sheet h1 { font-size: 0; margin: 0; padding: 0; }
-
-.form-grid { gap: 4pt; }
-.sheet.intake .form-columns { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-
-.section {
-  padding: 4pt 5pt;
-  margin-top: 5pt;
-  border: 1px solid #000;
-  break-inside: avoid;
-  page-break-inside: avoid;
-  page-break-after: avoid;
-  background: transparent !important;
+  letter-spacing: 0.04em;
+  margin: 0 0 3pt;
+  border-bottom: 0.5pt solid #ccc;
+  padding-bottom: 2pt;
 }
 
-.section h2 { font-size: 9pt; margin-bottom: 4pt; }
-
+/* ─── ROWS AND LABELS ────────────────────────────────────────────── */
 .row {
-  gap: 4pt;
-  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  display: grid;
+  gap: 3pt;
+  grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
   break-inside: avoid;
-  page-break-inside: avoid;
 }
 
-label { gap: 3pt; font-size: 9pt; color: #000; }
+label {
+  display: flex;
+  flex-direction: column;
+  gap: 2pt;
+  font-size: 8pt;
+  color: #000;
+}
 
+label.inline,
+label.small-checkbox {
+  flex-direction: row;
+  align-items: center;
+  gap: 4pt;
+  font-size: 8.5pt;
+  font-weight: 600;
+  min-height: 0;
+}
+
+label.small-checkbox input[type="checkbox"] {
+  width: 11pt !important;
+  height: 11pt !important;
+}
+
+/* ─── INPUTS ─────────────────────────────────────────────────────── */
 input[type="text"],
 input[type="date"],
 input[type="number"],
 select,
 textarea {
-  padding: 3pt 5pt;
+  padding: 2pt 4pt;
   border-radius: 0;
-  border: 1px solid #000;
+  border: 1pt solid #000;
   box-shadow: none;
-  font-size: 9pt;
+  font-size: 8.5pt;
   color: #000;
   background: #fff !important;
   overflow-wrap: anywhere;
   word-break: break-word;
+  width: 100%;
 }
 
 textarea {
-  min-height: 30px;
-  color: #000;
+  min-height: 28pt;
+  height: auto !important;
   overflow: visible;
   white-space: pre-wrap;
-  height: auto !important;
+  resize: none;
 }
 
+/* Notes textarea taller */
+.section.notes textarea {
+  min-height: 44pt;
+}
+
+/* ─── FIELDSETS ──────────────────────────────────────────────────── */
 fieldset {
-  padding: 4pt 5pt 5pt;
+  padding: 3pt 4pt 4pt;
   min-height: 0;
-  border: 1px solid #000;
+  border: 1pt solid #000;
   background: transparent !important;
   break-inside: avoid;
-  page-break-inside: avoid;
-  page-break-after: avoid;
 }
 
 fieldset label {
   flex-direction: row;
   align-items: center;
-  gap: 6pt;
+  gap: 4pt;
+  font-size: 8pt;
   color: #000;
 }
 
-legend { font-size: 8pt; color: #000; }
+legend {
+  font-size: 7.5pt;
+  font-weight: 700;
+  color: #000;
+  padding: 0 2pt;
+}
 
 .conjoined {
-  border-width: 1px;
-  border-color: #000;
+  border: 1pt solid #000;
   background: transparent !important;
   break-inside: avoid;
-  page-break-inside: avoid;
 }
 
 .conjoined .segment {
-  padding: 5pt 7pt;
+  padding: 3pt 5pt;
   border-color: #000;
 }
 
-table { width: 100%; border-collapse: collapse; page-break-inside: auto; }
-th, td { border: 1px solid #000; padding: 3pt 5pt; page-break-inside: avoid; break-inside: avoid; }
-tbody tr:nth-child(even) { background: rgba(0, 0, 0, 0.025); }
-.table-wrap { page-break-inside: avoid; }
-
-/* Hide on print */
-.app-menu, .menu-panel, .success, .warning, .client-error, .error-box, .print-button, .theme-toggle, .toast, .actions .button-link,
-.breadcrumbs, .draft-restore-wrap, .new-intake-cta, .quick-actions, .quick-links, .badge {
-  display: none !important;
-}
-
-.sheet-header-right,
-.print-toggle {
-  display: none !important;
-}
+/* ─── PRINT PINK OPTION ──────────────────────────────────────────── */
+body.print-pink .sheet { background: #f4a4bb !important; }
 
 body.print-pink .sheet.intake .sheet-header .print-summary-label,
 body.print-pink .sheet.intake .sheet-header .print-summary-value {
