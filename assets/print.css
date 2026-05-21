@@ -377,14 +377,14 @@ legend {
 
 .print-photo-item img {
   width: 100%;
-  height: var(--print-photo-size, 0.38in);
+  height: var(--print-photo-size, 0.55in);
   object-fit: cover;
   display: block;
 }
 
 .print-photo-label {
   margin-top: 0.25pt;
-  font-size: 4pt;
+  font-size: 4.5pt;
   line-height: 1.1;
   color: #666;
   word-break: break-word;
