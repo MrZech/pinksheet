@@ -37,7 +37,7 @@ a { color: #111; text-decoration: none; }
 .upload-messages, .sku-photo-actions, .sku-photo-meta,
 .inline-actions, .photo-upload-messages, #photo-upload-messages,
 #restore-draft-button, #restore-hint, form#photo-delete-form,
-.status .status-chip, .section.sku-photos, .compat-os-btn,
+.status .status-chip, .compat-os-btn,
 .compat-os-buttons, .hint, p.hint, .what-menu,
 .what-field .what-menu, .autosave-status {
   display: none !important;
@@ -330,6 +330,42 @@ legend {
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: #555;
+}
+
+/* ─── PHOTO GRID (for printing saved photos) ───────────────────────── */
+.section.sku-photos {
+  grid-column: 1 / -1 !important;
+  margin-top: 8pt;
+}
+
+.sku-photo-grid {
+  display: grid !important;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6pt;
+}
+
+.sku-photo-item {
+  display: flex;
+  flex-direction: column;
+  gap: 3pt;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.sku-photo-item img {
+  width: 100%;
+  height: auto;
+  display: block;
+  border: 0.5pt solid #ddd;
+  border-radius: 2pt;
+}
+
+.sku-photo-badge {
+  font-size: 6pt;
+  font-weight: 700;
+  color: #666;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 
 /* ─── FOOTER ───────────────────────────────────────────────────────── */
