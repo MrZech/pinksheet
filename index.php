@@ -95,6 +95,9 @@ if (!in_array('os', $columnNames, true)) {
 if (!in_array('diagnostics_test_ran', $columnNames, true)) {
     $pdo->exec('ALTER TABLE intake_items ADD COLUMN diagnostics_test_ran INTEGER NOT NULL DEFAULT 0');
 }
+if (!in_array('wifi_card_installed', $columnNames, true)) {
+    $pdo->exec('ALTER TABLE intake_items ADD COLUMN wifi_card_installed INTEGER NOT NULL DEFAULT 0');
+}
 $pdo->exec("CREATE INDEX IF NOT EXISTS idx_intake_items_sku_normalized ON intake_items (sku_normalized)");
 $pdo->exec("UPDATE intake_items SET sku_normalized = UPPER(TRIM(COALESCE(sku, ''))) WHERE sku_normalized IS NULL OR sku_normalized = ''");
 $pdo->exec("CREATE TABLE IF NOT EXISTS intake_deleted AS SELECT * FROM intake_items WHERE 0");
@@ -509,6 +512,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'graphics_card' => trim($_POST['graphics_card'] ?? ''),
             'screen_resolution' => trim($_POST['screen_resolution'] ?? ''),
             'diagnostics_test_ran' => isset($_POST['diagnostics_test_ran']) ? 1 : 0,
+            'wifi_card_installed' => isset($_POST['wifi_card_installed']) ? 1 : 0,
             'where_it_goes' => trim($_POST['where_it_goes'] ?? ''),
             'ebay_status' => trim($_POST['ebay_status'] ?? ''),
             // Single canonical Price field. We keep both DB columns in sync for backwards compatibility.
@@ -922,6 +926,8 @@ function checked(string $name, string $value, array $formData): string
             </div>
             <input type="hidden" name="id" value="<?php echo h(isset($formData['id']) ? (string)$formData['id'] : ''); ?>">
             <div class="form-columns">
+              <!-- LEFT COLUMN: top fields + photos -->
+              <div class="form-col-left">
               <div class="row">
                 <label>SKU
                   <input type="text" name="sku" value="<?php echo h($formData['sku'] ?? ''); ?>" required autofocus>
@@ -982,6 +988,65 @@ function checked(string $name, string $value, array $formData): string
               </label>
             </div>
 
+          <div class="section sku-photos" id="sku-photos">
+            <h2>SKU Photos</h2>
+            <div class="sku-photo-dropzone" id="sku-photo-dropzone">
+              <label>Add photos for this SKU
+                <input type="file" name="sku_photos[]" accept="image/jpeg,image/png,image/webp,image/gif" multiple id="sku-photo-input">
+              </label>
+              <p class="hint">Drop, paste, or click to add images.</p>
+            </div>
+            <div class="sku-photo-preview" id="sku-photo-preview" hidden>
+              <p class="hint">Preview (not saved until you click Save Intake Item):</p>
+              <div class="sku-photo-grid" id="sku-photo-preview-list" aria-live="polite"></div>
+            </div>
+            <div id="photo-upload-messages" class="upload-messages" aria-live="polite"></div>
+            <p class="hint">Photos are attached when you click Save Intake Item.</p>
+            <p class="hint">Per-photo limit: <?php echo h(humanBytes($effectivePhotoLimitBytes)); ?>.</p>
+            <?php if ($activeSkuNormalized === ''): ?>
+              <p class="hint">Enter a SKU first to keep photos grouped with that specific item.</p>
+            <?php elseif (!$skuPhotos): ?>
+              <p class="hint">No photos saved for SKU <?php echo h($activeSkuNormalized); ?> yet.</p>
+            <?php else: ?>
+              <div class="inline-actions">
+                <a class="ghost button" href="download_photos.php?sku=<?php echo urlencode($activeSkuNormalized); ?>">Download all as ZIP</a>
+              </div>
+              <div class="sku-photo-grid">
+                <?php foreach ($skuPhotos as $photo): ?>
+                  <div class="sku-photo-item">
+                    <a class="sku-photo-link" href="photo.php?id=<?php echo isset($photo['id']) ? (int)$photo['id'] : 0; ?>" target="_blank" rel="noopener" title="Open photo in new tab">
+                      <span class="sku-photo-badge">SKU <?php echo h($activeSkuNormalized); ?></span>
+                      <img src="photo.php?id=<?php echo isset($photo['id']) ? (int)$photo['id'] : 0; ?>"
+                           alt="Photo for SKU <?php echo h($activeSkuNormalized); ?> — <?php echo h($photo['original_name'] ?? 'Photo'); ?>">
+                    </a>
+                    <div class="sku-photo-meta">
+                      <span class="sku-photo-name"><?php echo h($photo['original_name'] ?? 'Photo'); ?></span>
+                      <?php if (isset($photo['file_size'])): ?>
+                        <span class="sku-photo-size"><?php echo round(((int)$photo['file_size']) / 1024, 1); ?> KB</span>
+                      <?php endif; ?>
+                    </div>
+                    <div class="sku-photo-actions">
+                      <button type="button"
+                              class="ghost danger js-delete-photo"
+                              data-photo-id="<?php echo isset($photo['id']) ? (int)$photo['id'] : 0; ?>">
+                        Delete
+                      </button>
+                      <button type="button"
+                              class="ghost js-set-thumb"
+                              data-photo-id="<?php echo isset($photo['id']) ? (int)$photo['id'] : 0; ?>"
+                              data-photo-sku="<?php echo h($activeSkuNormalized); ?>">
+                        Set thumbnail
+                      </button>
+                    </div>
+                  </div>
+                <?php endforeach; ?>
+              </div>
+            <?php endif; ?>
+          </div>
+          </div><!-- end .form-col-left -->
+
+          <!-- RIGHT COLUMN: D1 then D2 -->
+          <div class="form-col-right">
             <div class="section">
               <h2>(D1) Intake Tasks</h2>
               <div class="row">
@@ -1084,81 +1149,7 @@ function checked(string $name, string $value, array $formData): string
               </label>
             </div>
           </div>
-
-          <div class="section sku-photos" id="sku-photos">
-            <h2>SKU Photos</h2>
-            <div class="sku-photo-dropzone" id="sku-photo-dropzone">
-              <label>Add photos for this SKU
-                <input type="file" name="sku_photos[]" accept="image/jpeg,image/png,image/webp,image/gif" multiple id="sku-photo-input">
-              </label>
-              <p class="hint">Drop, paste, or click to add images.</p>
-            </div>
-            <div class="sku-photo-preview" id="sku-photo-preview" hidden>
-              <p class="hint">Preview (not saved until you click Save Intake Item):</p>
-              <div class="sku-photo-grid" id="sku-photo-preview-list" aria-live="polite"></div>
-            </div>
-            <div id="photo-upload-messages" class="upload-messages" aria-live="polite"></div>
-            <p class="hint">Photos are attached when you click Save Intake Item.</p>
-            <p class="hint">Per-photo limit: <?php echo h(humanBytes($effectivePhotoLimitBytes)); ?>.</p>
-            <?php if ($activeSkuNormalized === ''): ?>
-              <p class="hint">Enter a SKU first to keep photos grouped with that specific item.</p>
-            <?php elseif (!$skuPhotos): ?>
-              <p class="hint">No photos saved for SKU <?php echo h($activeSkuNormalized); ?> yet.</p>
-            <?php else: ?>
-              <div class="inline-actions">
-                <a class="ghost button" href="download_photos.php?sku=<?php echo urlencode($activeSkuNormalized); ?>">Download all as ZIP</a>
-              </div>
-              <div class="sku-photo-grid">
-                <?php foreach ($skuPhotos as $photo): ?>
-                  <div class="sku-photo-item">
-                    <a class="sku-photo-link" href="photo.php?id=<?php echo isset($photo['id']) ? (int)$photo['id'] : 0; ?>" target="_blank" rel="noopener" title="Open photo in new tab">
-                      <span class="sku-photo-badge">SKU <?php echo h($activeSkuNormalized); ?></span>
-                      <img src="photo.php?id=<?php echo isset($photo['id']) ? (int)$photo['id'] : 0; ?>"
-                           alt="Photo for SKU <?php echo h($activeSkuNormalized); ?> — <?php echo h($photo['original_name'] ?? 'Photo'); ?>">
-                    </a>
-                    <div class="sku-photo-meta">
-                      <span class="sku-photo-name"><?php echo h($photo['original_name'] ?? 'Photo'); ?></span>
-                      <?php if (isset($photo['file_size'])): ?>
-                        <span class="sku-photo-size"><?php echo round(((int)$photo['file_size']) / 1024, 1); ?> KB</span>
-                      <?php endif; ?>
-                    </div>
-                    <div class="sku-photo-actions">
-                      <button type="button"
-                              class="ghost danger js-delete-photo"
-                              data-photo-id="<?php echo isset($photo['id']) ? (int)$photo['id'] : 0; ?>">
-                        Delete
-                      </button>
-                      <button type="button"
-                              class="ghost js-set-thumb"
-                              data-photo-id="<?php echo isset($photo['id']) ? (int)$photo['id'] : 0; ?>"
-                              data-photo-sku="<?php echo h($activeSkuNormalized); ?>">
-                        Set thumbnail
-                      </button>
-                    </div>
-                  </div>
-                <?php endforeach; ?>
-              </div>
-            <?php endif; ?>
-          </div>
-
-            <div class="section">
-              <h2>E-Bay Status</h2>
-              <div class="row">
-                <label>Ebay Status
-                  <input type="text" name="ebay_status" value="<?php echo h($formData['ebay_status'] ?? ''); ?>">
-                </label>
-              </div>
-              <div class="row">
-                <fieldset>
-                  <legend>Is it in the EBay Room?</legend>
-                  <label><input type="radio" name="in_ebay_room" value="Yes" <?php echo checked('in_ebay_room','Yes', $formData); ?>> Yes</label>
-                  <label><input type="radio" name="in_ebay_room" value="No" <?php echo checked('in_ebay_room','No', $formData); ?>> No</label>
-                </fieldset>
-                <label>What Box?
-                  <input type="text" name="what_box" value="<?php echo h($formData['what_box'] ?? ''); ?>">
-                </label>
-              </div>
-            </div>
+          </div><!-- end .form-col-right -->
 
             <div class="section notes">
               <h2>Notes</h2>
@@ -1168,7 +1159,7 @@ function checked(string $name, string $value, array $formData): string
             <div class="actions">
               <button type="submit">Save Intake Item</button>
             </div>
-          </div>
+          </div><!-- end .form-columns -->
         </form>
 
       <section class="section recent-items">
