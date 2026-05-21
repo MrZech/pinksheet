@@ -186,8 +186,44 @@ foreach ($items as $item) {
       opacity: 0.45;
       box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
     }
+    /* Horizontal layout: thumbnail left, content right */
+    .card-inner {
+      display: flex;
+      gap: 8px;
+      align-items: flex-start;
+    }
+    .card-thumb {
+      width: 56px;
+      height: 56px;
+      object-fit: cover;
+      border-radius: 8px;
+      flex-shrink: 0;
+      pointer-events: none;
+      user-select: none;
+      -webkit-user-drag: none;
+      border: 1px solid var(--line);
+    }
+    .card-thumb-empty {
+      width: 56px;
+      height: 56px;
+      flex-shrink: 0;
+      border-radius: 8px;
+      background: var(--surface-secondary);
+      border: 1px dashed var(--border-color);
+    }
+    .card-body {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
     .kanban-card .sku {
       font-weight: 700;
+      font-size: 14px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
     .kanban-card .sku a {
       color: inherit;
@@ -201,34 +237,28 @@ foreach ($items as $item) {
       text-decoration: none;
     }
     .kanban-card .what {
-      font-size: 13px;
+      font-size: 12px;
       opacity: 0.8;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
     .kanban-card .meta {
-      font-size: 12px;
+      font-size: 11px;
       opacity: 0.7;
       display: flex;
-      gap: 8px;
-    }
-    .kanban-card img {
-      width: 100%;
-      max-height: 120px;
-      object-fit: cover;
-      border-radius: 6px;
-      margin-top: 6px;
-      pointer-events: none;
-      user-select: none;
-      -webkit-user-drag: none;
+      gap: 6px;
+      flex-wrap: wrap;
     }
     .kanban-card .reviewed-checkbox {
       display: flex;
       align-items: center;
-      gap: 8px;
-      margin-top: 8px;
-      padding: 6px 8px;
+      gap: 6px;
+      margin-top: 4px;
+      padding: 4px 8px;
       background: linear-gradient(135deg, #9ca3af 0%, #6b7280 100%);
       border-radius: 6px;
-      font-size: 13px;
+      font-size: 12px;
       font-weight: 600;
       cursor: pointer;
       color: white;
@@ -303,26 +333,32 @@ foreach ($items as $item) {
                 $thumb = $thumbs[$norm] ?? null;
             ?>
               <div class="kanban-card<?php echo $lane === 'SOLD' ? ' is-sold' : ''; ?>" draggable="true" data-sku="<?php echo htmlspecialchars($sku, ENT_QUOTES, 'UTF-8'); ?>" data-sku-normalized="<?php echo htmlspecialchars($norm, ENT_QUOTES, 'UTF-8'); ?>">
-                <div class="sku">
-                  <a href="intake.php?sku=<?php echo urlencode($sku); ?>" title="Open <?php echo htmlspecialchars($sku, ENT_QUOTES, 'UTF-8'); ?> in intake">
-                    <?php echo htmlspecialchars($sku, ENT_QUOTES, 'UTF-8'); ?>
-                  </a>
-                </div>
-                <div class="what"><?php echo htmlspecialchars($card['what_is_it'] ?? '', ENT_QUOTES, 'UTF-8'); ?></div>
-                <div class="meta">
-                  <span><?php echo htmlspecialchars($card['updated_at'] ?? '', ENT_QUOTES, 'UTF-8'); ?></span>
-                  <?php if (isset($card['dispotech_price']) && $card['dispotech_price'] !== ''): ?>
-                    <span>$<?php echo number_format((float)$card['dispotech_price'], 2); ?></span>
+                <div class="card-inner">
+                  <?php if ($thumb): ?>
+                    <img class="card-thumb" src="photo.php?id=<?php echo $thumb; ?>" alt="" draggable="false">
+                  <?php else: ?>
+                    <div class="card-thumb card-thumb-empty"></div>
                   <?php endif; ?>
-                </div>
-                <?php if ($thumb): ?>
-                  <img src="photo.php?id=<?php echo $thumb; ?>" alt="" draggable="false">
-                <?php endif; ?>
-                <div class="reviewed-checkbox<?php echo !empty($card['reviewed']) ? ' checked' : ''; ?>">
-                  <input type="checkbox" id="reviewed-<?php echo htmlspecialchars($norm, ENT_QUOTES, 'UTF-8'); ?>" 
-                         data-sku="<?php echo htmlspecialchars($sku, ENT_QUOTES, 'UTF-8'); ?>"
-                         <?php echo !empty($card['reviewed']) ? 'checked' : ''; ?>>
-                  <label for="reviewed-<?php echo htmlspecialchars($norm, ENT_QUOTES, 'UTF-8'); ?>"><?php echo $lane === 'SOLD' ? 'Sold' : 'Active'; ?></label>
+                  <div class="card-body">
+                    <div class="sku">
+                      <a href="intake.php?sku=<?php echo urlencode($sku); ?>" title="Open <?php echo htmlspecialchars($sku, ENT_QUOTES, 'UTF-8'); ?> in intake">
+                        <?php echo htmlspecialchars($sku, ENT_QUOTES, 'UTF-8'); ?>
+                      </a>
+                    </div>
+                    <div class="what"><?php echo htmlspecialchars($card['what_is_it'] ?? '', ENT_QUOTES, 'UTF-8'); ?></div>
+                    <div class="meta">
+                      <span><?php echo htmlspecialchars($card['updated_at'] ?? '', ENT_QUOTES, 'UTF-8'); ?></span>
+                      <?php if (isset($card['dispotech_price']) && $card['dispotech_price'] !== ''): ?>
+                        <span>$<?php echo number_format((float)$card['dispotech_price'], 2); ?></span>
+                      <?php endif; ?>
+                    </div>
+                    <div class="reviewed-checkbox<?php echo !empty($card['reviewed']) ? ' checked' : ''; ?>">
+                      <input type="checkbox" id="reviewed-<?php echo htmlspecialchars($norm, ENT_QUOTES, 'UTF-8'); ?>"
+                             data-sku="<?php echo htmlspecialchars($sku, ENT_QUOTES, 'UTF-8'); ?>"
+                             <?php echo !empty($card['reviewed']) ? 'checked' : ''; ?>>
+                      <label for="reviewed-<?php echo htmlspecialchars($norm, ENT_QUOTES, 'UTF-8'); ?>"><?php echo $lane === 'SOLD' ? 'Sold' : 'Active'; ?></label>
+                    </div>
+                  </div>
                 </div>
               </div>
             <?php endforeach; ?>
