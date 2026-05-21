@@ -361,14 +361,14 @@ legend {
 .print-photo-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 4pt;
+  gap: 2pt;
 }
 
 .print-photo-item {
   display: flex;
   flex-direction: column;
   margin: 0;
-  padding: 2pt;
+  padding: 1pt;
   border: 0.5pt solid #ccc;
   background: #fff;
   break-inside: avoid;
@@ -379,14 +379,14 @@ legend {
   width: 100%;
   aspect-ratio: 1 / 1;
   height: auto;
-  min-height: var(--print-photo-size, 0.9in);
+  min-height: var(--print-photo-size, 0.52in);
   object-fit: cover;
   display: block;
 }
 
 .print-photo-label {
-  margin-top: 1pt;
-  font-size: 5.5pt;
+  margin-top: 0.5pt;
+  font-size: 4.75pt;
   line-height: 1.1;
   color: #666;
   word-break: break-word;
