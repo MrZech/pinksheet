@@ -369,7 +369,7 @@ legend {
 .print-photo-item {
   display: flex;
   flex-direction: column;
-  width: min(100%, var(--print-photo-size, 1.45in));
+  width: min(100%, var(--print-photo-size, 1.2in));
   margin: 0;
   padding: 1pt;
   border: 0.5pt solid #ccc;
@@ -388,7 +388,7 @@ legend {
 
 .print-photo-label {
   margin-top: 0.25pt;
-  font-size: 4.25pt;
+  font-size: 4pt;
   line-height: 1.1;
   color: #666;
   word-break: break-word;
