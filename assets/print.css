@@ -290,7 +290,7 @@ textarea {
 }
 
 .section.notes textarea {
-  min-height: 28pt;
+  min-height: 24pt;
   overflow: visible !important;
 }
 
@@ -309,9 +309,12 @@ textarea {
   padding: 0.5pt 0 0.5pt;
   white-space: pre-wrap;
   word-break: break-word;
-  font-size: 6.4pt;
-  line-height: 1.15;
+  font-size: 5.85pt;
+  line-height: 1.08;
   color: #111;
+  column-count: 2;
+  column-gap: 8pt;
+  column-fill: auto;
 }
 
 /* ─── FIELDSETS ────────────────────────────────────────────────────── */
@@ -381,7 +384,7 @@ legend {
 
 .print-photo-grid {
   display: grid;
-  grid-template-columns: 1fr;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 2pt;
   justify-items: center;
 }
@@ -389,7 +392,7 @@ legend {
 .print-photo-item {
   display: flex;
   flex-direction: column;
-  width: min(100%, var(--print-photo-size, 0.78in));
+  width: min(100%, var(--print-photo-size, 0.66in));
   margin: 0;
   padding: 1pt;
   border: 0.5pt solid #ccc;
@@ -406,7 +409,7 @@ legend {
 
 .print-photo-label {
   margin-top: 0.25pt;
-  font-size: 3pt;
+  font-size: 2.85pt;
   line-height: 1.1;
   color: #666;
   word-break: break-word;
