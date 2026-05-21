@@ -362,6 +362,8 @@ body.dark-mode .form-grid {
   height: 100%;
   overflow-y: auto;
   overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 .sheet-content {
@@ -369,6 +371,8 @@ body.dark-mode .form-grid {
   min-height: 100%;
   overflow-x: hidden;
   transform-origin: top left;
+  display: flex;
+  flex-direction: column;
 }
 
 .sheet.intake {
@@ -1303,11 +1307,13 @@ body.dark-mode .toast {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  flex: 1;
 }
 
 .form-columns {
   display: grid;
   gap: 12px;
+  flex: 1;
 }
 
 .sheet.intake .form-columns {
@@ -1369,6 +1375,16 @@ body.dark-mode .toast {
   flex: 1;
 }
 
+.sheet.intake .form-columns > .section.notes {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.section.notes textarea {
+  flex: 1;
+}
+
 .sheet.intake .form-columns > .actions {
   grid-column: 1 / -1;
 }
@@ -1403,6 +1419,68 @@ label {
 }
 .copy-sku .hint {
   font-size: 0.8rem;
+}
+
+/* Compatible OS quick-select */
+.compat-os-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.compat-os-label {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.compat-os-buttons {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.compat-os-btn {
+  background: var(--surface-secondary) !important;
+  color: var(--text-primary) !important;
+  border: 2px solid var(--border-color) !important;
+  border-radius: var(--radius-sm) !important;
+  padding: 7px 14px !important;
+  font-size: 0.88rem !important;
+  font-weight: 600 !important;
+  cursor: pointer;
+  box-shadow: none !important;
+  text-shadow: none !important;
+  transition: border-color 150ms ease, background 150ms ease, color 150ms ease;
+}
+
+.compat-os-btn:hover {
+  border-color: var(--accent-primary) !important;
+  background: var(--accent-primary-soft) !important;
+  filter: none;
+}
+
+.compat-os-btn.is-active {
+  background: var(--accent-primary) !important;
+  color: #0f1a12 !important;
+  border-color: var(--accent-primary) !important;
+  box-shadow: 0 4px 12px rgba(22, 163, 74, 0.25) !important;
+}
+
+body[data-theme="dark"] .compat-os-btn,
+body.dark-mode .compat-os-btn {
+  background: rgba(255, 255, 255, 0.06) !important;
+  color: var(--text-primary) !important;
+  border-color: rgba(255, 255, 255, 0.2) !important;
+}
+
+body[data-theme="dark"] .compat-os-btn.is-active,
+body.dark-mode .compat-os-btn.is-active {
+  background: var(--accent-primary) !important;
+  color: #0f1a12 !important;
+  border-color: var(--accent-primary) !important;
 }
 
 .what-menu {

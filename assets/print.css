@@ -11,7 +11,7 @@
 
 html, body {
   width: auto;
-  height: auto;
+  height: 100%;
   min-height: 0;
   background: #fff !important;
   color: #000 !important;
@@ -70,20 +70,24 @@ form#photo-delete-form,
   padding: 0;
   width: auto;
   max-width: none;
-  min-height: 0;
-  display: block;
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
 }
 
 .sheet {
   width: 100% !important;
   height: auto !important;
   min-height: 0 !important;
+  flex: 1;
   padding: 0 !important;
   border: none !important;
   border-radius: 0 !important;
   background: #fff !important;
   overflow: visible !important;
   backdrop-filter: none !important;
+  display: flex;
+  flex-direction: column;
 }
 
 .sheet.intake,
@@ -92,6 +96,9 @@ form#photo-delete-form,
   height: auto !important;
   min-height: 0 !important;
   overflow: visible !important;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
 }
 
 /* ─── HEADER: SKU title + status/price on right, thumbnail top-right ── */
@@ -181,7 +188,7 @@ form#photo-delete-form,
   display: block;
 }
 
-/* Override the two-wrapper column layout for print */
+/* Flatten the two-wrapper column layout for print */
 .form-col-left,
 .form-col-right {
   display: contents !important;
@@ -195,21 +202,46 @@ form#photo-delete-form,
 }
 
 /* Top rows (SKU, date, source) span all 3 columns */
-.form-columns > .row {
+.form-columns > .row,
+.form-col-left > .row,
+.form-col-right > .row {
   grid-column: 1 / -1;
 }
 
 /* Each section takes one column */
-.form-columns .section {
+.form-columns .section,
+.form-col-left .section,
+.form-col-right .section {
   grid-column: span 1;
   break-inside: avoid;
   page-break-inside: avoid;
+  margin-top: 0;
 }
 
 /* Notes spans full width */
 .section.notes {
   grid-column: 1 / -1 !important;
 }
+
+/* Compat OS buttons — show as plain text in print */
+.compat-os-group {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 4pt;
+  flex-wrap: wrap;
+}
+
+.compat-os-label {
+  font-size: 7.5pt;
+  font-weight: 700;
+}
+
+.compat-os-btn {
+  display: none !important;
+}
+
+/* Show the OS value via the text input — already printed */
 
 /* ─── SECTIONS ───────────────────────────────────────────────────── */
 .section {
@@ -288,9 +320,15 @@ textarea {
   resize: none;
 }
 
-/* Notes textarea taller */
+/* Notes spans full width and fills remaining page height */
+.section.notes {
+  grid-column: 1 / -1 !important;
+  flex: 1;
+}
+
 .section.notes textarea {
-  min-height: 44pt;
+  min-height: 80pt;
+  height: auto !important;
 }
 
 /* ─── FIELDSETS ──────────────────────────────────────────────────── */
