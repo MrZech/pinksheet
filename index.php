@@ -1693,6 +1693,7 @@ function checked(string $name, string $value, array $formData): string
               if (taskSections.length) {
                 var taskGrid = doc.createElement('div');
                 taskGrid.className = 'print-task-grid';
+                taskGrid.setAttribute('data-layout', 'stacked');
 
                 taskSections.forEach(function (section) {
                   taskGrid.appendChild(section);
