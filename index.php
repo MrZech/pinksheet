@@ -1410,7 +1410,7 @@ function checked(string $name, string $value, array $formData): string
         });
       };
       var buildPrintIframe = function () {
-        var sheet = document.querySelector('.sheet');
+        var sheet = document.querySelector('.sheet.intake');
         if (!sheet) return null;
         var iframe = document.createElement('iframe');
         iframe.id = 'print-frame';
@@ -1430,21 +1430,84 @@ function checked(string $name, string $value, array $formData): string
           '<link rel="stylesheet" href="assets/style.css">' +
           '<link rel="stylesheet" href="assets/print.css">' +
           '</head><body' + (document.body.classList.contains('print-pink') ? ' class=\"print-pink\"' : '') + '>' +
-          '<div id=\"print-root\"></div>' +
+          '<div class="page"><section class="sheet intake" id="print-root"></section></div>' +
           '</body></html>'
         );
         doc.close();
-        // Clone only the sheet-content (the intake form), not the recent-items section
-        var sheetContent = sheet.querySelector('.sheet-content') || sheet;
-        var clone = sheetContent.cloneNode(true);
-        // Remove the recent-items section from the clone entirely
-        var recentInClone = clone.querySelector('.recent-items');
-        if (recentInClone) { recentInClone.parentNode.removeChild(recentInClone); }
-        copyFormValues(sheetContent, clone);
+
+        // Build a clean print document from only the pieces we need:
+        // 1. The sheet header (title, date, status/price, thumbnail)
+        // 2. The intake form fields only (not recent-items, not search)
+        var printRoot = null;
         var attachAndPrint = function () {
-          var root = doc.getElementById('print-root');
-          if (!root) return;
-          root.appendChild(clone);
+          printRoot = doc.getElementById('print-root');
+          if (!printRoot) return;
+
+          // Clone the sheet-header
+          var header = sheet.querySelector('.sheet-content .sheet-header') ||
+                       sheet.querySelector('.sheet-header');
+          if (header) {
+            var headerClone = header.cloneNode(true);
+            // Remove the header-right buttons (print, theme, new intake)
+            var headerRight = headerClone.querySelector('.sheet-header-right');
+            if (headerRight) headerRight.parentNode.removeChild(headerRight);
+            printRoot.appendChild(headerClone);
+          }
+
+          // Clone the h1 title
+          var h1 = sheet.querySelector('h1');
+          if (h1) {
+            printRoot.appendChild(h1.cloneNode(true));
+          }
+
+          // Clone the print thumbnail if present
+          var thumb = sheet.querySelector('.print-thumb-wrap');
+          if (thumb) {
+            printRoot.appendChild(thumb.cloneNode(true));
+          }
+
+          // Clone only the intake form — not the recent-items section
+          var intakeForm = sheet.querySelector('#intake-form');
+          if (intakeForm) {
+            var formClone = intakeForm.cloneNode(true);
+
+            // Remove interactive elements that shouldn't print
+            var toRemove = [
+              '.draft-restore-wrap',
+              '.copy-sku',
+              '.what-menu',
+              '.sku-photo-dropzone',
+              '.sku-photo-preview',
+              '.upload-messages',
+              '.actions',
+              '.recent-items'
+            ];
+            toRemove.forEach(function(selector) {
+              var el = formClone.querySelector(selector);
+              if (el) el.parentNode.removeChild(el);
+            });
+
+            // Remove action buttons from saved photos, but keep the photo grid
+            var photoActions = formClone.querySelectorAll('.sku-photo-actions');
+            photoActions.forEach(function(el) {
+              el.parentNode.removeChild(el);
+            });
+
+            // Remove photo links to make images plain in print
+            var photoLinks = formClone.querySelectorAll('.sku-photo-link');
+            photoLinks.forEach(function(link) {
+              var parent = link.parentNode;
+              while (link.firstChild) {
+                parent.insertBefore(link.firstChild, link);
+              }
+              parent.removeChild(link);
+            });
+
+            // Copy current form values into the cloned form
+            copyFormValues(intakeForm, formClone);
+            printRoot.appendChild(formClone);
+          }
+
           resizeTextareas(doc);
           setTimeout(function () {
             try { iframe.contentWindow.focus(); } catch (e) {}
@@ -1452,8 +1515,9 @@ function checked(string $name, string $value, array $formData): string
             setTimeout(function () {
               try { iframe.remove(); } catch (e) {}
             }, 400);
-          }, 80);
+          }, 120);
         };
+
         if (doc.readyState === 'complete') {
           attachAndPrint();
         } else {
