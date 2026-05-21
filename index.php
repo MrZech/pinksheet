@@ -98,6 +98,9 @@ if (!in_array('diagnostics_test_ran', $columnNames, true)) {
 if (!in_array('wifi_card_installed', $columnNames, true)) {
     $pdo->exec('ALTER TABLE intake_items ADD COLUMN wifi_card_installed INTEGER NOT NULL DEFAULT 0');
 }
+if (!in_array('compatible_os', $columnNames, true)) {
+    $pdo->exec('ALTER TABLE intake_items ADD COLUMN compatible_os TEXT');
+}
 $pdo->exec("CREATE INDEX IF NOT EXISTS idx_intake_items_sku_normalized ON intake_items (sku_normalized)");
 $pdo->exec("UPDATE intake_items SET sku_normalized = UPPER(TRIM(COALESCE(sku, ''))) WHERE sku_normalized IS NULL OR sku_normalized = ''");
 $pdo->exec("CREATE TABLE IF NOT EXISTS intake_deleted AS SELECT * FROM intake_items WHERE 0");
@@ -513,6 +516,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'screen_resolution' => trim($_POST['screen_resolution'] ?? ''),
             'diagnostics_test_ran' => isset($_POST['diagnostics_test_ran']) ? 1 : 0,
             'wifi_card_installed' => isset($_POST['wifi_card_installed']) ? 1 : 0,
+            'compatible_os' => trim($_POST['compatible_os'] ?? ''),
             'where_it_goes' => trim($_POST['where_it_goes'] ?? ''),
             'ebay_status' => trim($_POST['ebay_status'] ?? ''),
             // Single canonical Price field. We keep both DB columns in sync for backwards compatibility.
@@ -596,6 +600,7 @@ UPDATE intake_items SET
     screen_resolution = :screen_resolution,
     diagnostics_test_ran = :diagnostics_test_ran,
     wifi_card_installed = :wifi_card_installed,
+    compatible_os = :compatible_os,
     where_it_goes = :where_it_goes,
     ebay_status = :ebay_status,
     ebay_price = :ebay_price,
@@ -623,7 +628,7 @@ INSERT INTO intake_items (
     functional, condition, is_square, care_if_square,
     cords_adapters, keep_items_together, picture_taken,
     power_on, brand_model, ram, ssd_gb, cpu, os, battery_health,
-    graphics_card, screen_resolution, diagnostics_test_ran, wifi_card_installed, where_it_goes,
+    graphics_card, screen_resolution, diagnostics_test_ran, wifi_card_installed, compatible_os, where_it_goes,
     ebay_status, ebay_price, dispotech_price, in_ebay_room,
     what_box, notes, updated_at
 ) VALUES (
@@ -631,7 +636,7 @@ INSERT INTO intake_items (
     :functional, :condition, :is_square, :care_if_square,
     :cords_adapters, :keep_items_together, :picture_taken,
     :power_on, :brand_model, :ram, :ssd_gb, :cpu, :os, :battery_health,
-    :graphics_card, :screen_resolution, :diagnostics_test_ran, :wifi_card_installed, :where_it_goes,
+    :graphics_card, :screen_resolution, :diagnostics_test_ran, :wifi_card_installed, :compatible_os, :where_it_goes,
     :ebay_status, :ebay_price, :dispotech_price, :in_ebay_room,
     :what_box, :notes, datetime('now')
 );
@@ -1136,6 +1141,26 @@ function checked(string $name, string $value, array $formData): string
               <label>OS
                 <input type="text" name="os" value="<?php echo h($formData['os'] ?? ''); ?>">
               </label>
+            </div>
+
+            <div class="row">
+              <div class="compat-os-group">
+                <span class="compat-os-label">Compatible OS</span>
+                <input type="hidden" name="compatible_os" id="compatible-os-input" value="<?php echo h($formData['compatible_os'] ?? ''); ?>">
+                <div class="compat-os-buttons">
+                  <?php
+                    $currentCompatOs = trim((string)($formData['compatible_os'] ?? ''));
+                    $osOptions = ['Windows 10', 'Windows 11', 'Linux'];
+                  ?>
+                  <?php foreach ($osOptions as $osOpt): ?>
+                    <button type="button"
+                            class="compat-os-btn<?php echo $currentCompatOs === $osOpt ? ' is-active' : ''; ?>"
+                            data-os="<?php echo h($osOpt); ?>">
+                      <?php echo h($osOpt); ?>
+                    </button>
+                  <?php endforeach; ?>
+                </div>
+              </div>
             </div>
 
             <div class="row">
@@ -2461,6 +2486,34 @@ function checked(string $name, string $value, array $formData): string
           inlineUpdate(sku, field, input.value);
         });
       });
+
+      // Compatible OS quick-select buttons
+      var compatOsInput = document.getElementById('compatible-os-input');
+      var osBtns = document.querySelectorAll('.compat-os-btn');
+      if (compatOsInput && osBtns.length) {
+        osBtns.forEach(function (btn) {
+          btn.addEventListener('click', function () {
+            var val = btn.getAttribute('data-os') || '';
+            // Toggle: clicking the active one clears it
+            if (compatOsInput.value === val) {
+              compatOsInput.value = '';
+              btn.classList.remove('is-active');
+            } else {
+              compatOsInput.value = val;
+              osBtns.forEach(function (b) { b.classList.remove('is-active'); });
+              btn.classList.add('is-active');
+            }
+            compatOsInput.dispatchEvent(new Event('input', { bubbles: true }));
+          });
+        });
+        // Keep buttons in sync if compatible OS field is typed into manually
+        compatOsInput.addEventListener('input', function () {
+          var val = compatOsInput.value.trim();
+          osBtns.forEach(function (b) {
+            b.classList.toggle('is-active', b.getAttribute('data-os') === val);
+          });
+        });
+      }
       if (setThumbButtons.length) {
         setThumbButtons.forEach(function (btn) {
           btn.addEventListener('click', function () {
