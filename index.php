@@ -1480,27 +1480,12 @@ function checked(string $name, string $value, array $formData): string
               '.sku-photo-preview',
               '.upload-messages',
               '.actions',
+              '.section.sku-photos',
               '.recent-items'
             ];
             toRemove.forEach(function(selector) {
               var el = formClone.querySelector(selector);
               if (el) el.parentNode.removeChild(el);
-            });
-
-            // Remove action buttons from saved photos, but keep the photo grid
-            var photoActions = formClone.querySelectorAll('.sku-photo-actions');
-            photoActions.forEach(function(el) {
-              el.parentNode.removeChild(el);
-            });
-
-            // Remove photo links to make images plain in print
-            var photoLinks = formClone.querySelectorAll('.sku-photo-link');
-            photoLinks.forEach(function(link) {
-              var parent = link.parentNode;
-              while (link.firstChild) {
-                parent.insertBefore(link.firstChild, link);
-              }
-              parent.removeChild(link);
             });
 
             // Copy current form values into the cloned form
