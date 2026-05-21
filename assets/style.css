@@ -483,10 +483,12 @@ body.dark-mode .badge.warning {
 
 /* Pre-print preview state (used by JS before window.print) */
 body.printing {
+  margin: 0;
   background: #ffffff;
   color: #000000;
 }
 body.printing .page {
+  width: 100%;
   padding: 0;
   margin: 0;
 }
