@@ -1610,11 +1610,8 @@ function checked(string $name, string $value, array $formData): string
             printRoot.appendChild(h1.cloneNode(true));
           }
 
-          // Clone the print thumbnail if present
+          // Clone the print thumbnail reference from the header.
           var thumb = sheet.querySelector('.print-thumb-wrap');
-          if (thumb) {
-            printRoot.appendChild(thumb.cloneNode(true));
-          }
           var thumbImg = thumb ? thumb.querySelector('img') : null;
           var thumbId = thumbImg ? extractPhotoIdFromSrc(thumbImg.getAttribute('src')) : '';
 
