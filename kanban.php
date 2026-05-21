@@ -193,8 +193,8 @@ foreach ($items as $item) {
       align-items: flex-start;
     }
     .card-thumb {
-      width: 56px;
-      height: 56px;
+      width: 80px;
+      height: 80px;
       object-fit: cover;
       border-radius: 8px;
       flex-shrink: 0;
@@ -204,8 +204,8 @@ foreach ($items as $item) {
       border: 1px solid var(--line);
     }
     .card-thumb-empty {
-      width: 56px;
-      height: 56px;
+      width: 80px;
+      height: 80px;
       flex-shrink: 0;
       border-radius: 8px;
       background: var(--surface-secondary);
