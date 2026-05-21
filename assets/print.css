@@ -197,6 +197,12 @@ form#photo-delete-form, .status .status-chip,
   page-break-inside: avoid;
 }
 
+/* Hide the sheet-header section border — header is already styled separately */
+.sheet-header {
+  border: none !important;
+  border-bottom: 2pt solid #111 !important;
+}
+
 .section h2 {
   font-size: 6.5pt;
   font-weight: 800;
