@@ -182,7 +182,7 @@ a { color: #111; text-decoration: none; }
 
 .print-task-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: 1fr;
   gap: 4pt;
   width: 100%;
   margin-top: 1pt;
@@ -190,7 +190,7 @@ a { color: #111; text-decoration: none; }
 }
 
 .print-task-grid > .section {
-  grid-column: span 1;
+  grid-column: 1 / -1;
 }
 
 .form-col-left > .row,
@@ -381,7 +381,7 @@ legend {
 
 .print-photo-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: 1fr;
   gap: 2pt;
   justify-items: center;
 }
@@ -389,7 +389,7 @@ legend {
 .print-photo-item {
   display: flex;
   flex-direction: column;
-  width: min(100%, var(--print-photo-size, 0.62in));
+  width: min(100%, var(--print-photo-size, 0.78in));
   margin: 0;
   padding: 1pt;
   border: 0.5pt solid #ccc;
