@@ -491,11 +491,16 @@ body.printing .page {
   width: 100%;
   padding: 0;
   margin: 0;
+  display: flex;
+  justify-content: flex-start;
+  align-items: flex-start;
 }
 body.printing .sheet {
   border-radius: 0;
   box-shadow: none;
-  padding: 10px 12px 12px;
+  width: 4.55in;
+  max-width: 4.55in;
+  padding: 10px 8px 12px;
   background: #ffffff;
 }
 body.printing .app-menu,
