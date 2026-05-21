@@ -1685,6 +1685,23 @@ function checked(string $name, string $value, array $formData): string
                 compatGroup.appendChild(compatText);
               }
             }
+
+            var leftCol = formClone.querySelector('.form-col-left');
+            var rightCol = formClone.querySelector('.form-col-right');
+            if (leftCol && rightCol) {
+              var taskSections = Array.prototype.slice.call(rightCol.querySelectorAll('.section'));
+              if (taskSections.length) {
+                var taskGrid = doc.createElement('div');
+                taskGrid.className = 'print-task-grid';
+
+                taskSections.forEach(function (section) {
+                  taskGrid.appendChild(section);
+                });
+
+                leftCol.appendChild(taskGrid);
+              }
+            }
+
             formClone.querySelectorAll('input, textarea, select').forEach(function (field) {
               field.setAttribute('readonly', 'readonly');
               if (field.tagName === 'INPUT' && field.type !== 'checkbox' && field.type !== 'radio') {
