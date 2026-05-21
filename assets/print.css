@@ -22,8 +22,8 @@ html, body {
   background: #fff !important;
   color: #111 !important;
   font-family: "Inter", "Segoe UI", Arial, sans-serif;
-  font-size: 7pt;
-  line-height: 1.18;
+  font-size: 8.2pt;
+  line-height: 1.22;
 }
 
 a { color: #111; text-decoration: none; }
@@ -90,7 +90,7 @@ a { color: #111; text-decoration: none; }
 .sheet-header .status { display: none !important; }
 
 .sheet h1 {
-  font-size: 10.5pt !important;
+  font-size: 12.5pt !important;
   font-weight: 800 !important;
   color: #111 !important;
   margin: 0 0 1pt !important;
@@ -98,7 +98,7 @@ a { color: #111; text-decoration: none; }
 }
 
 .sheet-header .updated {
-  font-size: 5.75pt;
+  font-size: 6.5pt;
   color: #666;
   margin-top: 0;
 }
@@ -114,7 +114,7 @@ a { color: #111; text-decoration: none; }
 }
 
 .print-summary-label {
-  font-size: 5.5pt;
+  font-size: 6.4pt;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.08em;
@@ -123,7 +123,7 @@ a { color: #111; text-decoration: none; }
 }
 
 .print-summary-value {
-  font-size: 8pt;
+  font-size: 9.4pt;
   font-weight: 800;
   color: #111;
   line-height: 1;
@@ -172,7 +172,7 @@ a { color: #111; text-decoration: none; }
 .form-col-left {
   display: flex !important;
   flex-direction: column;
-  gap: 3pt;
+  gap: 4pt;
   width: 100%;
 }
 
@@ -183,7 +183,7 @@ a { color: #111; text-decoration: none; }
 .print-task-grid {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 4pt;
+  gap: 5pt;
   width: 100%;
   margin-top: 1pt;
   align-items: start;
@@ -205,7 +205,7 @@ a { color: #111; text-decoration: none; }
 
 /* ─── SECTIONS ─────────────────────────────────────────────────────── */
 .section {
-  padding: 2pt 3pt 3pt;
+  padding: 3pt 4pt 4pt;
   margin-top: 0;
   border: 0.5pt solid #ccc;
   border-top: 1.5pt solid #111;
@@ -213,7 +213,7 @@ a { color: #111; text-decoration: none; }
 }
 
 .section h2 {
-  font-size: 5.5pt;
+  font-size: 6.6pt;
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.1em;
@@ -226,7 +226,7 @@ a { color: #111; text-decoration: none; }
 /* ─── ROWS AND LABELS ──────────────────────────────────────────────── */
 .row {
   display: grid;
-  gap: 2pt;
+  gap: 3pt;
   grid-template-columns: repeat(auto-fit, minmax(70pt, 1fr));
   margin-bottom: 1pt;
 }
@@ -237,7 +237,7 @@ label {
   display: flex;
   flex-direction: column;
   gap: 0.5pt;
-  font-size: 5.75pt;
+  font-size: 6.8pt;
   font-weight: 700;
   color: #555;
   text-transform: uppercase;
@@ -249,7 +249,7 @@ label.small-checkbox {
   flex-direction: row;
   align-items: center;
   gap: 3pt;
-  font-size: 6.5pt;
+  font-size: 7.25pt;
   font-weight: 700;
   text-transform: none;
   letter-spacing: 0;
@@ -269,11 +269,11 @@ input[type="date"],
 input[type="number"],
 select,
 textarea {
-  padding: 1pt 2pt;
+  padding: 2pt 3pt;
   border-radius: 0;
   border: none;
   border-bottom: 0.5pt solid #999;
-  font-size: 6.75pt;
+  font-size: 8pt;
   font-weight: 500;
   color: #111;
   background: transparent !important;
@@ -283,14 +283,14 @@ textarea {
 
 textarea {
   border: 0.5pt solid #999;
-  min-height: 20pt;
+  min-height: 24pt;
   overflow: visible !important;
   white-space: pre-wrap;
   resize: none;
 }
 
 .section.notes textarea {
-  min-height: 24pt;
+  min-height: 30pt;
   overflow: visible !important;
 }
 
@@ -300,26 +300,26 @@ textarea {
   overflow: visible !important;
   height: auto !important;
   max-height: none !important;
-  padding: 2pt 3pt 2pt;
+  padding: 3pt 4pt 3pt;
 }
 
 .print-notes-value {
   display: block;
-  min-height: 24pt;
+  min-height: 32pt;
   padding: 0.5pt 0 0.5pt;
   white-space: pre-wrap;
   word-break: break-word;
-  font-size: 5.85pt;
-  line-height: 1.08;
+  font-size: 6.9pt;
+  line-height: 1.15;
   color: #111;
   column-count: 2;
-  column-gap: 8pt;
+  column-gap: 10pt;
   column-fill: auto;
 }
 
 /* ─── FIELDSETS ────────────────────────────────────────────────────── */
 fieldset {
-  padding: 1.5pt 2.5pt 2.5pt;
+  padding: 2pt 3pt 3pt;
   min-height: 0;
   border: 0.5pt solid #ccc;
   background: transparent !important;
@@ -329,7 +329,7 @@ fieldset label {
   flex-direction: row;
   align-items: center;
   gap: 2pt;
-  font-size: 6pt;
+  font-size: 6.9pt;
   font-weight: 500;
   color: #111;
   text-transform: none;
@@ -337,7 +337,7 @@ fieldset label {
 }
 
 legend {
-  font-size: 5.5pt;
+  font-size: 6.4pt;
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.06em;
@@ -364,7 +364,7 @@ legend {
 }
 
 .compat-os-label {
-  font-size: 5.75pt;
+  font-size: 6.6pt;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.04em;
@@ -373,7 +373,7 @@ legend {
 
 .compat-os-print-value {
   display: block !important;
-  font-size: 6.75pt;
+  font-size: 8pt;
   font-weight: 600;
   color: #111;
 }
@@ -392,9 +392,9 @@ legend {
 .print-photo-item {
   display: flex;
   flex-direction: column;
-  width: min(100%, var(--print-photo-size, 0.66in));
+  width: min(100%, var(--print-photo-size, 0.75in));
   margin: 0;
-  padding: 1pt;
+  padding: 1.5pt;
   border: 0.5pt solid #ccc;
   background: #fff;
 }
@@ -409,7 +409,7 @@ legend {
 
 .print-photo-label {
   margin-top: 0.25pt;
-  font-size: 2.85pt;
+  font-size: 3.6pt;
   line-height: 1.1;
   color: #666;
   word-break: break-word;

@@ -1573,7 +1573,7 @@ function checked(string $name, string $value, array $formData): string
           scale = 1;
         }
 
-        scale = Math.max(scale * 0.94, 0.55);
+        scale = Math.max(scale * 0.985, 0.55);
         var zoomValue = scale.toFixed(3);
         root.style.zoom = zoomValue;
         if (doc.body) {
