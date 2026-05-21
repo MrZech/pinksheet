@@ -56,8 +56,8 @@ a { color: #111; text-decoration: none; }
 }
 
 .sheet {
-  width: 4.55in !important;
-  max-width: 4.55in !important;
+  width: 6.35in !important;
+  max-width: 6.35in !important;
   height: auto !important;
   min-height: 0 !important;
   padding: 0 !important;
@@ -167,20 +167,32 @@ a { color: #111; text-decoration: none; }
 */
 .form-columns {
   display: grid !important;
-  grid-template-columns: 1fr !important;
-  gap: 3pt !important;
+  grid-template-columns: minmax(2.2in, 2.4in) minmax(2.9in, 3.2in) !important;
+  gap: 4pt !important;
   align-items: start;
 }
 
-/* Top rows span all columns */
-.form-columns > .row,
-.form-col-left > .row {
+.form-col-left {
+  display: flex !important;
+  flex-direction: column;
+  gap: 3pt;
+}
+
+.form-col-right {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4pt;
+  align-items: start;
+}
+
+/* Top rows span the left column only */
+.form-col-left > .row,
+.form-col-left > .section {
   grid-column: 1 / -1;
 }
 
-/* D1 and D2 each take one column */
-.form-col-right > .section,
-.form-columns > .section {
+/* D1 and D2 share the right column */
+.form-col-right > .section {
   grid-column: span 1;
 }
 
@@ -196,8 +208,6 @@ a { color: #111; text-decoration: none; }
   border: 0.5pt solid #ccc;
   border-top: 1.5pt solid #111;
   background: #fff !important;
-  break-inside: avoid;
-  page-break-inside: avoid;
 }
 
 .section h2 {
@@ -216,7 +226,6 @@ a { color: #111; text-decoration: none; }
   display: grid;
   gap: 2pt;
   grid-template-columns: repeat(auto-fit, minmax(70pt, 1fr));
-  break-inside: avoid;
   margin-bottom: 1pt;
 }
 
@@ -309,7 +318,6 @@ fieldset {
   min-height: 0;
   border: 0.5pt solid #ccc;
   background: transparent !important;
-  break-inside: avoid;
 }
 
 fieldset label {
@@ -335,7 +343,6 @@ legend {
 .conjoined {
   border: 0.5pt solid #ccc;
   background: transparent !important;
-  break-inside: avoid;
 }
 
 .conjoined .segment {
@@ -368,13 +375,11 @@ legend {
 
 .print-photo-section {
   grid-column: 1 / -1 !important;
-  break-inside: avoid;
-  page-break-inside: avoid;
 }
 
 .print-photo-grid {
   display: grid;
-  grid-template-columns: 1fr;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 2pt;
   justify-items: center;
 }
@@ -382,13 +387,11 @@ legend {
 .print-photo-item {
   display: flex;
   flex-direction: column;
-  width: min(100%, var(--print-photo-size, 0.78in));
+  width: min(100%, var(--print-photo-size, 0.62in));
   margin: 0;
   padding: 1pt;
   border: 0.5pt solid #ccc;
   background: #fff;
-  break-inside: avoid;
-  page-break-inside: avoid;
 }
 
 .print-photo-item img {
@@ -401,7 +404,7 @@ legend {
 
 .print-photo-label {
   margin-top: 0.25pt;
-  font-size: 3.4pt;
+  font-size: 3pt;
   line-height: 1.1;
   color: #666;
   word-break: break-word;
