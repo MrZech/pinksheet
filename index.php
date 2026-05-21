@@ -754,6 +754,7 @@ if ($activeSkuNormalized === '') {
     $activeSkuNormalized = $lookupSkuNormalized;
 }
 $skuPhotos = loadSkuPhotos($pdo, $activeSkuNormalized);
+$printThumbId = loadLatestPhotoId($pdo, $activeSkuNormalized);
 $toastMessage = '';
 if ($saved) {
     if ($saveMode === 'created') {
@@ -861,6 +862,11 @@ function checked(string $name, string $value, array $formData): string
           <div class="print-summary-label">Price</div>
           <div class="print-summary-value"><?php echo $printPrice !== null ? '$' . number_format((float)$printPrice, 2) : '—'; ?></div>
         </div>
+        <?php if ($printThumbId): ?>
+          <div class="print-thumb-wrap" aria-hidden="true">
+            <img src="photo.php?id=<?php echo $printThumbId; ?>" alt="Thumbnail for <?php echo h($activeSkuNormalized); ?>">
+          </div>
+        <?php endif; ?>
       </header>
       <nav class="breadcrumbs" aria-label="Breadcrumb">
         <a href="home.php">Home</a>
@@ -1402,29 +1408,25 @@ function checked(string $name, string $value, array $formData): string
           '</body></html>'
         );
         doc.close();
-        var clone = sheet.cloneNode(true);
-        copyFormValues(sheet, clone);
-        var printableWidth = (PRINT_PAGE_WIDTH_IN - PRINT_MARGIN_IN * 2) * PRINT_DPI;
-        var printableHeight = (PRINT_PAGE_HEIGHT_IN - PRINT_MARGIN_IN * 2) * PRINT_DPI;
+        // Clone only the sheet-content (the intake form), not the recent-items section
+        var sheetContent = sheet.querySelector('.sheet-content') || sheet;
+        var clone = sheetContent.cloneNode(true);
+        // Remove the recent-items section from the clone entirely
+        var recentInClone = clone.querySelector('.recent-items');
+        if (recentInClone) { recentInClone.parentNode.removeChild(recentInClone); }
+        copyFormValues(sheetContent, clone);
         var attachAndPrint = function () {
           var root = doc.getElementById('print-root');
           if (!root) return;
           root.appendChild(clone);
           resizeTextareas(doc);
-          // measure after layout
           setTimeout(function () {
-            var rect = clone.getBoundingClientRect();
-            var scale = Math.min(1, printableWidth / rect.width, printableHeight / rect.height);
-            if (scale < MIN_PRINT_SCALE) scale = MIN_PRINT_SCALE;
-            clone.style.transformOrigin = 'top left';
-            clone.style.transform = 'scale(' + scale + ')';
-            clone.style.width = (100 / scale) + '%';
             try { iframe.contentWindow.focus(); } catch (e) {}
             iframe.contentWindow.print();
             setTimeout(function () {
               try { iframe.remove(); } catch (e) {}
             }, 400);
-          }, 60);
+          }, 80);
         };
         if (doc.readyState === 'complete') {
           attachAndPrint();
