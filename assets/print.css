@@ -4,7 +4,7 @@
 
 @page {
   size: letter portrait;
-  margin: 0.3in 0.3in 0.28in 0.3in;
+  margin: 0.2in 0.2in 0.18in 0.2in;
 }
 
 * {
@@ -20,15 +20,15 @@ html, body {
   background: #fff !important;
   color: #111 !important;
   font-family: "Inter", "Segoe UI", Arial, sans-serif;
-  font-size: 7.5pt;
-  line-height: 1.25;
+  font-size: 7pt;
+  line-height: 1.18;
 }
 
 a { color: #111; text-decoration: none; }
 
 /* ─── HIDE ALL UI CHROME ───────────────────────────────────────────── */
 .app-menu, .menu-panel, .menu-toggle, .toast, .breadcrumbs,
-.draft-restore-wrap, .status-bar, .success, .warning,
+.draft-restore-wrap, .status-bar, .success, .warning, .warning-box,
 .client-error, .error-box, .print-toggle, .print-button,
 .theme-toggle, .new-intake-cta, .quick-actions, .quick-links,
 .badge, .sheet-header-right, .actions, .recent-items,
@@ -69,8 +69,8 @@ a { color: #111; text-decoration: none; }
   display: flex !important;
   justify-content: space-between;
   align-items: flex-start;
-  padding-bottom: 5pt;
-  margin-bottom: 6pt;
+  padding-bottom: 4pt;
+  margin-bottom: 4pt;
   border: none !important;
   border-bottom: 1.5pt solid #111 !important;
 }
@@ -177,7 +177,7 @@ a { color: #111; text-decoration: none; }
 
 /* ─── SECTIONS ─────────────────────────────────────────────────────── */
 .section {
-  padding: 4pt 5pt 5pt;
+  padding: 3pt 4pt 4pt;
   margin-top: 0;
   border: 0.5pt solid #ccc;
   border-top: 1.5pt solid #111;
@@ -200,10 +200,10 @@ a { color: #111; text-decoration: none; }
 /* ─── ROWS AND LABELS ──────────────────────────────────────────────── */
 .row {
   display: grid;
-  gap: 4pt;
+  gap: 3pt;
   grid-template-columns: repeat(auto-fit, minmax(70pt, 1fr));
   break-inside: avoid;
-  margin-bottom: 3pt;
+  margin-bottom: 2pt;
 }
 
 .row:last-child { margin-bottom: 0; }
@@ -320,8 +320,9 @@ legend {
 /* ─── COMPAT OS — show as plain text label only ────────────────────── */
 .compat-os-group {
   display: flex;
-  align-items: center;
-  gap: 4pt;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2pt;
 }
 
 .compat-os-label {
@@ -330,6 +331,13 @@ legend {
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: #555;
+}
+
+.compat-os-print-value {
+  display: block !important;
+  font-size: 8pt;
+  font-weight: 600;
+  color: #111;
 }
 
 /* ─── FOOTER ───────────────────────────────────────────────────────── */
@@ -350,3 +358,9 @@ body.print-pink .sheet { background: #f4a4bb !important; }
 body.print-pink .section { background: rgba(255,255,255,0.55) !important; }
 body.print-pink .print-summary-label,
 body.print-pink .print-summary-value { color: #111; }
+
+/* Keep the printout to the essential content only. */
+.sheet-content::after {
+  display: none !important;
+  content: none !important;
+}
