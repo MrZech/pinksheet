@@ -1442,6 +1442,134 @@ function checked(string $name, string $value, array $formData): string
           });
         });
       };
+      var extractPhotoIdFromSrc = function (src) {
+        var match = String(src || '').match(/[?&]id=(\d+)/);
+        return match ? match[1] : '';
+      };
+      var buildPrintNotesBlock = function (doc, sourceForm, formClone) {
+        var notesSource = sourceForm.querySelector('textarea[name="notes"]');
+        var notesClone = formClone.querySelector('textarea[name="notes"]');
+        if (!notesClone) return;
+
+        var notesSection = notesClone.closest('.section.notes');
+        if (!notesSection) return;
+
+        var notesValue = notesSource ? notesSource.value : notesClone.value;
+        var notesBlock = doc.createElement('div');
+        notesBlock.className = 'print-notes-value';
+        notesBlock.textContent = notesValue && notesValue.trim() ? notesValue : ' ';
+
+        notesSection.insertBefore(notesBlock, notesClone);
+        notesClone.parentNode.removeChild(notesClone);
+      };
+      var buildPrintPhotoGallery = function (doc, sourceSheet, thumbId) {
+        var photoNodes = sourceSheet.querySelectorAll('.section.sku-photos .sku-photo-item');
+        var photos = [];
+
+        photoNodes.forEach(function (node) {
+          if (node.classList.contains('is-preview')) return;
+
+          var linkImg = node.querySelector('.sku-photo-link img');
+          if (!linkImg) return;
+
+          var src = linkImg.getAttribute('src') || '';
+          if (!src) return;
+
+          var photoId = extractPhotoIdFromSrc(src);
+          if (thumbId && photoId && String(photoId) === String(thumbId)) return;
+
+          photos.push({
+            src: src,
+            alt: linkImg.getAttribute('alt') || 'Additional photo',
+            label: (node.querySelector('.sku-photo-name') || {}).textContent || ''
+          });
+        });
+
+        if (!photos.length) return null;
+
+        var section = doc.createElement('section');
+        section.className = 'section print-photo-section';
+        section.style.setProperty('--print-photo-size', photos.length <= 4 ? '1.15in' : (photos.length <= 8 ? '0.95in' : '0.75in'));
+
+        var heading = doc.createElement('h2');
+        heading.textContent = photos.length === 1 ? 'Additional Photo' : 'Additional Photos';
+        section.appendChild(heading);
+
+        var grid = doc.createElement('div');
+        grid.className = 'print-photo-grid';
+
+        photos.forEach(function (photo) {
+          var figure = doc.createElement('figure');
+          figure.className = 'print-photo-item';
+
+          var img = doc.createElement('img');
+          img.src = photo.src;
+          img.alt = photo.alt;
+          figure.appendChild(img);
+
+          if (photo.label && photo.label.trim()) {
+            var caption = doc.createElement('figcaption');
+            caption.className = 'print-photo-label';
+            caption.textContent = photo.label.trim();
+            figure.appendChild(caption);
+          }
+
+          grid.appendChild(figure);
+        });
+
+        section.appendChild(grid);
+        return section;
+      };
+      var waitForImages = function (root, callback) {
+        var images = Array.prototype.slice.call(root.querySelectorAll('img'));
+        if (!images.length) {
+          callback();
+          return;
+        }
+
+        var remaining = images.length;
+        var done = false;
+        var finish = function () {
+          if (done) return;
+          done = true;
+          callback();
+        };
+        var markLoaded = function () {
+          remaining -= 1;
+          if (remaining <= 0) {
+            finish();
+          }
+        };
+
+        images.forEach(function (img) {
+          if (img.complete && img.naturalWidth > 0) {
+            markLoaded();
+            return;
+          }
+          img.addEventListener('load', markLoaded, { once: true });
+          img.addEventListener('error', markLoaded, { once: true });
+        });
+
+        setTimeout(finish, 1800);
+      };
+      var fitPrintToSinglePage = function (doc, root) {
+        var availableWidthPx = (PRINT_PAGE_WIDTH_IN - (PRINT_MARGIN_IN * 2)) * PRINT_DPI;
+        var availableHeightPx = (PRINT_PAGE_HEIGHT_IN - (PRINT_MARGIN_IN * 2)) * PRINT_DPI;
+        var rawWidth = Math.max(root.scrollWidth || 0, root.offsetWidth || 0, 1);
+        var rawHeight = Math.max(root.scrollHeight || 0, root.offsetHeight || 0, 1);
+        var scale = Math.min(1, availableWidthPx / rawWidth, availableHeightPx / rawHeight);
+
+        if (!isFinite(scale) || scale <= 0) {
+          scale = 1;
+        }
+        if (scale > MIN_PRINT_SCALE) {
+          scale = 1;
+        }
+
+        doc.documentElement.style.zoom = String(scale);
+        doc.body.style.zoom = String(scale);
+        return scale;
+      };
       var buildPrintIframe = function () {
         var sheet = document.querySelector('.sheet.intake');
         if (!sheet) return null;
@@ -1500,6 +1628,8 @@ function checked(string $name, string $value, array $formData): string
           if (thumb) {
             printRoot.appendChild(thumb.cloneNode(true));
           }
+          var thumbImg = thumb ? thumb.querySelector('img') : null;
+          var thumbId = thumbImg ? extractPhotoIdFromSrc(thumbImg.getAttribute('src')) : '';
 
           // Clone only the intake form — not the recent-items section
           var intakeForm = sheet.querySelector('#intake-form');
@@ -1531,6 +1661,7 @@ function checked(string $name, string $value, array $formData): string
             // Convert the printable clone into a read-only snapshot while
             // preserving the actual field values from the live form.
             copyFormValues(intakeForm, formClone);
+            buildPrintNotesBlock(doc, intakeForm, formClone);
             var compatGroup = formClone.querySelector('.compat-os-group');
             if (compatGroup) {
               var compatValue = formClone.querySelector('#compatible-os-input');
@@ -1551,16 +1682,25 @@ function checked(string $name, string $value, array $formData): string
             });
 
             printRoot.appendChild(formClone);
+
+            var gallery = buildPrintPhotoGallery(doc, sheet, thumbId);
+            if (gallery) {
+              printRoot.appendChild(gallery);
+            }
           }
 
           resizeTextareas(doc);
-          setTimeout(function () {
-            try { iframe.contentWindow.focus(); } catch (e) {}
-            iframe.contentWindow.print();
+          waitForImages(doc, function () {
+            resizeTextareas(doc);
+            fitPrintToSinglePage(doc, doc.getElementById('print-root') || doc.body);
             setTimeout(function () {
-              try { iframe.remove(); } catch (e) {}
-            }, 400);
-          }, 120);
+              try { iframe.contentWindow.focus(); } catch (e) {}
+              iframe.contentWindow.print();
+              setTimeout(function () {
+                try { iframe.remove(); } catch (e) {}
+              }, 400);
+            }, 120);
+          });
         };
 
         if (doc.readyState === 'complete') {
