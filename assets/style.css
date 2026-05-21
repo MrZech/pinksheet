@@ -207,7 +207,7 @@ body.dark-mode .theme-toggle {
   background: var(--sheet-bg);
   border: 1px solid var(--line);
   border-radius: var(--radius-xl);
-  padding: 22px 24px 24px;
+  padding: 28px 32px 32px;
   box-shadow: var(--shadow-soft), var(--shadow-strong);
   overflow: hidden;
   backdrop-filter: blur(12px);
@@ -376,7 +376,7 @@ body.dark-mode .form-grid {
 }
 
 .sheet.intake {
-  width: min(1680px, 98vw);
+  width: min(1900px, 99vw);
   height: calc(100vh - 48px);
 }
 
@@ -739,8 +739,8 @@ label select {
   border: 1px solid var(--line);
   border-radius: var(--radius-md);
   background: var(--surface-glass);
-  padding: 12px 14px 14px;
-  margin-top: 12px;
+  padding: 14px 16px 16px;
+  margin-top: 14px;
   box-shadow: var(--shadow-soft);
 }
 
@@ -1306,13 +1306,13 @@ body.dark-mode .toast {
 .form-grid {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 16px;
   flex: 1;
 }
 
 .form-columns {
   display: grid;
-  gap: 12px;
+  gap: 16px;
   flex: 1;
 }
 
@@ -1352,7 +1352,7 @@ body.dark-mode .toast {
 .form-col-right {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 16px;
   min-width: 0;
 }
 
@@ -1391,7 +1391,7 @@ body.dark-mode .toast {
 
 .row {
   display: grid;
-  gap: 12px;
+  gap: 16px;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
 }
 
