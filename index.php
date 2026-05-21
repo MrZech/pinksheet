@@ -595,6 +595,7 @@ UPDATE intake_items SET
     graphics_card = :graphics_card,
     screen_resolution = :screen_resolution,
     diagnostics_test_ran = :diagnostics_test_ran,
+    wifi_card_installed = :wifi_card_installed,
     where_it_goes = :where_it_goes,
     ebay_status = :ebay_status,
     ebay_price = :ebay_price,
@@ -622,7 +623,7 @@ INSERT INTO intake_items (
     functional, condition, is_square, care_if_square,
     cords_adapters, keep_items_together, picture_taken,
     power_on, brand_model, ram, ssd_gb, cpu, os, battery_health,
-    graphics_card, screen_resolution, diagnostics_test_ran, where_it_goes,
+    graphics_card, screen_resolution, diagnostics_test_ran, wifi_card_installed, where_it_goes,
     ebay_status, ebay_price, dispotech_price, in_ebay_room,
     what_box, notes, updated_at
 ) VALUES (
@@ -630,7 +631,7 @@ INSERT INTO intake_items (
     :functional, :condition, :is_square, :care_if_square,
     :cords_adapters, :keep_items_together, :picture_taken,
     :power_on, :brand_model, :ram, :ssd_gb, :cpu, :os, :battery_health,
-    :graphics_card, :screen_resolution, :diagnostics_test_ran, :where_it_goes,
+    :graphics_card, :screen_resolution, :diagnostics_test_ran, :wifi_card_installed, :where_it_goes,
     :ebay_status, :ebay_price, :dispotech_price, :in_ebay_room,
     :what_box, :notes, datetime('now')
 );
@@ -1146,6 +1147,10 @@ function checked(string $name, string $value, array $formData): string
               <label class="inline small-checkbox">
                 <input type="checkbox" name="diagnostics_test_ran" <?php echo !empty($formData['diagnostics_test_ran']) ? 'checked' : ''; ?>>
                 <span>Diagnostics test was ran</span>
+              </label>
+              <label class="inline small-checkbox">
+                <input type="checkbox" name="wifi_card_installed" <?php echo !empty($formData['wifi_card_installed']) ? 'checked' : ''; ?>>
+                <span>Wifi card is installed</span>
               </label>
             </div>
           </div>
