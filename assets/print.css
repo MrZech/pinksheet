@@ -259,14 +259,22 @@ textarea {
 textarea {
   border: 0.5pt solid #999;
   min-height: 24pt;
-  height: auto !important;
-  overflow: visible;
+  overflow: visible !important;
   white-space: pre-wrap;
   resize: none;
 }
 
 .section.notes textarea {
   min-height: 36pt;
+  overflow: visible !important;
+}
+
+/* Force notes section to show all content — no clipping */
+.section.notes {
+  grid-column: 1 / -1 !important;
+  overflow: visible !important;
+  height: auto !important;
+  max-height: none !important;
 }
 
 /* ─── FIELDSETS ────────────────────────────────────────────────────── */
