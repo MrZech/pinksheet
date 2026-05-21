@@ -184,7 +184,7 @@ form#photo-delete-form,
 
 /* ─── FORM LAYOUT: 3 columns for compact fit ─────────────────────── */
 .form-grid {
-  gap: 4pt;
+  gap: 8pt;
   display: block;
 }
 
@@ -197,7 +197,7 @@ form#photo-delete-form,
 .form-columns {
   display: grid !important;
   grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
-  gap: 4pt !important;
+  gap: 8pt !important;
   align-items: start;
 }
 
@@ -245,8 +245,8 @@ form#photo-delete-form,
 
 /* ─── SECTIONS ───────────────────────────────────────────────────── */
 .section {
-  padding: 3pt 4pt 4pt;
-  margin-top: 4pt;
+  padding: 5pt 6pt 6pt;
+  margin-top: 6pt;
   border: 1pt solid #000;
   background: transparent !important;
   break-inside: avoid;
@@ -266,7 +266,7 @@ form#photo-delete-form,
 /* ─── ROWS AND LABELS ────────────────────────────────────────────── */
 .row {
   display: grid;
-  gap: 3pt;
+  gap: 6pt;
   grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
   break-inside: avoid;
 }
@@ -274,7 +274,7 @@ form#photo-delete-form,
 label {
   display: flex;
   flex-direction: column;
-  gap: 2pt;
+  gap: 4pt;
   font-size: 8pt;
   color: #000;
 }
@@ -300,7 +300,7 @@ input[type="date"],
 input[type="number"],
 select,
 textarea {
-  padding: 2pt 4pt;
+  padding: 3pt 5pt;
   border-radius: 0;
   border: 1pt solid #000;
   box-shadow: none;
@@ -333,7 +333,7 @@ textarea {
 
 /* ─── FIELDSETS ──────────────────────────────────────────────────── */
 fieldset {
-  padding: 3pt 4pt 4pt;
+  padding: 5pt 6pt 6pt;
   min-height: 0;
   border: 1pt solid #000;
   background: transparent !important;
@@ -362,7 +362,7 @@ legend {
 }
 
 .conjoined .segment {
-  padding: 3pt 5pt;
+  padding: 5pt 6pt;
   border-color: #000;
 }
 
