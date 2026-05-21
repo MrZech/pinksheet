@@ -1386,7 +1386,8 @@ function checked(string $name, string $value, array $formData): string
         (root || document).querySelectorAll('textarea').forEach(function (ta) {
           ta.style.height = 'auto';
           ta.style.minHeight = '0';
-          ta.style.height = (ta.scrollHeight + 6) + 'px';
+          ta.style.overflow = 'visible';
+          ta.style.height = (ta.scrollHeight + 8) + 'px';
         });
       };
       var copyFormValues = function (srcRoot, destRoot) {
