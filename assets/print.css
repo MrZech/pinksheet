@@ -288,12 +288,12 @@ textarea {
   display: flex;
   flex-direction: column;
   flex: 1 1 auto;
-  min-height: 80pt;
+  min-height: 102pt;
 }
 
 .print-notes-value {
   display: block;
-  min-height: 104pt;
+  min-height: 122pt;
   padding: 0.5pt 0 0.5pt;
   white-space: pre-wrap;
   word-break: break-word;
@@ -413,6 +413,33 @@ legend {
   line-height: 1.1;
   color: #666;
   word-break: break-word;
+}
+
+.form-col-left > .print-side-row + .section {
+  padding: 2.5pt 3.5pt 3pt;
+}
+
+.form-col-left > .print-side-row + .section h2 {
+  margin-bottom: 1.5pt;
+  font-size: 6.4pt;
+}
+
+.form-col-left > .print-side-row + .section .row {
+  gap: 2.6pt;
+  margin-bottom: 0.5pt;
+}
+
+.form-col-left > .print-side-row + .section fieldset {
+  padding: 1.8pt 2.5pt 2.5pt;
+}
+
+.form-col-left > .print-side-row + .section fieldset label {
+  font-size: 6.6pt;
+  gap: 1.5pt;
+}
+
+.form-col-left > .print-side-row + .section legend {
+  font-size: 6.2pt;
 }
 
 /* ─── PRINT PINK ───────────────────────────────────────────────────── */
