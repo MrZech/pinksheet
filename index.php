@@ -1493,7 +1493,7 @@ function checked(string $name, string $value, array $formData): string
 
         var section = doc.createElement('section');
         section.className = 'section print-photo-section';
-        section.style.setProperty('--print-photo-size', '1in');
+        section.style.setProperty('--print-photo-size', '0.9in');
 
         var heading = doc.createElement('h2');
         heading.textContent = photos.length === 1 ? 'Additional Photo' : 'Additional Photos (first 4)';
@@ -1573,7 +1573,7 @@ function checked(string $name, string $value, array $formData): string
           scale = 1;
         }
 
-        scale = Math.max(scale * 0.995, 0.55);
+        scale = Math.max(scale * 0.995, 0.48);
         var zoomValue = scale.toFixed(3);
         root.style.zoom = zoomValue;
         if (doc.body) {
@@ -1688,19 +1688,9 @@ function checked(string $name, string $value, array $formData): string
 
             var leftCol = formClone.querySelector('.form-col-left');
             var rightCol = formClone.querySelector('.form-col-right');
-            if (leftCol && rightCol) {
-              var taskSections = Array.prototype.slice.call(rightCol.querySelectorAll('.section'));
-              if (taskSections.length) {
-                var taskGrid = doc.createElement('div');
-                taskGrid.className = 'print-task-grid';
-                taskGrid.setAttribute('data-layout', 'stacked');
-
-                taskSections.forEach(function (section) {
-                  taskGrid.appendChild(section);
-                });
-
-                leftCol.appendChild(taskGrid);
-              }
+            var notesSection = formClone.querySelector('.section.notes');
+            if (leftCol && notesSection) {
+              leftCol.appendChild(notesSection);
             }
 
             formClone.querySelectorAll('input, textarea, select').forEach(function (field) {
@@ -1710,12 +1700,34 @@ function checked(string $name, string $value, array $formData): string
               }
             });
 
-            printRoot.appendChild(formClone);
-
             var gallery = buildPrintPhotoGallery(doc, sheet, thumbId);
-            if (gallery) {
-              printRoot.appendChild(gallery);
+            if (rightCol) {
+              var rightSplit = doc.createElement('div');
+              rightSplit.className = 'print-right-split';
+
+              var rightTasks = doc.createElement('div');
+              rightTasks.className = 'print-right-tasks';
+
+              var rightPhotos = doc.createElement('div');
+              rightPhotos.className = 'print-right-photos';
+
+              var rightSections = Array.prototype.slice.call(rightCol.querySelectorAll('.section'));
+              rightSections.forEach(function (section) {
+                rightTasks.appendChild(section);
+              });
+
+              if (gallery) {
+                rightPhotos.appendChild(gallery);
+              }
+
+              rightSplit.appendChild(rightTasks);
+              rightSplit.appendChild(rightPhotos);
+              rightCol.appendChild(rightSplit);
+            } else if (gallery) {
+              formClone.appendChild(gallery);
             }
+
+            printRoot.appendChild(formClone);
           }
 
           resizeTextareas(doc);

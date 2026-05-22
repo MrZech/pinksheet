@@ -152,34 +152,49 @@ a { color: #111; text-decoration: none; }
 /* ─── FORM LAYOUT ──────────────────────────────────────────────────── */
 .form-grid { display: block; }
 
-/* Flatten column wrappers into the grid */
-.form-col-left,
-.form-col-right {
-  display: contents !important;
-}
-
-/*
-  4-column grid:
-  col 1: SKU top fields (left col top)
-  col 2-3: D1 (right col, spans 2)
-  col 4: empty / overflow
-  We use explicit placement below.
-*/
 .form-columns {
-  display: block !important;
+  display: grid !important;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.8fr);
+  gap: 5pt;
+  align-items: start;
 }
 
 .form-col-left {
   display: flex !important;
   flex-direction: column;
   gap: 4.5pt;
-  width: 48%;
-  max-width: 48%;
-  align-self: flex-start;
+  min-width: 0;
 }
 
 .form-col-right {
-  display: none !important;
+  display: flex !important;
+  flex-direction: column;
+  gap: 4.5pt;
+  min-width: 0;
+}
+
+.print-right-split {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 4pt;
+  align-items: start;
+  width: 100%;
+  min-width: 0;
+}
+
+.print-right-tasks {
+  display: flex;
+  flex-direction: column;
+  gap: 4pt;
+  min-width: 0;
+}
+
+.print-right-photos {
+  display: flex;
+  flex-direction: column;
+  gap: 4pt;
+  align-items: flex-start;
+  min-width: 0;
 }
 
 .print-task-grid {
@@ -196,13 +211,15 @@ a { color: #111; text-decoration: none; }
 }
 
 .form-col-left > .row,
-.form-col-left > .section {
+.form-col-left > .section,
+.form-col-right > .row,
+.form-col-right > .section {
   width: 100%;
 }
 
 /* Notes full width */
 .section.notes {
-  grid-column: 1 / -1 !important;
+  grid-column: auto !important;
 }
 
 /* ─── SECTIONS ─────────────────────────────────────────────────────── */
@@ -298,16 +315,19 @@ textarea {
 
 /* Force notes section to show all content — no clipping */
 .section.notes {
-  grid-column: 1 / -1 !important;
   overflow: visible !important;
   height: auto !important;
   max-height: none !important;
   padding: 3.5pt 4.5pt 3.5pt;
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 160pt;
 }
 
 .print-notes-value {
   display: block;
-  min-height: 34pt;
+  min-height: 104pt;
   padding: 0.5pt 0 0.5pt;
   white-space: pre-wrap;
   word-break: break-word;
@@ -381,10 +401,10 @@ legend {
 }
 
 .print-photo-section {
-  grid-column: 1 / -1 !important;
+  grid-column: auto !important;
 }
 
-.form-col-left > .section.print-photo-section {
+.print-right-photos > .section.print-photo-section {
   width: 100% !important;
   max-width: 100% !important;
   align-self: flex-start;
@@ -401,7 +421,7 @@ legend {
   justify-content: center;
   align-content: start;
   width: fit-content;
-  margin: 0 auto 0 0;
+  margin: 0;
 }
 
 .print-photo-item {
