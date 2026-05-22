@@ -1689,9 +1689,9 @@ function checked(string $name, string $value, array $formData): string
             var leftCol = formClone.querySelector('.form-col-left');
             var rightCol = formClone.querySelector('.form-col-right');
             var notesSection = formClone.querySelector('.section.notes');
-            if (leftCol && notesSection) {
-              leftCol.appendChild(notesSection);
-            }
+            var rightSections = rightCol ? Array.prototype.slice.call(rightCol.querySelectorAll('.section')) : [];
+            var d1Section = rightSections.length ? rightSections[0] : null;
+            var d2Section = rightSections.length > 1 ? rightSections[1] : null;
 
             formClone.querySelectorAll('input, textarea, select').forEach(function (field) {
               field.setAttribute('readonly', 'readonly');
@@ -1701,28 +1701,27 @@ function checked(string $name, string $value, array $formData): string
             });
 
             var gallery = buildPrintPhotoGallery(doc, sheet, thumbId);
-            if (rightCol) {
-              var rightSplit = doc.createElement('div');
-              rightSplit.className = 'print-right-split';
+            if (leftCol) {
+              var printSideRow = doc.createElement('div');
+              printSideRow.className = 'print-side-row';
 
-              var rightTasks = doc.createElement('div');
-              rightTasks.className = 'print-right-tasks';
-
-              var rightPhotos = doc.createElement('div');
-              rightPhotos.className = 'print-right-photos';
-
-              var rightSections = Array.prototype.slice.call(rightCol.querySelectorAll('.section'));
-              rightSections.forEach(function (section) {
-                rightTasks.appendChild(section);
-              });
-
+              if (d1Section) {
+                printSideRow.appendChild(d1Section);
+              }
               if (gallery) {
-                rightPhotos.appendChild(gallery);
+                printSideRow.appendChild(gallery);
+              }
+              if (printSideRow.childNodes.length) {
+                leftCol.appendChild(printSideRow);
               }
 
-              rightSplit.appendChild(rightTasks);
-              rightSplit.appendChild(rightPhotos);
-              rightCol.appendChild(rightSplit);
+              if (d2Section) {
+                leftCol.appendChild(d2Section);
+              }
+
+              if (notesSection) {
+                leftCol.appendChild(notesSection);
+              }
             } else if (gallery) {
               formClone.appendChild(gallery);
             }
