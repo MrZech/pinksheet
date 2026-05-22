@@ -4,7 +4,7 @@
 
 @page {
   size: letter portrait;
-  margin: 0.12in;
+  margin: 0.16in 0.12in 0.12in 0.2in;
 }
 
 * {
@@ -60,7 +60,8 @@ a { color: #111; text-decoration: none; }
   max-width: 6.7in !important;
   height: auto !important;
   min-height: 0 !important;
-  padding: 0 !important;
+  padding: 0.08in 0.06in 0.06in 0.12in !important;
+  box-sizing: border-box;
   border: none !important;
   border-radius: 0 !important;
   background: #fff !important;
