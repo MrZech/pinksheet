@@ -75,7 +75,7 @@ a { color: #111; text-decoration: none; }
 }
 
 .sheet-content {
-  transform: translateX(3pt) !important;
+  transform: translateX(5pt) !important;
   transform-origin: top left !important;
 }
 
