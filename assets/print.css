@@ -153,27 +153,23 @@ a { color: #111; text-decoration: none; }
 .form-grid { display: block; }
 
 .form-columns {
-  display: grid !important;
-  grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.8fr);
-  gap: 5pt;
-  align-items: start;
+  display: block !important;
 }
 
 .form-col-left {
   display: flex !important;
   flex-direction: column;
   gap: 4.5pt;
+  width: 48%;
+  max-width: 48%;
   min-width: 0;
 }
 
 .form-col-right {
-  display: flex !important;
-  flex-direction: column;
-  gap: 4.5pt;
-  min-width: 0;
+  display: none !important;
 }
 
-.print-right-split {
+.print-side-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 4pt;
@@ -182,42 +178,12 @@ a { color: #111; text-decoration: none; }
   min-width: 0;
 }
 
-.print-right-tasks {
-  display: flex;
-  flex-direction: column;
-  gap: 4pt;
-  min-width: 0;
-}
-
-.print-right-photos {
-  display: flex;
-  flex-direction: column;
-  gap: 4pt;
-  align-items: flex-start;
-  min-width: 0;
-}
-
-.print-task-grid {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 5.5pt;
-  width: 100%;
-  margin-top: 1pt;
-  align-items: start;
-}
-
-.print-task-grid > .section {
-  grid-column: 1 / -1;
-}
-
 .form-col-left > .row,
 .form-col-left > .section,
-.form-col-right > .row,
-.form-col-right > .section {
+.print-side-row > .section {
   width: 100%;
 }
 
-/* Notes full width */
 .section.notes {
   grid-column: auto !important;
 }
@@ -322,7 +288,7 @@ textarea {
   display: flex;
   flex-direction: column;
   flex: 1 1 auto;
-  min-height: 160pt;
+  min-height: 80pt;
 }
 
 .print-notes-value {
@@ -404,8 +370,8 @@ legend {
   grid-column: auto !important;
 }
 
-.print-right-photos > .section.print-photo-section {
-  width: 100% !important;
+.print-side-row > .section.print-photo-section {
+  width: fit-content !important;
   max-width: 100% !important;
   align-self: flex-start;
   margin-left: 0;
