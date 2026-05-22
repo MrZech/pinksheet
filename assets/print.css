@@ -382,27 +382,39 @@ legend {
   grid-column: 1 / -1 !important;
 }
 
+.form-col-left > .section.print-photo-section {
+  width: fit-content !important;
+  max-width: 100% !important;
+  align-self: center;
+  margin-left: auto;
+  margin-right: auto;
+  padding-inline: 3pt;
+}
+
 .print-photo-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 2pt;
+  grid-template-columns: repeat(2, var(--print-photo-size, 1in));
+  gap: 2.5pt 3pt;
   justify-items: center;
+  justify-content: center;
+  align-content: start;
+  width: fit-content;
+  margin: 0 auto;
 }
 
 .print-photo-item {
   display: flex;
   flex-direction: column;
-  width: min(100%, var(--print-photo-size, 0.79in));
+  width: var(--print-photo-size, 1in);
   margin: 0;
-  padding: 1.5pt;
+  padding: 1.25pt;
   border: 0.5pt solid #ccc;
   background: #fff;
 }
 
 .print-photo-item img {
   width: 100%;
-  aspect-ratio: 1 / 1;
-  height: auto;
+  height: var(--print-photo-size, 1in);
   object-fit: cover;
   display: block;
 }
