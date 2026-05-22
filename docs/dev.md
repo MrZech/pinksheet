@@ -4,6 +4,7 @@ This page explains how the app is wired together so you can change it without gu
 
 ## Reading Order
 
+- [Grayson's Guide](graysons-guide.md)
 - [Usage](usage.md)
 - [Schema](schema.md)
 - [Testing](testing.md)

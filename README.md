@@ -3,14 +3,15 @@
 Pinksheet is a PHP + SQLite inventory app for intake work, SKU lookup, photo management, legacy archive search, eBay prompt generation, Square sync, and backup/restore operations.
 
 ## Read This In Order
-1. [Usage](docs/usage.md)
-2. [Schema](docs/schema.md)
-3. [Developer notes](docs/dev.md)
-4. [Testing](docs/testing.md)
-5. [Maintenance](docs/maintenance.md)
-6. [Operator SOP](docs/ops.md)
-7. [Archive workflow](docs/archive.md)
-8. [Backup and restore playbook](docs/restore_playbook.md)
+1. [Grayson's Guide](docs/graysons-guide.md)
+2. [Usage](docs/usage.md)
+3. [Schema](docs/schema.md)
+4. [Developer notes](docs/dev.md)
+5. [Testing](docs/testing.md)
+6. [Maintenance](docs/maintenance.md)
+7. [Operator SOP](docs/ops.md)
+8. [Archive workflow](docs/archive.md)
+9. [Backup and restore playbook](docs/restore_playbook.md)
 
 ## Quick Start
 
@@ -86,6 +87,7 @@ PowerShell backup and verify helpers live in `scripts/`.
 
 ## Docs
 
+- `docs/graysons-guide.md` - the friendly handoff guide for future maintainers.
 - `docs/usage.md` - core flows, themes, print guidance.
 - `docs/schema.md` - intake_items, archive_items, Square sync, and database notes.
 - `docs/maintenance.md` - backups, hooks, alerts, restore steps.
