@@ -173,7 +173,9 @@ a { color: #111; text-decoration: none; }
   display: flex !important;
   flex-direction: column;
   gap: 4.5pt;
-  width: 100%;
+  width: 48%;
+  max-width: 48%;
+  align-self: flex-start;
 }
 
 .form-col-right {
@@ -312,8 +314,8 @@ textarea {
   font-size: 7.15pt;
   line-height: 1.16;
   color: #111;
-  column-count: 2;
-  column-gap: 10pt;
+  column-count: 1;
+  column-gap: 0;
   column-fill: auto;
 }
 
@@ -383,12 +385,12 @@ legend {
 }
 
 .form-col-left > .section.print-photo-section {
-  width: fit-content !important;
+  width: 100% !important;
   max-width: 100% !important;
   align-self: flex-start;
   margin-left: 0;
-  margin-right: auto;
-  padding-inline: 0 2pt;
+  margin-right: 0;
+  padding-inline: 0;
 }
 
 .print-photo-grid {
