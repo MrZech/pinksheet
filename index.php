@@ -1570,10 +1570,10 @@ function checked(string $name, string $value, array $formData): string
         var iframe = document.createElement('iframe');
         iframe.id = 'print-frame';
         iframe.style.position = 'fixed';
-        iframe.style.right = '0';
-        iframe.style.bottom = '0';
-        iframe.style.width = '0';
-        iframe.style.height = '0';
+        iframe.style.left = '-9999px';
+        iframe.style.top = '0';
+        iframe.style.width = '8.5in';
+        iframe.style.height = '11in';
         iframe.style.border = '0';
         iframe.setAttribute('aria-hidden', 'true');
         document.body.appendChild(iframe);
