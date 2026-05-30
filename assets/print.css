@@ -1,6 +1,371 @@
 /* ═══════════════════════════════════════════════════════════════════
-   DISPO.TECH — INTAKE SHEET PRINT STYLES  (single page)
+   DISPO.TECH — INTAKE SHEET PRINT STYLES  (single page, full fill)
    ═══════════════════════════════════════════════════════════════════ */
+
+@page {
+  size: letter portrait;
+  margin: 0.3in 0.3in 0.28in 0.3in;
+}
+
+* {
+  box-shadow: none !important;
+  text-shadow: none !important;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+/* ─── BASE ─────────────────────────────────────────────────────────── */
+html, body {
+  width: 100%;
+  height: 100%;
+  background: #fff !important;
+  color: #111 !important;
+  font-family: "Inter", "Segoe UI", Arial, sans-serif;
+  font-size: 7.5pt;
+  line-height: 1.25;
+}
+
+a { color: #111; text-decoration: none; }
+
+/* ─── HIDE ALL UI CHROME ───────────────────────────────────────────── */
+.app-menu, .menu-panel, .menu-toggle, .toast, .breadcrumbs,
+.draft-restore-wrap, .status-bar, .success, .warning,
+.client-error, .error-box, .print-toggle, .print-button,
+.theme-toggle, .new-intake-cta, .quick-actions, .quick-links,
+.badge, .sheet-header-right, .actions, .recent-items,
+.copy-sku, .copy-actions, .what-menu-toggle, .what-menu-list,
+.what-counter, .sku-photo-dropzone, .sku-photo-preview,
+.upload-messages, .sku-photo-actions, .sku-photo-meta,
+.inline-actions, .photo-upload-messages, #photo-upload-messages,
+#restore-draft-button, #restore-hint, form#photo-delete-form,
+.status .status-chip, .section.sku-photos, .compat-os-btn,
+.compat-os-buttons, .hint, p.hint, .what-menu,
+.what-field .what-menu, .autosave-status {
+  display: none !important;
+}
+
+/* ─── PAGE / SHEET — stretch to fill full page ─────────────────────── */
+.page {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.sheet {
+  width: 100% !important;
+  flex: 1;
+  display: flex !important;
+  flex-direction: column !important;
+  height: 100% !important;
+  min-height: 0 !important;
+  padding: 0 !important;
+  border: none !important;
+  border-radius: 0 !important;
+  background: #fff !important;
+  overflow: visible !important;
+  backdrop-filter: none !important;
+}
+
+.sheet.intake, .sheet-scale, .sheet-content {
+  flex: 1;
+  display: flex !important;
+  flex-direction: column !important;
+  height: 100% !important;
+  min-height: 0 !important;
+  overflow: visible !important;
+}
+
+/* ─── HEADER ───────────────────────────────────────────────────────── */
+.sheet-header {
+  display: flex !important;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding-bottom: 5pt;
+  margin-bottom: 6pt;
+  border: none !important;
+  border-bottom: 1.5pt solid #111 !important;
+  flex-shrink: 0;
+}
+
+.sheet-header .status { display: none !important; }
+
+.sheet h1 {
+  font-size: 13pt !important;
+  font-weight: 800 !important;
+  color: #111 !important;
+  margin: 0 0 1pt !important;
+  line-height: 1;
+}
+
+.sheet-header .updated {
+  font-size: 6.5pt;
+  color: #666;
+  margin-top: 1pt;
+}
+
+.sheet-header .print-summary {
+  display: flex !important;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2pt;
+  text-align: right;
+}
+
+.print-summary-label {
+  font-size: 6pt;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #888;
+  margin-bottom: -1pt;
+}
+
+.print-summary-value {
+  font-size: 10pt;
+  font-weight: 800;
+  color: #111;
+  line-height: 1;
+}
+
+/* ─── THUMBNAIL ────────────────────────────────────────────────────── */
+.print-thumb-wrap { display: none; }
+
+@media print {
+  .print-thumb-wrap {
+    display: block !important;
+    float: right;
+    margin: 0 0 6pt 10pt;
+    width: 1.1in;
+    height: 1.1in;
+    border: 0.75pt solid #ccc;
+    border-radius: 3pt;
+    overflow: hidden;
+  }
+  .print-thumb-wrap img {
+    width: 100%; height: 100%;
+    object-fit: cover; display: block;
+  }
+}
+
+/* ─── FORM GRID — flex column, notes grows to fill ─────────────────── */
+.form-grid {
+  flex: 1;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 0;
+  min-height: 0;
+}
+
+.form-col-left,
+.form-col-right {
+  display: contents !important;
+}
+
+.form-columns {
+  flex: 1;
+  display: grid !important;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  grid-template-rows: auto auto 1fr !important;
+  gap: 5pt !important;
+  align-items: start;
+  min-height: 0;
+}
+
+/* Top rows span all columns */
+.form-columns > .row,
+.form-col-left > .row {
+  grid-column: 1 / -1;
+}
+
+/* D1 and D2 each take one column */
+.form-col-right > .section,
+.form-columns > .section {
+  grid-column: span 1;
+}
+
+/* Notes spans full width AND fills remaining vertical space */
+.section.notes {
+  grid-column: 1 / -1 !important;
+  grid-row: 3 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  flex: 1 !important;
+  min-height: 0;
+}
+
+.section.notes textarea {
+  flex: 1 !important;
+  min-height: 0 !important;
+  height: 100% !important;
+  overflow: visible !important;
+  resize: none;
+}
+
+/* ─── SECTIONS ─────────────────────────────────────────────────────── */
+.section {
+  padding: 4pt 5pt 5pt;
+  margin-top: 0;
+  border: 0.5pt solid #ccc;
+  border-top: 1.5pt solid #111;
+  background: #fff !important;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.section h2 {
+  font-size: 6pt;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #555;
+  margin: 0 0 4pt;
+  padding: 0;
+  border: none;
+}
+
+/* ─── ROWS AND LABELS ──────────────────────────────────────────────── */
+.row {
+  display: grid;
+  gap: 4pt;
+  grid-template-columns: repeat(auto-fit, minmax(70pt, 1fr));
+  break-inside: avoid;
+  margin-bottom: 3pt;
+}
+
+.row:last-child { margin-bottom: 0; }
+
+label {
+  display: flex;
+  flex-direction: column;
+  gap: 1pt;
+  font-size: 6.5pt;
+  font-weight: 700;
+  color: #555;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+label.inline,
+label.small-checkbox {
+  flex-direction: row;
+  align-items: center;
+  gap: 4pt;
+  font-size: 7.5pt;
+  font-weight: 700;
+  text-transform: none;
+  letter-spacing: 0;
+  color: #111;
+  min-height: 0;
+}
+
+label.small-checkbox input[type="checkbox"] {
+  width: 9pt !important;
+  height: 9pt !important;
+  flex-shrink: 0;
+}
+
+/* ─── INPUTS ───────────────────────────────────────────────────────── */
+input[type="text"],
+input[type="date"],
+input[type="number"],
+select,
+textarea {
+  padding: 2pt 3pt;
+  border-radius: 0;
+  border: none;
+  border-bottom: 0.5pt solid #999;
+  font-size: 8pt;
+  font-weight: 500;
+  color: #111;
+  background: transparent !important;
+  width: 100%;
+  font-family: inherit;
+}
+
+textarea {
+  border: 0.5pt solid #999;
+  overflow: visible !important;
+  white-space: pre-wrap;
+  resize: none;
+}
+
+/* ─── FIELDSETS ────────────────────────────────────────────────────── */
+fieldset {
+  padding: 2pt 3pt 3pt;
+  min-height: 0;
+  border: 0.5pt solid #ccc;
+  background: transparent !important;
+  break-inside: avoid;
+}
+
+fieldset label {
+  flex-direction: row;
+  align-items: center;
+  gap: 3pt;
+  font-size: 7pt;
+  font-weight: 500;
+  color: #111;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+legend {
+  font-size: 6pt;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #666;
+  padding: 0 2pt;
+}
+
+.conjoined {
+  border: 0.5pt solid #ccc;
+  background: transparent !important;
+  break-inside: avoid;
+}
+
+.conjoined .segment {
+  padding: 2pt 4pt;
+  border-color: #ccc;
+}
+
+/* ─── COMPAT OS ────────────────────────────────────────────────────── */
+.compat-os-group {
+  display: flex;
+  align-items: center;
+  gap: 4pt;
+}
+
+.compat-os-label {
+  font-size: 6.5pt;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #555;
+}
+
+/* ─── FOOTER ───────────────────────────────────────────────────────── */
+.sheet-content::after {
+  content: "Dispo.Tech Intake Sheet — Confidential";
+  display: block;
+  margin-top: 6pt;
+  padding-top: 4pt;
+  border-top: 0.5pt solid #ddd;
+  font-size: 6pt;
+  color: #bbb;
+  text-align: center;
+  letter-spacing: 0.06em;
+  flex-shrink: 0;
+}
+
+/* ─── PRINT PINK ───────────────────────────────────────────────────── */
+body.print-pink .sheet { background: #f4a4bb !important; }
+body.print-pink .section { background: rgba(255,255,255,0.55) !important; }
+body.print-pink .print-summary-label,
+body.print-pink .print-summary-value { color: #111; }
 
 @page {
   size: letter portrait;
