@@ -1557,32 +1557,12 @@ function checked(string $name, string $value, array $formData): string
         setTimeout(finish, 1800);
       };
       var fitPrintToSinglePage = function (doc, root) {
-        if (!doc || !root) return 1;
-
-        var pageWidthIn = PRINT_PAGE_WIDTH_IN - (PRINT_MARGIN_IN * 2);
-        var pageHeightIn = PRINT_PAGE_HEIGHT_IN - (PRINT_MARGIN_IN * 2);
-        var pageWidthPx = pageWidthIn * PRINT_DPI;
-        var pageHeightPx = pageHeightIn * PRINT_DPI;
-        var contentWidthPx = Math.max(root.scrollWidth || 0, root.offsetWidth || 0, root.getBoundingClientRect().width || 0);
-        var contentHeightPx = Math.max(root.scrollHeight || 0, root.offsetHeight || 0, root.getBoundingClientRect().height || 0);
-
-        if (!contentWidthPx || !contentHeightPx) return 1;
-
-        var scale = Math.min(pageWidthPx / contentWidthPx, pageHeightPx / contentHeightPx, 1);
-        if (!isFinite(scale) || scale <= 0) {
-          scale = 1;
-        }
-
-        scale = Math.max(scale * 0.995, 0.48);
-        var zoomValue = scale.toFixed(3);
-        root.style.zoom = zoomValue;
-        if (doc.body) {
-          doc.body.style.zoom = zoomValue;
-        }
-        if (doc.documentElement) {
-          doc.documentElement.style.zoom = zoomValue;
-        }
-        return scale;
+        // Layout is handled entirely by print.css — no JS zoom needed.
+        // Removing zoom prevents the half-page shrink issue.
+        if (root) { root.style.zoom = ''; }
+        if (doc && doc.body) { doc.body.style.zoom = ''; }
+        if (doc && doc.documentElement) { doc.documentElement.style.zoom = ''; }
+        return 1;
       };
       var buildPrintIframe = function () {
         var sheet = document.querySelector('.sheet.intake');
