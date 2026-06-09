@@ -6,7 +6,7 @@ $scriptName = basename($_SERVER['SCRIPT_NAME'] ?? $_SERVER['PHP_SELF'] ?? '');
 $isLookupPage = $scriptName === 'lookup.php';
 $currentPage = $isLookupPage ? 'lookup' : 'home';
 const HOME_DB_PATH = __DIR__ . '/data/intake.sqlite';
-$statusOptions = ['Intake', 'Tested', 'Dispo Tech Store', 'eBay', 'SOLD'];
+$statusOptions = ['Intake', 'Tested', 'Ready for eBay Listing', 'Dispo Tech Store', 'eBay Listed', 'SOLD'];
 $lookupSuggestions = [];
 $listedItems = [];
 $listedThumbs = [];
@@ -1216,7 +1216,7 @@ if (is_dir($backupDir)) {
             actionsTd.appendChild(priceBadge);
           }
           var inlineStatus = document.createElement('select');
-          ['','Intake','Tested','Dispo Tech Store','eBay','SOLD'].forEach(function (opt) {
+          ['','Intake','Tested','Ready for eBay Listing','Dispo Tech Store','eBay Listed','SOLD'].forEach(function (opt) {
             var o = document.createElement('option');
             o.value = opt;
             o.textContent = opt || 'Set status';
