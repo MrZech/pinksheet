@@ -24,7 +24,7 @@ try {
     // ignore
 }
 
-$lanes = ['Intake', 'Tested', 'Dispo Tech Store', 'eBay', 'SOLD'];
+$lanes = ['Intake', 'Tested', 'Ready for eBay Listing', 'Dispo Tech Store', 'eBay Listed', 'SOLD'];
 $cards = [];
 $thumbs = [];
 $items = $pdo->query("
@@ -119,6 +119,8 @@ foreach ($items as $item) {
       overflow-y: visible;
       overscroll-behavior-x: contain;
       padding: 12px 0 18px;
+      /* Show scrollbar at top by flipping the element */
+      transform: rotateX(180deg);
     }
 
     .kanban-board {
@@ -130,6 +132,8 @@ foreach ($items as $item) {
       width: max-content;
       min-width: 100%;
       margin-inline: auto;
+      /* Flip back so content reads normally */
+      transform: rotateX(180deg);
     }
     .kanban-lane {
       display: flex;

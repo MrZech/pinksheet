@@ -336,7 +336,7 @@ function logLookup(string $sku, string $status): void
 
 function statusOptions(): array
 {
-    return ['Intake', 'Tested', 'Dispo Tech Store', 'eBay', 'SOLD'];
+    return ['Intake', 'Tested', 'Ready for eBay Listing', 'Dispo Tech Store', 'eBay Listed', 'SOLD'];
 }
 
 function baseWhatIsItOptions(): array
