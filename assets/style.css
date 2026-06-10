@@ -1310,6 +1310,64 @@ body.dark-mode .toast {
   transform: translateX(-50%) translateY(-6px);
 }
 
+/* Undo toast — used on intake page and kanban after deletes */
+.intake-undo-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 20px;
+  transform: translateX(-50%) translateY(20px);
+  background: #1c2030;
+  color: #e8eaf0;
+  border: 1px solid rgba(74, 222, 128, 0.3);
+  border-radius: 999px;
+  padding: 10px 20px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.35);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 220ms ease, transform 220ms ease;
+  z-index: 200;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.intake-undo-toast.toast-visible {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+  pointer-events: auto;
+}
+
+.intake-undo-toast button {
+  background: var(--accent-primary) !important;
+  color: #0f1a12 !important;
+  border: none !important;
+  border-radius: 999px !important;
+  padding: 4px 14px !important;
+  font-size: 0.8rem !important;
+  font-weight: 700 !important;
+  cursor: pointer;
+  box-shadow: none !important;
+}
+
+.intake-undo-toast button:hover {
+  filter: brightness(1.08);
+}
+
+.intake-undo-progress {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  height: 3px;
+  width: 100%;
+  border-radius: 0 0 999px 999px;
+  background: var(--accent-primary);
+  transform-origin: left;
+}
+
 .form-grid {
   display: flex;
   flex-direction: column;

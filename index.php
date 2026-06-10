@@ -805,6 +805,13 @@ function checked(string $name, string $value, array $formData): string
       data-active="<?php echo $saved ? '1' : '0'; ?>"
       data-message="<?php echo h($toastMessage); ?>">
     </div>
+
+    <!-- Undo toast for item deletes -->
+    <div id="intake-undo-toast" class="intake-undo-toast" role="status" aria-live="polite">
+      <span id="intake-undo-msg">Item deleted</span>
+      <button type="button" id="intake-undo-btn">Undo</button>
+      <div class="intake-undo-progress" id="intake-undo-progress"></div>
+    </div>
     <div class="app-menu">
       <button type="button" class="menu-toggle" aria-expanded="false" aria-controls="global-menu" id="menu-toggle">
         <span class="hamburger" aria-hidden="true"></span>
@@ -2253,16 +2260,34 @@ function checked(string $name, string $value, array $formData): string
               var id = btn.getAttribute('data-id');
               var sku = (btn.getAttribute('data-sku') || '').toUpperCase();
               if (!id || !sku) return;
-              var first = confirm('Delete SKU ' + sku + ' from intake history?');
-              if (!first) return;
-              var second = prompt('Type DELETE to confirm');
-              if (!second || second.toUpperCase() !== 'DELETE') {
-                alert('Delete canceled.');
-                return;
-              }
-              deleteInputId.value = id;
-              deleteInputSku.value = sku;
-              recentDeleteForm.submit();
+              if (!confirm('Delete SKU ' + sku + '? You can undo immediately after.')) return;
+
+              fetch('delete_item.php', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/x-www-form-urlencoded',
+                  'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: 'id=' + encodeURIComponent(id) + '&sku=' + encodeURIComponent(sku) + '&confirm=DELETE'
+              })
+                .then(function (r) { return r.json(); })
+                .then(function (data) {
+                  if (data.status === 'ok') {
+                    // Remove the row from the table visually
+                    var row = btn.closest('tr');
+                    if (row) {
+                      row.style.transition = 'opacity 180ms ease';
+                      row.style.opacity = '0';
+                      setTimeout(function () { if (row.parentNode) row.parentNode.removeChild(row); }, 190);
+                    }
+                    showIntakeUndoToast(sku);
+                  } else {
+                    alert('Delete failed: ' + (data.message || 'unknown error'));
+                  }
+                })
+                .catch(function () {
+                  alert('Delete failed — please reload.');
+                });
             });
           });
         }
@@ -2841,6 +2866,52 @@ function checked(string $name, string $value, array $formData): string
           toastElement.classList.remove('toast-visible');
         }, 4200);
       };
+
+      // Undo toast for intake page deletes
+      var intakeUndoToast = document.getElementById('intake-undo-toast');
+      var intakeUndoMsg = document.getElementById('intake-undo-msg');
+      var intakeUndoBtn = document.getElementById('intake-undo-btn');
+      var intakeUndoProgress = document.getElementById('intake-undo-progress');
+      var intakeUndoTimer = null;
+      var INTAKE_UNDO_DURATION = 6000;
+
+      var hideIntakeUndoToast = function () {
+        if (intakeUndoToast) intakeUndoToast.classList.remove('toast-visible');
+        clearTimeout(intakeUndoTimer);
+      };
+
+      var showIntakeUndoToast = function (skuLabel) {
+        if (!intakeUndoToast) return;
+        if (intakeUndoMsg) intakeUndoMsg.textContent = 'Deleted ' + skuLabel;
+        intakeUndoToast.classList.add('toast-visible');
+        if (intakeUndoProgress) {
+          intakeUndoProgress.style.transition = 'none';
+          intakeUndoProgress.style.transform = 'scaleX(1)';
+          intakeUndoProgress.getBoundingClientRect();
+          intakeUndoProgress.style.transition = 'transform ' + INTAKE_UNDO_DURATION + 'ms linear';
+          intakeUndoProgress.style.transform = 'scaleX(0)';
+        }
+        clearTimeout(intakeUndoTimer);
+        intakeUndoTimer = setTimeout(hideIntakeUndoToast, INTAKE_UNDO_DURATION);
+      };
+
+      if (intakeUndoBtn) {
+        intakeUndoBtn.addEventListener('click', function () {
+          hideIntakeUndoToast();
+          fetch('undo_delete.php', { method: 'POST' })
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+              if (data.status === 'ok') {
+                showToast('Restored ' + (data.restored_sku || 'item'));
+                // Reload so the restored row appears in the table
+                setTimeout(function () { location.reload(); }, 800);
+              } else {
+                alert('Nothing to undo.');
+              }
+            })
+            .catch(function () { alert('Undo failed.'); });
+        });
+      }
       if (toastElement && toastElement.dataset.active === '1') {
         var toastMessage = (toastElement.dataset.message || '').trim();
         if (toastMessage !== '') {

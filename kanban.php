@@ -311,6 +311,87 @@ foreach ($items as $item) {
       user-select: none;
       flex: 1;
     }
+
+    /* Delete button on cards */
+    .card-delete-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 26px;
+      height: 26px;
+      border-radius: 6px;
+      border: 1.5px solid rgba(239, 68, 68, 0.4);
+      background: rgba(239, 68, 68, 0.07);
+      color: #ef4444;
+      cursor: pointer;
+      font-size: 14px;
+      line-height: 1;
+      flex-shrink: 0;
+      align-self: flex-start;
+      transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+      margin-top: 2px;
+    }
+    .card-delete-btn:hover {
+      background: rgba(239, 68, 68, 0.18);
+      border-color: rgba(239, 68, 68, 0.7);
+      transform: scale(1.08);
+    }
+
+    /* Undo toast */
+    .kanban-undo-toast {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%) translateY(20px);
+      background: #1c2030;
+      color: #e8eaf0;
+      border: 1px solid rgba(74, 222, 128, 0.3);
+      border-radius: 999px;
+      padding: 10px 20px;
+      font-size: 14px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 220ms ease, transform 220ms ease;
+      z-index: 999;
+      white-space: nowrap;
+    }
+    .kanban-undo-toast.is-visible {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+      pointer-events: auto;
+    }
+    .kanban-undo-toast button {
+      background: #4ade80;
+      color: #0f1a12;
+      border: none;
+      border-radius: 999px;
+      padding: 4px 14px;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      box-shadow: none;
+    }
+    .kanban-undo-toast button:hover {
+      filter: brightness(1.08);
+    }
+
+    /* Progress bar inside toast showing the undo window */
+    .kanban-undo-progress {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      height: 3px;
+      border-radius: 0 0 999px 999px;
+      background: #4ade80;
+      width: 100%;
+      transform-origin: left;
+      transition: none;
+    }
   </style>
 </head>
 <body class="home status-board">
@@ -319,6 +400,7 @@ foreach ($items as $item) {
       <header class="sheet-header">
         <div class="updated">Pinksheet Status Board</div>
         <div class="sheet-header-right">
+          <button type="button" class="ghost" id="kanban-undo-header-btn" style="display:none;" title="Restore the last deleted item">↩ Undo last delete</button>
           <a class="button-link" href="home.php">Home</a>
           <button type="button" class="theme-toggle" id="theme-toggle">Dark mode</button>
         </div>
@@ -336,7 +418,10 @@ foreach ($items as $item) {
                 $norm = strtoupper($sku);
                 $thumb = $thumbs[$norm] ?? null;
             ?>
-              <div class="kanban-card<?php echo $lane === 'SOLD' ? ' is-sold' : ''; ?>" draggable="true" data-sku="<?php echo htmlspecialchars($sku, ENT_QUOTES, 'UTF-8'); ?>" data-sku-normalized="<?php echo htmlspecialchars($norm, ENT_QUOTES, 'UTF-8'); ?>">
+              <div class="kanban-card<?php echo $lane === 'SOLD' ? ' is-sold' : ''; ?>" draggable="true"
+                   data-id="<?php echo (int)($card['id'] ?? 0); ?>"
+                   data-sku="<?php echo htmlspecialchars($sku, ENT_QUOTES, 'UTF-8'); ?>"
+                   data-sku-normalized="<?php echo htmlspecialchars($norm, ENT_QUOTES, 'UTF-8'); ?>">
                 <div class="card-inner">
                   <?php if ($thumb): ?>
                     <img class="card-thumb" src="photo.php?id=<?php echo $thumb; ?>" alt="" draggable="false">
@@ -363,6 +448,13 @@ foreach ($items as $item) {
                       <label for="reviewed-<?php echo htmlspecialchars($norm, ENT_QUOTES, 'UTF-8'); ?>"><?php echo $lane === 'SOLD' ? 'Sold' : 'Active'; ?></label>
                     </div>
                   </div>
+                  <button type="button" class="card-delete-btn"
+                          data-id="<?php echo (int)($card['id'] ?? 0); ?>"
+                          data-sku="<?php echo htmlspecialchars($norm, ENT_QUOTES, 'UTF-8'); ?>"
+                          title="Delete <?php echo htmlspecialchars($sku, ENT_QUOTES, 'UTF-8'); ?>"
+                          aria-label="Delete <?php echo htmlspecialchars($sku, ENT_QUOTES, 'UTF-8'); ?>">
+                    🗑
+                  </button>
                 </div>
               </div>
             <?php endforeach; ?>
@@ -373,6 +465,13 @@ foreach ($items as $item) {
       </div>
     </section>
   </main>
+  <!-- Undo toast -->
+  <div class="kanban-undo-toast" id="kanban-undo-toast" role="status" aria-live="polite">
+    <span id="kanban-undo-msg">Item deleted</span>
+    <button type="button" id="kanban-undo-btn">Undo</button>
+    <div class="kanban-undo-progress" id="kanban-undo-progress"></div>
+  </div>
+
   <script>
     (function () {
       var dragged = null;
@@ -553,6 +652,126 @@ foreach ($items as $item) {
             });
         }
       });
+
+      // ── Delete with undo toast ───────────────────────────────────────
+      var undoToast = document.getElementById('kanban-undo-toast');
+      var undoMsg = document.getElementById('kanban-undo-msg');
+      var undoBtn = document.getElementById('kanban-undo-btn');
+      var undoHeaderBtn = document.getElementById('kanban-undo-header-btn');
+      var undoProgress = document.getElementById('kanban-undo-progress');
+      var undoTimer = null;
+      var undoProgressTimer = null;
+      var UNDO_DURATION = 6000; // ms
+
+      var hideUndoToast = function () {
+        if (undoToast) undoToast.classList.remove('is-visible');
+        clearTimeout(undoTimer);
+        clearInterval(undoProgressTimer);
+      };
+
+      var showUndoToast = function (skuLabel) {
+        if (!undoToast) return;
+        if (undoMsg) undoMsg.textContent = 'Deleted ' + skuLabel;
+        undoToast.classList.add('is-visible');
+
+        // Animate progress bar draining left-to-right
+        if (undoProgress) {
+          undoProgress.style.transition = 'none';
+          undoProgress.style.transform = 'scaleX(1)';
+          // Force reflow then start animation
+          undoProgress.getBoundingClientRect();
+          undoProgress.style.transition = 'transform ' + UNDO_DURATION + 'ms linear';
+          undoProgress.style.transform = 'scaleX(0)';
+        }
+
+        clearTimeout(undoTimer);
+        undoTimer = setTimeout(function () {
+          hideUndoToast();
+        }, UNDO_DURATION);
+      };
+
+      var doUndo = function () {
+        hideUndoToast();
+        fetch('undo_delete.php', { method: 'POST' })
+          .then(function (r) { return r.json(); })
+          .then(function (data) {
+            if (data.status === 'ok') {
+              // Reload to show the restored card in its correct lane
+              location.reload();
+            } else {
+              alert('Nothing to undo.');
+            }
+          })
+          .catch(function () {
+            alert('Undo failed — please reload the page.');
+          });
+      };
+
+      if (undoBtn) undoBtn.addEventListener('click', doUndo);
+      if (undoHeaderBtn) {
+        undoHeaderBtn.addEventListener('click', doUndo);
+      }
+
+      board.addEventListener('click', function (e) {
+        var btn = e.target.closest('.card-delete-btn');
+        if (!btn) return;
+
+        // Stop the click from triggering a drag or link
+        e.stopPropagation();
+
+        var card = btn.closest('.kanban-card');
+        if (!card) return;
+
+        var id = btn.getAttribute('data-id') || card.getAttribute('data-id') || '';
+        var sku = btn.getAttribute('data-sku') || card.getAttribute('data-sku-normalized') || '';
+        var displaySku = card.getAttribute('data-sku') || sku;
+
+        if (!id || id === '0') {
+          alert('Could not find item ID — please reload and try again.');
+          return;
+        }
+
+        // Optimistically remove the card from the UI
+        var lane = card.closest('.kanban-lane');
+        var laneCount = lane ? lane.querySelector('.kanban-count') : null;
+        card.style.transition = 'opacity 180ms ease, transform 180ms ease';
+        card.style.opacity = '0';
+        card.style.transform = 'scale(0.95)';
+
+        setTimeout(function () {
+          if (card.parentNode) card.parentNode.removeChild(card);
+          if (laneCount) {
+            laneCount.textContent = String(Math.max(0, parseInt(laneCount.textContent || '0', 10) - 1));
+          }
+        }, 190);
+
+        // Send delete to server (confirm=DELETE is the expected value)
+        fetch('delete_item.php', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-Requested-With': 'XMLHttpRequest'
+          },
+          body: 'id=' + encodeURIComponent(id) + '&sku=' + encodeURIComponent(sku) + '&confirm=DELETE'
+        })
+          .then(function (r) { return r.json(); })
+          .then(function (data) {
+            if (data.status === 'ok') {
+              // Show undo toast and make header undo button visible
+              showUndoToast(displaySku);
+              if (undoHeaderBtn) undoHeaderBtn.style.display = '';
+            } else {
+              // Server rejected — reload so the card reappears
+              alert('Delete failed: ' + (data.message || 'unknown error'));
+              location.reload();
+            }
+          })
+          .catch(function () {
+            alert('Delete failed — please reload.');
+            location.reload();
+          });
+      });
+
     })();
   </script>
 </body>
