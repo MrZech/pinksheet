@@ -80,9 +80,7 @@ if (!is_uploaded_file($tmp)) {
     errorResponse($originalDisplayName . ' failed validation.');
 }
 
-$finfo = finfo_open(FILEINFO_MIME_TYPE);
-$mimeType = (string)finfo_file($finfo, $tmp);
-finfo_close($finfo);
+$mimeType = detectUploadMimeType($tmp, $originalDisplayName);
 $extension = ALLOWED_PHOTO_MIME_TYPES[$mimeType] ?? null;
 if ($extension === null) {
     errorResponse($originalDisplayName . ' is not JPG/PNG/WEBP/GIF.');

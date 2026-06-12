@@ -69,98 +69,35 @@ $initialItemJson = $currentItem ? json_encode($currentItem, JSON_HEX_TAG | JSON_
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Dispo.Tech SKU eBay Script Builder</title>
   <link rel="stylesheet" href="assets/style.css">
+  <script src="assets/menu.js" defer></script>
   <link rel="stylesheet" media="print" href="assets/print.css">
   <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
-  <style>
-    .prompt-grid {
-      align-items: start;
-    }
-    .prompt-output {
-      width: 100%;
-      min-height: 360px;
-      resize: vertical;
-      font-family: inherit;
-      line-height: 1.45;
-    }
-    .prompt-source {
-      margin-top: 12px;
-      display: grid;
-      gap: 10px;
-    }
-    .prompt-source-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-      gap: 10px;
-    }
-    .prompt-field {
-      border: 1px solid var(--line);
-      border-radius: 12px;
-      padding: 10px 12px;
-      background: var(--surface-secondary);
-      box-shadow: var(--shadow-soft);
-    }
-    .prompt-field .label {
-      display: block;
-      font-size: 0.72rem;
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-      color: var(--muted);
-      margin-bottom: 4px;
-    }
-    .prompt-field .value {
-      color: var(--ink);
-      word-break: break-word;
-    }
-    .prompt-meta {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      align-items: center;
-    }
-    .prompt-actions {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
-      align-items: center;
-      margin-top: 10px;
-    }
-    .final-input {
-      width: 100%;
-      min-height: 180px;
-      resize: vertical;
-      font-family: inherit;
-      line-height: 1.45;
-      margin-top: 8px;
-    }
-    body[data-theme="dark"] .prompt-field,
-    body.dark-mode .prompt-field {
-      background: rgba(255, 255, 255, 0.04);
-      border-color: var(--line-dark);
-    }
-  </style>
+  <script src="assets/app.js"></script>
 </head>
 <body class="home prompt-page">
-  <main class="page">
-    <div class="app-menu">
+  <div class="layout-wrapper">
+  <div class="app-menu">
       <button type="button" class="menu-toggle" aria-expanded="false" aria-controls="global-menu" id="menu-toggle">
         <span class="hamburger" aria-hidden="true"></span>
-        <span>Menu</span>
+        <span class="menu-label">Menu</span>
       </button>
       <nav class="menu-panel" id="global-menu" aria-hidden="true">
         <ul class="menu-links">
-          <li><a class="menu-link <?php echo $currentPage === 'home' ? 'is-active' : ''; ?>" href="home.php">Home</a></li>
+          <li><a class="menu-link <?php echo $currentPage === 'home' ? 'is-active' : ''; ?>" href="home.php">Dashboard</a></li>
+          <li><a class="menu-link <?php echo $currentPage === 'intake' ? 'is-active' : ''; ?>" href="intake.php?clear_draft=1" data-new-intake>Intake</a></li>
+          <li><a class="menu-link <?php echo $currentPage === 'kanban' ? 'is-active' : ''; ?>" href="kanban.php">Status Board</a></li>
           <li><a class="menu-link <?php echo $currentPage === 'lookup' ? 'is-active' : ''; ?>" href="lookup.php">SKU Lookup</a></li>
           <li><a class="menu-link <?php echo $currentPage === 'archive' ? 'is-active' : ''; ?>" href="archive.php">Archive</a></li>
-          <li><a class="menu-link <?php echo $currentPage === 'intake' ? 'is-active' : ''; ?>" href="intake.php?clear_draft=1" data-new-intake>New Intake</a></li>
-          <li><a class="menu-link <?php echo $currentPage === 'script' ? 'is-active' : ''; ?>" href="prompt_builder.php">eBay Script Builder</a></li>
+          <li><a class="menu-link <?php echo $currentPage === 'script' ? 'is-active' : ''; ?>" href="prompt_builder.php">Script Builder</a></li>
         </ul>
       </nav>
     </div>
-
+  <main class="page">
     <section class="sheet home-sheet">
       <header class="sheet-header">
         <div class="updated">Dispo.Tech SKU eBay Script Builder</div>
         <div class="sheet-header-right">
+          <span class="autosave-status" id="autosave-status" hidden>Autosave ready</span>
           <span class="badge subtle" id="prompt-status-chip" title="Prompt status">Ready</span>
           <span class="badge subtle" id="save-status-chip" title="Autosave status">No SKU</span>
           <button type="button" class="theme-toggle" id="theme-toggle">Dark mode</button>
@@ -189,7 +126,7 @@ $initialItemJson = $currentItem ? json_encode($currentItem, JSON_HEX_TAG | JSON_
             <form class="form-grid" id="prompt-form">
               <div class="row">
                 <label>SKU
-                  <input type="text" id="prompt-sku" list="prompt-sku-suggestions" value="<?php echo h($currentSku); ?>" autofocus>
+                  <input type="text" id="prompt-sku" name="prompt_sku" list="prompt-sku-suggestions" value="<?php echo h($currentSku); ?>" autofocus>
                 </label>
                 <datalist id="prompt-sku-suggestions">
                   <?php foreach ($recentSkus as $sku): ?>
@@ -226,11 +163,11 @@ $initialItemJson = $currentItem ? json_encode($currentItem, JSON_HEX_TAG | JSON_
                 <a class="button-link subtle" href="lookup.php">Back to SKU Lookup</a>
               </div>
             </div>
-            <textarea class="prompt-output" id="prompt-output" spellcheck="false" aria-label="Generated ChatGPT prompt"></textarea>
+            <textarea class="prompt-output" id="prompt-output" name="prompt_output" spellcheck="false" aria-label="Generated ChatGPT prompt"></textarea>
             <div class="prompt-source" style="margin-top:16px;">
               <h3>Paste ChatGPT output</h3>
               <p class="hint">Paste the response you want to use on eBay, then build the final listing script with the boilerplate below it.</p>
-              <textarea class="final-input" id="chatgpt-output" spellcheck="false" aria-label="Pasted ChatGPT output"></textarea>
+              <textarea class="final-input" id="chatgpt-output" name="chatgpt_output" spellcheck="false" aria-label="Pasted ChatGPT output"></textarea>
               <div class="prompt-actions">
                 <button type="button" id="build-final-btn">Build final eBay script</button>
                 <button type="button" class="ghost" id="clear-final-btn">Clear final text</button>
@@ -239,8 +176,9 @@ $initialItemJson = $currentItem ? json_encode($currentItem, JSON_HEX_TAG | JSON_
             <div class="prompt-source" style="margin-top:16px;">
               <h3>Final eBay script</h3>
               <p class="hint">This puts your pasted ChatGPT copy above the boilerplate you wanted under the description section.</p>
-              <textarea class="prompt-output" id="final-output" spellcheck="false" aria-label="Final eBay listing script"></textarea>
+              <textarea class="prompt-output" id="final-output" name="final_output" spellcheck="false" aria-label="Final eBay listing script"></textarea>
               <div class="prompt-actions">
+                <button type="button" class="ghost" id="save-all-btn">Save all</button>
                 <button type="button" class="ghost" id="copy-final-btn">Copy final script</button>
               </div>
             </div>
@@ -263,11 +201,11 @@ $initialItemJson = $currentItem ? json_encode($currentItem, JSON_HEX_TAG | JSON_
       var buildFinalBtn = document.getElementById('build-final-btn');
       var clearFinalBtn = document.getElementById('clear-final-btn');
       var copyFinalBtn = document.getElementById('copy-final-btn');
+      var saveAllBtn = document.getElementById('save-all-btn');
       var finalOutput = document.getElementById('final-output');
       var sourceWrap = document.getElementById('prompt-source');
       var saveStatusChip = document.getElementById('save-status-chip');
       var initialItem = <?php echo $initialItemJson; ?>;
-      var saveTimer = null;
       var currentSkuNormalized = '';
 
       var applyThemeMode = function (mode) {
@@ -289,43 +227,6 @@ $initialItemJson = $currentItem ? json_encode($currentItem, JSON_HEX_TAG | JSON_
           var nextMode = document.body.dataset.theme === 'dark' ? 'light' : 'dark';
           applyThemeMode(nextMode);
           try { localStorage.setItem('themePreference', nextMode); } catch (e) {}
-        });
-      }
-
-      var menuToggle = document.getElementById('menu-toggle');
-      var menuPanel = document.getElementById('global-menu');
-      if (menuToggle && menuPanel) {
-        var bodyElement = document.body;
-
-        var setMenuState = function (open) {
-          menuPanel.classList.toggle('is-open', open);
-          menuPanel.setAttribute('aria-hidden', open ? 'false' : 'true');
-          menuToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
-          bodyElement.classList.toggle('has-open-menu', open);
-        };
-
-        var closeMenu = function () {
-          setMenuState(false);
-        };
-
-        menuToggle.addEventListener('click', function () {
-          var opening = !menuPanel.classList.contains('is-open');
-          setMenuState(opening);
-        });
-
-        document.addEventListener('click', function (event) {
-          if (!menuPanel.classList.contains('is-open')) {
-            return;
-          }
-          if (!menuPanel.contains(event.target) && !menuToggle.contains(event.target)) {
-            closeMenu();
-          }
-        });
-
-        document.addEventListener('keydown', function (event) {
-          if (event.key === 'Escape') {
-            closeMenu();
-          }
         });
       }
 
@@ -454,103 +355,19 @@ $initialItemJson = $currentItem ? json_encode($currentItem, JSON_HEX_TAG | JSON_
         ].join('\n');
       };
 
-      var describeSavedState = function (promptText, chatgptText, finalText) {
-        if (String(finalText || '').trim()) {
-          return 'Saved final eBay script';
-        }
-        if (String(chatgptText || '').trim()) {
-          return 'Saved ChatGPT draft';
-        }
-        if (String(promptText || '').trim()) {
-          return 'Saved prompt';
-        }
-        return 'Saved';
-      };
-
-      var loadScriptCache = function (sku) {
-        return fetch('script_cache.php?sku=' + encodeURIComponent(sku))
+      var loadAppState = function (sku) {
+        return fetch('autosave.php?sku=' + encodeURIComponent(sku))
           .then(function (resp) {
             return resp.json().then(function (data) {
               if (!resp.ok) {
-                throw new Error(data.message || 'Could not load cached script.');
+                throw new Error(data.message || 'Could not load saved state.');
               }
-              return data && data.has_cache ? data.data : null;
+              return data && data.has_draft ? data.data : null;
             });
           })
           .catch(function () {
             return null;
           });
-      };
-
-      var saveScriptCache = function (sku, promptText, chatgptText, finalText) {
-        if (!sku) return Promise.resolve(false);
-        setSaveStatus('Saving...', 'warning');
-        var savedLabel = describeSavedState(promptText, chatgptText, finalText);
-        return fetch('script_cache.php', {
-          method: 'POST',
-          keepalive: true,
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            sku: sku,
-            sku_display: sku,
-            prompt_text: promptText || '',
-            chatgpt_text: chatgptText || '',
-            final_text: finalText || ''
-          })
-        })
-          .then(function (resp) {
-            return resp.json().then(function (data) {
-              if (!resp.ok) {
-                throw new Error(data.message || 'Could not save cached script.');
-              }
-              setSaveStatus(savedLabel, 'success');
-              return true;
-            });
-          })
-          .catch(function () {
-            setSaveStatus('Save failed', 'warning');
-            return false;
-          });
-      };
-
-      var sendScriptCacheSnapshot = function (sku, promptText, chatgptText, finalText) {
-        if (!sku || !navigator.sendBeacon) {
-          return false;
-        }
-        try {
-          var payload = JSON.stringify({
-            sku: sku,
-            sku_display: sku,
-            prompt_text: promptText || '',
-            chatgpt_text: chatgptText || '',
-            final_text: finalText || ''
-          });
-          var blob = new Blob([payload], { type: 'application/json' });
-          return navigator.sendBeacon('script_cache.php', blob);
-        } catch (e) {
-          return false;
-        }
-      };
-
-      var scheduleScriptCacheSave = function () {
-        if (!currentSkuNormalized) {
-          return;
-        }
-        if (saveTimer) {
-          window.clearTimeout(saveTimer);
-        }
-        setSaveStatus('Saving...', 'warning');
-        saveTimer = window.setTimeout(function () {
-          saveTimer = null;
-          saveScriptCache(
-            currentSkuNormalized,
-            promptOutput ? promptOutput.value : '',
-            chatgptOutput ? chatgptOutput.value : '',
-            finalOutput ? finalOutput.value : ''
-          );
-        }, 500);
       };
 
       var renderSource = function (sku, item) {
@@ -633,33 +450,33 @@ $initialItemJson = $currentItem ? json_encode($currentItem, JSON_HEX_TAG | JSON_
             return null;
           });
 
-        var cachePromise = loadScriptCache(normalized);
+        var statePromise = loadAppState(normalized);
 
-        Promise.all([itemPromise, cachePromise])
+        Promise.all([itemPromise, statePromise])
           .then(function (results) {
             var item = results[0];
-            var cache = results[1];
+            var state = results[1];
 
             if (item) {
               renderSource(normalized, item);
             }
 
-            if (cache) {
-              if (cache.prompt_text) {
-                promptOutput.value = cache.prompt_text;
+            if (state) {
+              if (state.prompt_output) {
+                promptOutput.value = state.prompt_output;
               } else if (item) {
                 promptOutput.value = buildPrompt(normalized, item);
               }
-              if (cache.chatgpt_text && chatgptOutput) {
-                chatgptOutput.value = cache.chatgpt_text;
+              if (state.chatgpt_output && chatgptOutput) {
+                chatgptOutput.value = state.chatgpt_output;
               }
-              if (cache.final_text && finalOutput) {
-                finalOutput.value = cache.final_text;
+              if (state.final_output && finalOutput) {
+                finalOutput.value = state.final_output;
               } else if (chatgptOutput && chatgptOutput.value.trim()) {
                 finalOutput.value = buildFinalScript(chatgptOutput.value);
               }
-              setStatus('Cached script loaded', 'subtle');
-              setSaveStatus(describeSavedState(promptOutput.value, chatgptOutput && chatgptOutput.value, finalOutput && finalOutput.value), 'success');
+              setStatus('Saved state loaded', 'subtle');
+              setSaveStatus('Loaded', 'success');
               return;
             }
 
@@ -669,8 +486,7 @@ $initialItemJson = $currentItem ? json_encode($currentItem, JSON_HEX_TAG | JSON_
                 finalOutput.value = buildFinalScript(chatgptOutput.value);
               }
               setStatus('Prompt ready', 'subtle');
-              setSaveStatus('Saving...', 'warning');
-              scheduleScriptCacheSave();
+              setSaveStatus('Ready', 'subtle');
               return;
             }
 
@@ -739,30 +555,11 @@ $initialItemJson = $currentItem ? json_encode($currentItem, JSON_HEX_TAG | JSON_
         });
       }
 
-      if (promptOutput) {
-        promptOutput.addEventListener('input', scheduleScriptCacheSave);
-      }
-
-      if (chatgptOutput) {
-        chatgptOutput.addEventListener('input', function () {
-          if (finalOutput) {
-            finalOutput.value = buildFinalScript(chatgptOutput.value);
-          }
-          scheduleScriptCacheSave();
-        });
-      }
-
-      if (finalOutput) {
-        finalOutput.addEventListener('input', scheduleScriptCacheSave);
-      }
-
       if (buildFinalBtn && chatgptOutput && finalOutput) {
         buildFinalBtn.addEventListener('click', function () {
-          var skuValue = skuInput ? skuInput.value.trim().toUpperCase() : '';
           finalOutput.value = buildFinalScript(chatgptOutput.value);
-          currentSkuNormalized = skuValue || currentSkuNormalized;
-          if (skuValue) {
-            saveScriptCache(skuValue, promptOutput.value, chatgptOutput.value, finalOutput.value);
+          if (window.updateState) {
+            window.updateState('final_output', finalOutput.value);
           }
           setStatus('Final script ready', 'subtle');
         });
@@ -772,10 +569,25 @@ $initialItemJson = $currentItem ? json_encode($currentItem, JSON_HEX_TAG | JSON_
         clearFinalBtn.addEventListener('click', function () {
           chatgptOutput.value = '';
           finalOutput.value = '';
+          if (window.updateState) {
+            window.updateState('chatgpt_output', '');
+            window.updateState('final_output', '');
+          }
           setStatus('Ready', 'subtle');
-          setSaveStatus('Saving...', 'warning');
+          if (window.forceSync) window.forceSync();
           chatgptOutput.focus();
-          scheduleScriptCacheSave();
+        });
+      }
+
+      if (saveAllBtn) {
+        saveAllBtn.addEventListener('click', function () {
+          var skuVal = currentSkuNormalized || (skuInput ? skuInput.value.trim().toUpperCase() : '');
+          if (!skuVal) {
+            setStatus('Load a SKU first', 'warning');
+            return;
+          }
+          if (window.forceSync) window.forceSync();
+          setStatus('All scripts saved', 'subtle');
         });
       }
 
@@ -819,8 +631,7 @@ $initialItemJson = $currentItem ? json_encode($currentItem, JSON_HEX_TAG | JSON_
         renderSource(currentSkuNormalized, initialItem);
         promptOutput.value = buildPrompt(currentSkuNormalized, initialItem);
         setStatus('Prompt ready', 'subtle');
-        setSaveStatus('Saving...', 'warning');
-        scheduleScriptCacheSave();
+        setSaveStatus('Ready', 'subtle');
       } else {
         promptOutput.value = [
           'Enter a SKU and click Generate prompt.',
@@ -831,29 +642,9 @@ $initialItemJson = $currentItem ? json_encode($currentItem, JSON_HEX_TAG | JSON_
         setSaveStatus('No SKU', 'subtle');
       }
 
-      window.addEventListener('beforeunload', function () {
-        if (!currentSkuNormalized) {
-          return;
-        }
-        if (!promptOutput.value && !chatgptOutput.value && !finalOutput.value) {
-          return;
-        }
-        if (sendScriptCacheSnapshot(
-          currentSkuNormalized,
-          promptOutput.value,
-          chatgptOutput.value,
-          finalOutput.value
-        )) {
-          return;
-        }
-        saveScriptCache(
-          currentSkuNormalized,
-          promptOutput.value,
-          chatgptOutput.value,
-          finalOutput.value
-        );
-      });
+      // State persistence handled by app.js via window.appState -> autosave.php
     })();
   </script>
+  </div>
 </body>
 </html>

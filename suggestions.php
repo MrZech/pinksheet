@@ -20,8 +20,12 @@ if ($term === '') {
     echo '[]';
     exit;
 }
-if (mb_strlen($term) > MAX_QUERY_LENGTH) {
-    $term = mb_substr($term, 0, MAX_QUERY_LENGTH);
+if (function_exists('mb_strlen') && function_exists('mb_substr')) {
+    if (mb_strlen($term) > MAX_QUERY_LENGTH) {
+        $term = mb_substr($term, 0, MAX_QUERY_LENGTH);
+    }
+} elseif (strlen($term) > MAX_QUERY_LENGTH) {
+    $term = substr($term, 0, MAX_QUERY_LENGTH);
 }
 
 if (!is_readable(DB_PATH)) {

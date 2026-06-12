@@ -4,11 +4,19 @@ declare(strict_types=1);
 require_once __DIR__ . '/config.php';
 checkMaintenance();
 ensureStorageWritable();
+$currentPage = 'kanban';
 
-$pdo = new PDO('sqlite:' . __DIR__ . '/data/intake.sqlite', null, null, [
-    PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-    PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-]);
+try {
+    $pdo = new PDO('sqlite:' . __DIR__ . '/data/intake.sqlite', null, null, [
+        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+    ]);
+} catch (Throwable $e) {
+    http_response_code(500);
+    header('Content-Type: text/plain; charset=utf-8');
+    echo 'Database connection failed: ' . $e->getMessage();
+    exit;
+}
 
 // Ensure thumbnail column exists.
 try {
@@ -101,305 +109,33 @@ foreach ($items as $item) {
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Status Board · Pinksheet</title>
   <link rel="stylesheet" href="assets/style.css">
-  <style>
-    /* Wider canvas than default home (1120px) so five lanes fit; page is centered via .home .page */
-    .home.status-board .page {
-      max-width: min(1520px, calc(100vw - 32px));
-    }
-
-    .kanban-shell {
-      width: 100%;
-      max-width: none;
-      margin-inline: auto;
-    }
-
-    .kanban-scroll {
-      width: 100%;
-      overflow-x: auto;
-      overflow-y: visible;
-      overscroll-behavior-x: contain;
-      padding: 12px 0 18px;
-      /* Show scrollbar at top by flipping the element */
-      transform: rotateX(180deg);
-    }
-
-    .kanban-board {
-      display: flex;
-      gap: 12px;
-      flex-wrap: nowrap;
-      justify-content: center;
-      align-items: flex-start;
-      width: max-content;
-      min-width: 100%;
-      margin-inline: auto;
-      /* Flip back so content reads normally */
-      transform: rotateX(180deg);
-    }
-    .kanban-lane {
-      display: flex;
-      flex-direction: column;
-      background: var(--surface-glass);
-      border: 1px solid var(--line);
-      border-radius: 14px;
-      min-width: 240px;
-      max-width: 280px;
-      padding: 10px;
-      flex: 0 0 260px;
-      box-shadow: var(--shadow-soft);
-      backdrop-filter: blur(12px);
-      transition: border-color 0.12s ease, box-shadow 0.12s ease;
-    }
-    .kanban-lane.is-drop-target {
-      border-color: var(--accent-strong);
-      box-shadow: 0 0 0 2px var(--accent-strong), var(--shadow-soft);
-    }
-    .kanban-lane-body {
-      min-height: 48px;
-      flex: 1;
-    }
-    body.kanban-dragging .kanban-card {
-      cursor: grabbing;
-    }
-    body.kanban-dragging .kanban-card:not(.is-dragging) {
-      pointer-events: none;
-    }
-    body.kanban-dragging .kanban-lane {
-      pointer-events: auto;
-    }
-    .kanban-lane h3 {
-      margin: 0 0 6px 0;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-    .kanban-count {
-      font-size: 12px;
-      opacity: 0.7;
-    }
-    .kanban-card {
-      background: linear-gradient(180deg, var(--surface-primary), var(--surface-secondary));
-      border-radius: 12px;
-      padding: 8px;
-      margin-bottom: 8px;
-      cursor: grab;
-      border: 1px solid var(--line);
-      box-shadow: var(--shadow-soft);
-      touch-action: none;
-    }
-    .kanban-card.is-dragging {
-      opacity: 0.45;
-      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
-    }
-    /* Horizontal layout: thumbnail left, content right */
-    .card-inner {
-      display: flex;
-      gap: 8px;
-      align-items: flex-start;
-    }
-    .card-thumb {
-      width: 80px;
-      height: 80px;
-      object-fit: cover;
-      border-radius: 8px;
-      flex-shrink: 0;
-      pointer-events: none;
-      user-select: none;
-      -webkit-user-drag: none;
-      border: 1px solid var(--line);
-    }
-    .card-thumb-empty {
-      width: 80px;
-      height: 80px;
-      flex-shrink: 0;
-      border-radius: 8px;
-      background: var(--surface-secondary);
-      border: 1px dashed var(--border-color);
-    }
-    .card-body {
-      flex: 1;
-      min-width: 0;
-      display: flex;
-      flex-direction: column;
-      gap: 3px;
-    }
-    .kanban-card .sku {
-      font-weight: 700;
-      font-size: 14px;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-    .kanban-card .sku a {
-      color: inherit;
-      text-decoration: none;
-      border-bottom: 1px dashed rgba(255,255,255,0.4);
-      transition: border-color 0.15s ease, color 0.15s ease;
-    }
-    .kanban-card .sku a:hover {
-      color: #4ade80;
-      border-bottom-color: #4ade80;
-      text-decoration: none;
-    }
-    .kanban-card .what {
-      font-size: 12px;
-      opacity: 0.8;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-    .kanban-card .meta {
-      font-size: 11px;
-      opacity: 0.7;
-      display: flex;
-      gap: 6px;
-      flex-wrap: wrap;
-    }
-    .kanban-card .reviewed-checkbox {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      margin-top: 4px;
-      padding: 4px 8px;
-      background: linear-gradient(135deg, #9ca3af 0%, #6b7280 100%);
-      border-radius: 6px;
-      font-size: 12px;
-      font-weight: 600;
-      cursor: pointer;
-      color: white;
-      box-shadow: 0 2px 4px rgba(107, 114, 128, 0.3);
-      transition: all 0.3s ease;
-    }
-    .kanban-card .reviewed-checkbox.checked {
-      background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
-      box-shadow: 0 2px 4px rgba(34, 197, 94, 0.3);
-    }
-    .kanban-card .reviewed-checkbox:hover {
-      box-shadow: 0 4px 8px rgba(107, 114, 128, 0.4);
-      transform: translateY(-1px);
-    }
-    .kanban-card .reviewed-checkbox.checked:hover {
-      background: linear-gradient(135deg, #16a34a 0%, #15803d 100%);
-      box-shadow: 0 4px 8px rgba(34, 197, 94, 0.4);
-    }
-
-    /* SOLD lane — active/checked button shows as blue with "Sold" label */
-    .kanban-card.is-sold .reviewed-checkbox {
-      background: linear-gradient(135deg, #60a5fa 0%, #3b82f6 100%);
-      box-shadow: 0 2px 4px rgba(59, 130, 246, 0.35);
-    }
-    .kanban-card.is-sold .reviewed-checkbox.checked {
-      background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
-      box-shadow: 0 2px 4px rgba(37, 99, 235, 0.4);
-    }
-    .kanban-card.is-sold .reviewed-checkbox:hover {
-      box-shadow: 0 4px 8px rgba(59, 130, 246, 0.45);
-    }
-    .kanban-card.is-sold .reviewed-checkbox.checked:hover {
-      background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
-      box-shadow: 0 4px 8px rgba(37, 99, 235, 0.5);
-    }
-    .kanban-card .reviewed-checkbox input[type="checkbox"] {
-      width: 18px;
-      height: 18px;
-      cursor: pointer;
-      accent-color: white;
-      pointer-events: auto;
-      filter: brightness(1.2);
-    }
-    .kanban-card .reviewed-checkbox label {
-      cursor: pointer;
-      user-select: none;
-      flex: 1;
-    }
-
-    /* Delete button on cards */
-    .card-delete-btn {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      width: 26px;
-      height: 26px;
-      border-radius: 6px;
-      border: 1.5px solid rgba(239, 68, 68, 0.4);
-      background: rgba(239, 68, 68, 0.07);
-      color: #ef4444;
-      cursor: pointer;
-      font-size: 14px;
-      line-height: 1;
-      flex-shrink: 0;
-      align-self: flex-start;
-      transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
-      margin-top: 2px;
-    }
-    .card-delete-btn:hover {
-      background: rgba(239, 68, 68, 0.18);
-      border-color: rgba(239, 68, 68, 0.7);
-      transform: scale(1.08);
-    }
-
-    /* Undo toast */
-    .kanban-undo-toast {
-      position: fixed;
-      bottom: 24px;
-      left: 50%;
-      transform: translateX(-50%) translateY(20px);
-      background: #1c2030;
-      color: #e8eaf0;
-      border: 1px solid rgba(74, 222, 128, 0.3);
-      border-radius: 999px;
-      padding: 10px 20px;
-      font-size: 14px;
-      font-weight: 600;
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      box-shadow: 0 8px 24px rgba(0,0,0,0.4);
-      opacity: 0;
-      pointer-events: none;
-      transition: opacity 220ms ease, transform 220ms ease;
-      z-index: 999;
-      white-space: nowrap;
-    }
-    .kanban-undo-toast.is-visible {
-      opacity: 1;
-      transform: translateX(-50%) translateY(0);
-      pointer-events: auto;
-    }
-    .kanban-undo-toast button {
-      background: #4ade80;
-      color: #0f1a12;
-      border: none;
-      border-radius: 999px;
-      padding: 4px 14px;
-      font-size: 13px;
-      font-weight: 700;
-      cursor: pointer;
-      box-shadow: none;
-    }
-    .kanban-undo-toast button:hover {
-      filter: brightness(1.08);
-    }
-
-    /* Progress bar inside toast showing the undo window */
-    .kanban-undo-progress {
-      position: absolute;
-      bottom: 0;
-      left: 0;
-      height: 3px;
-      border-radius: 0 0 999px 999px;
-      background: #4ade80;
-      width: 100%;
-      transform-origin: left;
-      transition: none;
-    }
-  </style>
+  <script src="assets/menu.js" defer></script>
+  <script src="assets/app.js"></script>
 </head>
 <body class="home status-board">
+  <div class="layout-wrapper">
+  <div class="app-menu">
+      <button type="button" class="menu-toggle" aria-expanded="false" aria-controls="global-menu" id="menu-toggle">
+        <span class="hamburger" aria-hidden="true"></span>
+        <span class="menu-label">Menu</span>
+      </button>
+      <nav class="menu-panel" id="global-menu" aria-hidden="true">
+        <ul class="menu-links">
+          <li><a class="menu-link" href="home.php">Dashboard</a></li>
+          <li><a class="menu-link" href="intake.php?clear_draft=1" data-new-intake>Intake</a></li>
+          <li><a class="menu-link is-active" href="kanban.php">Status Board</a></li>
+          <li><a class="menu-link" href="lookup.php">SKU Lookup</a></li>
+          <li><a class="menu-link" href="archive.php">Archive</a></li>
+          <li><a class="menu-link" href="prompt_builder.php">Script Builder</a></li>
+        </ul>
+      </nav>
+    </div>
   <main class="page">
     <section class="sheet kanban-shell">
       <header class="sheet-header">
         <div class="updated">Pinksheet Status Board</div>
         <div class="sheet-header-right">
+          <span class="autosave-status" id="autosave-status" hidden>Autosave ready</span>
           <button type="button" class="ghost" id="kanban-undo-header-btn" style="display:none;" title="Restore the last deleted item">↩ Undo last delete</button>
           <a class="button-link" href="home.php">Home</a>
           <button type="button" class="theme-toggle" id="theme-toggle">Dark mode</button>
@@ -662,6 +398,8 @@ foreach ($items as $item) {
       var undoTimer = null;
       var undoProgressTimer = null;
       var UNDO_DURATION = 6000; // ms
+      var lastDeletedCard = null;
+      var lastDeletedLaneStatus = '';
 
       var hideUndoToast = function () {
         if (undoToast) undoToast.classList.remove('is-visible');
@@ -690,14 +428,32 @@ foreach ($items as $item) {
         }, UNDO_DURATION);
       };
 
+      var restoreDeletedCard = function () {
+        if (!lastDeletedCard) return;
+        var targetLane = board.querySelector('.kanban-lane[data-status="' + lastDeletedLaneStatus + '"]');
+        if (!targetLane) return;
+        var body = targetLane.querySelector('.kanban-lane-body');
+        if (!body) return;
+        lastDeletedCard.style.transition = 'opacity 180ms ease';
+        lastDeletedCard.style.opacity = '0';
+        lastDeletedCard.style.transform = '';
+        body.appendChild(lastDeletedCard);
+        requestAnimationFrame(function () {
+          lastDeletedCard.style.opacity = '1';
+        });
+        var count = targetLane.querySelector('.kanban-count');
+        if (count) count.textContent = String(parseInt(count.textContent || '0', 10) + 1);
+        lastDeletedCard = null;
+        lastDeletedLaneStatus = '';
+      };
+
       var doUndo = function () {
         hideUndoToast();
         fetch('undo_delete.php', { method: 'POST' })
           .then(function (r) { return r.json(); })
           .then(function (data) {
             if (data.status === 'ok') {
-              // Reload to show the restored card in its correct lane
-              location.reload();
+              restoreDeletedCard();
             } else {
               alert('Nothing to undo.');
             }
@@ -734,6 +490,8 @@ foreach ($items as $item) {
         // Optimistically remove the card from the UI
         var lane = card.closest('.kanban-lane');
         var laneCount = lane ? lane.querySelector('.kanban-count') : null;
+        lastDeletedCard = card;
+        lastDeletedLaneStatus = lane ? lane.getAttribute('data-status') : '';
         card.style.transition = 'opacity 180ms ease, transform 180ms ease';
         card.style.opacity = '0';
         card.style.transform = 'scale(0.95)';
@@ -761,18 +519,18 @@ foreach ($items as $item) {
               showUndoToast(displaySku);
               if (undoHeaderBtn) undoHeaderBtn.style.display = '';
             } else {
-              // Server rejected — reload so the card reappears
               alert('Delete failed: ' + (data.message || 'unknown error'));
-              location.reload();
+              restoreDeletedCard();
             }
           })
           .catch(function () {
             alert('Delete failed — please reload.');
-            location.reload();
+            restoreDeletedCard();
           });
       });
 
     })();
   </script>
+  </div>
 </body>
 </html>

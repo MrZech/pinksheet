@@ -33,7 +33,7 @@ if (is_dir($backupDir)) {
 
 http_response_code(MAINTENANCE_MODE ? 503 : 200);
 header('Content-Type: application/json; charset=utf-8');
-echo json_encode([
+echo safeJsonEncode([
     'status' => MAINTENANCE_MODE ? 'maintenance' : 'ok',
     'maintenance' => MAINTENANCE_MODE,
     'backup' => [

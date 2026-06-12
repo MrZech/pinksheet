@@ -4,6 +4,12 @@ require_once __DIR__ . '/square_sync.php';
 checkMaintenance();
 ensureStorageWritable();
 
+// Collect non-blocking server-health warnings so the UI can display a banner.
+$serverWarnings = [];
+if (!function_exists('finfo_open') && !function_exists('mime_content_type')) {
+    $serverWarnings[] = 'File info extension is missing. Photo upload MIME validation will use extension-based checks only. Enable php_fileinfo in php.ini for best results.';
+}
+
 // Simple intake sheet app backed by SQLite
 
 
@@ -31,10 +37,19 @@ if (!is_dir(PHOTO_UPLOAD_DIR)) {
     mkdir(PHOTO_UPLOAD_DIR, 0777, true);
 }
 
-$pdo = new PDO('sqlite:' . DB_PATH, null, null, [
-    PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-]);
+try {
+    $pdo = new PDO('sqlite:' . DB_PATH, null, null, [
+        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+    ]);
+} catch (Throwable $e) {
+    http_response_code(500);
+    header('Content-Type: text/plain; charset=utf-8');
+    echo 'Database connection failed: ' . $e->getMessage() . "\nCheck that data/intake.sqlite is writable and SQLite is enabled.";
+    exit;
+}
 
+$pdo->beginTransaction();
+try {
 $pdo->exec(<<<'SQL'
 CREATE TABLE IF NOT EXISTS intake_items (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -102,7 +117,11 @@ if (!in_array('compatible_os', $columnNames, true)) {
     $pdo->exec('ALTER TABLE intake_items ADD COLUMN compatible_os TEXT');
 }
 $pdo->exec("CREATE INDEX IF NOT EXISTS idx_intake_items_sku_normalized ON intake_items (sku_normalized)");
-$pdo->exec("UPDATE intake_items SET sku_normalized = UPPER(TRIM(COALESCE(sku, ''))) WHERE sku_normalized IS NULL OR sku_normalized = ''");
+$schemaVersion = (int)$pdo->query('PRAGMA user_version')->fetchColumn();
+if ($schemaVersion < 1) {
+    $pdo->exec("UPDATE intake_items SET sku_normalized = UPPER(TRIM(COALESCE(sku, ''))) WHERE sku_normalized IS NULL OR sku_normalized = ''");
+    $pdo->exec('PRAGMA user_version = 1');
+}
 $pdo->exec("CREATE TABLE IF NOT EXISTS intake_deleted AS SELECT * FROM intake_items WHERE 0");
 $archiveColumns = [];
 foreach ($pdo->query("PRAGMA table_info(intake_deleted)") as $col) {
@@ -124,6 +143,8 @@ foreach ($pdo->query("PRAGMA table_info(intake_items)") as $col) {
 if (!isset($archiveColumns['deleted_at'])) {
     $pdo->exec("ALTER TABLE intake_deleted ADD COLUMN deleted_at TEXT");
 }
+$schemaVersion = (int)$pdo->query('PRAGMA user_version')->fetchColumn();
+if ($schemaVersion < 2) {
 $dupStmt = $pdo->query("
     SELECT sku_normalized
     FROM intake_items
@@ -160,25 +181,18 @@ if ($duplicateSkus) {
             $sampleColumns[] = 'deleted_at';
             $archiveInsertSql = 'INSERT INTO intake_deleted (' . implode(',', $sampleColumns) . ') VALUES (' . implode(',', array_map(static fn($c) => ':' . $c, $sampleColumns)) . ')';
         }
-        $pdo->beginTransaction();
-        try {
-            $archiveInsert = $pdo->prepare($archiveInsertSql);
-            foreach ($rows as $index => $row) {
-                if ($index === $keepIndex) {
-                    continue;
-                }
-                $row['deleted_at'] = (new DateTime('now'))->format('c');
-                $archiveInsert->execute($row);
-                $pdo->prepare('DELETE FROM intake_items WHERE id = :id')->execute(['id' => $row['id']]);
+        $archiveInsert = $pdo->prepare($archiveInsertSql);
+        foreach ($rows as $index => $row) {
+            if ($index === $keepIndex) {
+                continue;
             }
-            $pdo->commit();
-        } catch (Throwable $e) {
-            if ($pdo->inTransaction()) {
-                $pdo->rollBack();
-            }
-            throw $e;
+            $row['deleted_at'] = (new DateTime('now'))->format('c');
+            $archiveInsert->execute($row);
+            $pdo->prepare('DELETE FROM intake_items WHERE id = :id')->execute(['id' => $row['id']]);
         }
     }
+}
+    $pdo->exec('PRAGMA user_version = 2');
 }
 $pdo->exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_intake_items_sku_normalized_unique ON intake_items (sku_normalized) WHERE sku_normalized IS NOT NULL AND TRIM(sku_normalized) <> ''");
 $pdo->exec(<<<'SQL'
@@ -191,6 +205,14 @@ CREATE TABLE IF NOT EXISTS intake_drafts (
 );
 SQL);
 $pdo->exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_intake_drafts_sku ON intake_drafts (sku_normalized)");
+
+$pdo->commit();
+} catch (Throwable $e) {
+    if ($pdo->inTransaction()) {
+        $pdo->rollBack();
+    }
+    throw $e;
+}
 squareSyncEnsureSchema($pdo);
 
 function normalizeSku(string $sku): string
@@ -534,7 +556,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $photoWarnings[] = 'You can upload up to ' . MAX_SKU_PHOTOS_PER_UPLOAD . ' photos at once; extra files were ignored.';
                 $uploadedPhotos = array_slice($uploadedPhotos, 0, MAX_SKU_PHOTOS_PER_UPLOAD);
             }
-            $finfo = finfo_open(FILEINFO_MIME_TYPE);
             foreach ($uploadedPhotos as $upload) {
                 $originalDisplayName = (string)($upload['name'] ?? 'photo');
                 if (($upload['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_NO_FILE) {
@@ -556,7 +577,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $photoWarnings[] = $originalDisplayName . ' looked invalid and was skipped.';
                     continue;
                 }
-                $mimeType = (string)finfo_file($finfo, (string)$upload['tmp_name']);
+                $mimeType = detectUploadMimeType((string)$upload['tmp_name'], $originalDisplayName);
                 $extension = ALLOWED_PHOTO_MIME_TYPES[$mimeType] ?? null;
                 if ($extension === null) {
                     $photoWarnings[] = $originalDisplayName . ' is not JPG/PNG/WEBP/GIF and was skipped.';
@@ -570,7 +591,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'file_size' => (int)$upload['size'],
                 ];
             }
-            finfo_close($finfo);
         }
 
         if (!$errors) {
@@ -796,10 +816,29 @@ function checked(string $name, string $value, array $formData): string
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Dispo.Tech Intake Sheet</title>
   <link rel="stylesheet" href="assets/style.css">
+  <script src="assets/menu.js" defer></script>
   <link rel="stylesheet" media="print" href="assets/print.css">
   <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
+  <script src="assets/app.js"></script>
 </head>
 <body>
+  <div class="layout-wrapper">
+  <div class="app-menu">
+      <button type="button" class="menu-toggle" aria-expanded="false" aria-controls="global-menu" id="menu-toggle">
+        <span class="hamburger" aria-hidden="true"></span>
+        <span class="menu-label">Menu</span>
+      </button>
+      <nav class="menu-panel" id="global-menu" aria-hidden="true">
+        <ul class="menu-links">
+          <li><a class="menu-link <?php echo $currentPage === 'home' ? 'is-active' : ''; ?>" href="home.php">Dashboard</a></li>
+          <li><a class="menu-link <?php echo $currentPage === 'intake' ? 'is-active' : ''; ?>" href="intake.php?clear_draft=1" data-new-intake>Intake</a></li>
+          <li><a class="menu-link <?php echo $currentPage === 'kanban' ? 'is-active' : ''; ?>" href="kanban.php">Status Board</a></li>
+          <li><a class="menu-link <?php echo $currentPage === 'lookup' ? 'is-active' : ''; ?>" href="lookup.php">SKU Lookup</a></li>
+          <li><a class="menu-link <?php echo $currentPage === 'archive' ? 'is-active' : ''; ?>" href="archive.php">Archive</a></li>
+          <li><a class="menu-link <?php echo $currentPage === 'script' ? 'is-active' : ''; ?>" href="prompt_builder.php">Script Builder</a></li>
+        </ul>
+      </nav>
+    </div>
   <main class="page">
     <div id="save-toast" class="toast" role="status" aria-live="polite"
       data-active="<?php echo $saved ? '1' : '0'; ?>"
@@ -811,21 +850,6 @@ function checked(string $name, string $value, array $formData): string
       <span id="intake-undo-msg">Item deleted</span>
       <button type="button" id="intake-undo-btn">Undo</button>
       <div class="intake-undo-progress" id="intake-undo-progress"></div>
-    </div>
-    <div class="app-menu">
-      <button type="button" class="menu-toggle" aria-expanded="false" aria-controls="global-menu" id="menu-toggle">
-        <span class="hamburger" aria-hidden="true"></span>
-        <span>Menu</span>
-      </button>
-      <nav class="menu-panel" id="global-menu" aria-hidden="true">
-        <ul class="menu-links">
-          <li><a class="menu-link <?php echo $currentPage === 'home' ? 'is-active' : ''; ?>" href="home.php">Home</a></li>
-          <li><a class="menu-link <?php echo $currentPage === 'lookup' ? 'is-active' : ''; ?>" href="lookup.php">SKU Lookup</a></li>
-          <li><a class="menu-link <?php echo $currentPage === 'archive' ? 'is-active' : ''; ?>" href="archive.php">Archive</a></li>
-          <li><a class="menu-link <?php echo $currentPage === 'intake' ? 'is-active' : ''; ?>" href="intake.php?clear_draft=1" data-new-intake>New Intake</a></li>
-          <li><a class="menu-link" href="prompt_builder.php">eBay Script Builder</a></li>
-        </ul>
-      </nav>
     </div>
     <section class="sheet intake">
       <div class="sheet-scale" id="sheet-scale">
@@ -907,6 +931,13 @@ function checked(string $name, string $value, array $formData): string
     <?php endforeach; ?>
   </div>
 <?php endif; ?>
+<?php if ($serverWarnings): ?>
+  <div class="warning-box">
+    <?php foreach ($serverWarnings as $sw): ?>
+      <p class="warning"><?php echo h($sw); ?></p>
+    <?php endforeach; ?>
+  </div>
+<?php endif; ?>
 <?php if ($deleteMessage !== null): ?>
   <p class="<?php echo $deleteMessage > 0 ? 'success' : 'warning'; ?>">
     <?php echo $deleteMessage > 0 ? 'Deleted ' . $deleteMessage . ' record(s).' : 'Delete failed.'; ?>
@@ -928,7 +959,7 @@ function checked(string $name, string $value, array $formData): string
       <p class="error client-error" id="client-error" hidden>Please fill in SKU before saving.</p>
 
       <div class="status-bar" id="status-bar">
-        <span class="status-chip ok" id="autosave-status" hidden>Autosave ready</span>
+        <span class="autosave-status" id="autosave-status" hidden>Autosave ready</span>
         <span class="status-chip warn" id="server-draft-banner" hidden>Restored server draft</span>
       </div>
 
@@ -1832,53 +1863,14 @@ function checked(string $name, string $value, array $formData): string
           link.addEventListener('click', clearIntakeDraft);
         });
       }
-      var menuToggle = document.getElementById('menu-toggle');
-      var menuPanel = document.getElementById('global-menu');
-      if (menuToggle && menuPanel) {
-        var bodyElement = document.body;
-        var setMenuState = function (open) {
-          menuPanel.classList.toggle('is-open', open);
-          menuPanel.setAttribute('aria-hidden', open ? 'false' : 'true');
-          menuToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
-          bodyElement.classList.toggle('has-open-menu', open);
-        };
-
-        var closeMenu = function () {
-          setMenuState(false);
-        };
-
-        menuToggle.addEventListener('click', function () {
-          var opening = !menuPanel.classList.contains('is-open');
-          setMenuState(opening);
-        });
-        document.addEventListener('click', function (event) {
-          if (!menuPanel.classList.contains('is-open')) {
-            return;
-          }
-          if (!menuPanel.contains(event.target) && !menuToggle.contains(event.target)) {
-            closeMenu();
-          }
-        });
-        document.addEventListener('keydown', function (event) {
-          if (event.key === 'Escape') {
-            closeMenu();
-          }
-        });
-      }
-
       var form = document.getElementById('intake-form');
       if (form) {
         var draftKey = 'intakeDraftV1';
         var backupKey = 'intakeDraftBackupV1';
         var errorEl = document.getElementById('client-error');
-        var dismissDraft = document.getElementById('draft-dismiss');
-        var hasRecord = document.getElementById('has-server-record');
-        var hasLookup = document.getElementById('has-lookup-sku');
         var clearDraft = document.getElementById('clear-draft');
         var restoreBtn = document.getElementById('restore-draft-button');
         var restoreHint = document.getElementById('restore-hint');
-        var autosaveStatus = document.getElementById('autosave-status');
-        var serverDraftBanner = document.getElementById('server-draft-banner');
       var copySkuInput = document.getElementById('copy-sku-input');
       var copySkuButton = document.getElementById('copy-sku-button');
       var copySkuStatus = document.getElementById('copy-sku-status');
@@ -1889,7 +1881,6 @@ function checked(string $name, string $value, array $formData): string
       var findSkuQuery = document.getElementById('find-sku-query');
       var findSkuResults = document.getElementById('find-sku-results');
       var copySkuPrefill = '<?php echo h($copySkuPrefill); ?>';
-      var deleteButtons = document.querySelectorAll('.js-delete-item');
       var inlineStatuses = document.querySelectorAll('.js-inline-status');
       var inlinePrices = document.querySelectorAll('.js-inline-price');
       var deleteForm = null;
@@ -1917,6 +1908,24 @@ function checked(string $name, string $value, array $formData): string
       var bulkDeleteFlag = document.getElementById('bulk-delete-flag');
       var bulkForm = document.getElementById('bulk-form');
       var undoDeleteForm = document.getElementById('undo-delete-form');
+      var restoreDeletedRow = function (newId) {
+        if (!lastDeletedRowHTML || !recentTableBody) return;
+        var temp = document.createElement('tbody');
+        temp.innerHTML = lastDeletedRowHTML;
+        var tr = temp.firstElementChild;
+        if (tr) {
+          if (newId) {
+            tr.querySelectorAll('[data-id]').forEach(function (el) {
+              el.setAttribute('data-id', String(newId));
+            });
+          }
+          recentTableBody.insertBefore(tr, recentTableBody.firstChild);
+          tr.style.transition = 'opacity 200ms ease';
+          tr.style.opacity = '0';
+          requestAnimationFrame(function () { tr.style.opacity = '1'; });
+        }
+      };
+
       if (undoDeleteForm) {
         undoDeleteForm.addEventListener('submit', function (evt) {
           evt.preventDefault();
@@ -1924,8 +1933,8 @@ function checked(string $name, string $value, array $formData): string
             .then(function (r) { return r.json(); })
             .then(function (data) {
               if (data && data.status === 'ok') {
-                alert('Restored SKU ' + (data.restored_sku || '') + ' (new ID ' + (data.new_id || '') + ')');
-                window.location.reload();
+                restoreDeletedRow(data.new_id);
+                showToast('Restored ' + (data.restored_sku || 'item'));
               } else if (data && data.status === 'empty') {
                 alert('Nothing to undo.');
               } else {
@@ -1937,8 +1946,6 @@ function checked(string $name, string $value, array $formData): string
             });
         });
       }
-        // Track last serialized draft to avoid writing identical data over and over.
-        var lastSavedDraft = null;
         var applyDraftObject = function (draft) {
           if (!draft) return;
           Object.keys(draft).forEach(function (name) {
@@ -2080,12 +2087,6 @@ function checked(string $name, string $value, array $formData): string
             localStorage.removeItem(draftKey);
           } catch (e) {}
         }
-        var shouldRestore = dismissDraft && dismissDraft.value !== '1'
-          && hasRecord && hasRecord.value !== '1'
-          && hasLookup && hasLookup.value !== '1';
-        if (clearDraft && clearDraft.value === '1') {
-          shouldRestore = false;
-        }
 
         var applyRequiredState = function (name, missing) {
           var el = form.querySelector('[name="' + name + '"]');
@@ -2093,16 +2094,6 @@ function checked(string $name, string $value, array $formData): string
             el.classList.toggle('required-missing', missing);
           }
         };
-
-        if (shouldRestore) {
-          try {
-            var raw = localStorage.getItem(draftKey);
-            if (raw) {
-              applyDraft(raw);
-              lastSavedDraft = raw;
-            }
-          } catch (e) {}
-        }
 
         // Offer restore if we have a backup and the form is mostly empty.
         var formLooksEmpty = function () {
@@ -2127,7 +2118,6 @@ function checked(string $name, string $value, array $formData): string
               restoreBtn.addEventListener('click', function () {
                 applyDraft(backupDraft);
                 localStorage.setItem(draftKey, backupDraft);
-                lastSavedDraft = backupDraft;
                 restoreBtn.hidden = true;
                 if (restoreHint) { restoreHint.hidden = true; }
                 showToast('Draft restored');
@@ -2136,93 +2126,6 @@ function checked(string $name, string $value, array $formData): string
           } catch (e) {}
         }
 
-        var setStatusChip = function (el, text, tone) {
-          if (!el) return;
-          el.textContent = text;
-          el.hidden = false;
-          el.classList.remove('ok', 'warn', 'err');
-          if (tone) {
-            el.classList.add(tone);
-          }
-        };
-
-        var collectDraftPayload = function () {
-          var payload = {};
-          var fields = form.querySelectorAll('input[name], select[name], textarea[name]');
-          fields.forEach(function (field) {
-            if (field.type === 'radio') {
-              if (field.checked) {
-                payload[field.name] = field.value;
-              }
-              return;
-            }
-            if (field.type === 'checkbox') {
-              payload[field.name] = field.checked;
-              return;
-            }
-            if (field.type === 'file') {
-              return;
-            }
-            payload[field.name] = field.value;
-          });
-          return payload;
-        };
-
-        var saveTimer = null;
-        var saveDraft = function () {
-          var payload = collectDraftPayload();
-          var serialized = JSON.stringify(payload);
-          if (serialized === lastSavedDraft) {
-            return;
-          }
-          lastSavedDraft = serialized;
-          localStorage.setItem(draftKey, serialized);
-        };
-        var queueDraftSave = function () {
-          clearTimeout(saveTimer);
-          // Debounce to avoid rapid-fire saves while typing.
-          saveTimer = setTimeout(saveDraft, 400);
-        };
-
-        var autosaveState = {
-          version: null,
-          dirty: false,
-          inflight: false,
-        };
-
-        var markAutosaveDirty = function () {
-          autosaveState.dirty = true;
-        };
-
-        form.addEventListener('input', function (event) {
-          queueDraftSave();
-          markAutosaveDirty();
-          if (!event.target || !event.target.name) {
-            return;
-          }
-          if (event.target.name === 'sku') {
-            applyRequiredState(event.target.name, false);
-            if (errorEl) {
-              errorEl.hidden = true;
-            }
-            var upper = (event.target.value || '').toUpperCase();
-            if (event.target.value !== upper) {
-              var pos = event.target.selectionStart;
-              event.target.value = upper;
-              if (typeof pos === 'number') {
-                event.target.selectionStart = event.target.selectionEnd = pos;
-              }
-            }
-          }
-          if (event.target === whatInput && whatError) {
-            whatError.hidden = true;
-          }
-        });
-        form.addEventListener('change', function () {
-          queueDraftSave();
-          markAutosaveDirty();
-        });
-
         var setCopyStatus = function (text, tone) {
           if (!copySkuStatus) return;
           copySkuStatus.hidden = false;
@@ -2230,65 +2133,44 @@ function checked(string $name, string $value, array $formData): string
           copySkuStatus.classList.remove('ok', 'warn', 'err');
           if (tone) copySkuStatus.classList.add(tone);
         };
-        if (copySkuButton && copySkuInput) {
-          copySkuButton.addEventListener('click', function () {
-            var copySku = (copySkuInput.value || '').trim().toUpperCase();
-            if (!copySku) {
-              setCopyStatus('Enter a SKU to copy from', 'warn');
-              return;
-            }
-            setCopyStatus('Copying...', 'warn');
-            fetch('copy_item.php?sku=' + encodeURIComponent(copySku))
-              .then(function (resp) { return resp.json(); })
+        var lastDeletedRowHTML = null;
+        var recentTableBody = document.querySelector('.section.recent-items table tbody');
+        if (recentTableBody) {
+          recentTableBody.addEventListener('click', function (e) {
+            var btn = e.target.closest('.js-delete-item');
+            if (!btn) return;
+            var id = btn.getAttribute('data-id');
+            var sku = (btn.getAttribute('data-sku') || '').toUpperCase();
+            if (!id || !sku) return;
+            if (!confirm('Delete SKU ' + sku + '? You can undo immediately after.')) return;
+
+            var row = btn.closest('tr');
+            if (row) lastDeletedRowHTML = row.outerHTML;
+
+            fetch('delete_item.php', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'X-Requested-With': 'XMLHttpRequest'
+              },
+              body: 'id=' + encodeURIComponent(id) + '&sku=' + encodeURIComponent(sku) + '&confirm=DELETE'
+            })
+              .then(function (r) { return r.json(); })
               .then(function (data) {
-                if (!data || data.status !== 'ok' || !data.data) {
-                  setCopyStatus('No record found for that SKU', 'err');
-                  return;
+                if (data.status === 'ok') {
+                  if (row) {
+                    row.style.transition = 'opacity 180ms ease';
+                    row.style.opacity = '0';
+                    setTimeout(function () { if (row.parentNode) row.parentNode.removeChild(row); }, 190);
+                  }
+                  showIntakeUndoToast(sku);
+                } else {
+                  alert('Delete failed: ' + (data.message || 'unknown error'));
                 }
-                applyDataFiltered(data.data);
-                setCopyStatus('Fields copied; enter new SKU and adjust as needed', 'ok');
               })
               .catch(function () {
-                setCopyStatus('Copy failed', 'err');
+                alert('Delete failed — please reload.');
               });
-          });
-        }
-
-        if (deleteButtons && deleteButtons.length) {
-          deleteButtons.forEach(function (btn) {
-            btn.addEventListener('click', function () {
-              var id = btn.getAttribute('data-id');
-              var sku = (btn.getAttribute('data-sku') || '').toUpperCase();
-              if (!id || !sku) return;
-              if (!confirm('Delete SKU ' + sku + '? You can undo immediately after.')) return;
-
-              fetch('delete_item.php', {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/x-www-form-urlencoded',
-                  'X-Requested-With': 'XMLHttpRequest'
-                },
-                body: 'id=' + encodeURIComponent(id) + '&sku=' + encodeURIComponent(sku) + '&confirm=DELETE'
-              })
-                .then(function (r) { return r.json(); })
-                .then(function (data) {
-                  if (data.status === 'ok') {
-                    // Remove the row from the table visually
-                    var row = btn.closest('tr');
-                    if (row) {
-                      row.style.transition = 'opacity 180ms ease';
-                      row.style.opacity = '0';
-                      setTimeout(function () { if (row.parentNode) row.parentNode.removeChild(row); }, 190);
-                    }
-                    showIntakeUndoToast(sku);
-                  } else {
-                    alert('Delete failed: ' + (data.message || 'unknown error'));
-                  }
-                })
-                .catch(function () {
-                  alert('Delete failed — please reload.');
-                });
-            });
           });
         }
 
@@ -2310,84 +2192,6 @@ function checked(string $name, string $value, array $formData): string
             bulkForm.submit();
           });
         }
-
-        var formatTime = function (isoString) {
-          if (!isoString) return 'just now';
-          try {
-            var d = new Date(isoString);
-            return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
-          } catch (e) {
-            return 'just now';
-          }
-        };
-
-        var pushAutosave = function () {
-          if (!autosaveStatus) return;
-          if (autosaveState.inflight) return;
-          if (!autosaveState.dirty) return;
-          var payload = collectDraftPayload();
-          var skuVal = (payload.sku || '').trim();
-          if (!skuVal) {
-            setStatusChip(autosaveStatus, 'Add a SKU to autosave', 'warn');
-            return;
-          }
-          autosaveState.inflight = true;
-          setStatusChip(autosaveStatus, 'Autosaving…', 'warn');
-          fetch('autosave.php', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              sku: skuVal,
-              data: payload,
-              version: autosaveState.version || 0
-            })
-          }).then(function (resp) {
-            return resp.json();
-          }).then(function (resp) {
-            autosaveState.inflight = false;
-            if (resp.status === 'ok') {
-              autosaveState.version = resp.version;
-              autosaveState.dirty = false;
-              setStatusChip(autosaveStatus, 'Saved ' + formatTime(resp.saved_at), 'ok');
-            } else if (resp.status === 'conflict') {
-              setStatusChip(autosaveStatus, 'Server has a newer draft (not overwritten)', 'warn');
-              if (resp.server_data) {
-                // keep server copy available for restore button
-                localStorage.setItem(draftKey + '-server', JSON.stringify(resp.server_data));
-              }
-            } else {
-              setStatusChip(autosaveStatus, 'Autosave failed', 'err');
-            }
-          }).catch(function () {
-            autosaveState.inflight = false;
-            setStatusChip(autosaveStatus, 'Autosave failed', 'err');
-          });
-        };
-
-        // Autosave every ~25s while dirty.
-        setInterval(pushAutosave, 25000);
-
-        var fetchServerDraft = function () {
-          var skuInput = form.querySelector('[name=\"sku\"]');
-          var skuVal = (skuInput && skuInput.value || '').trim();
-          if (!skuVal) {
-            return;
-          }
-          fetch('autosave.php?sku=' + encodeURIComponent(skuVal))
-            .then(function (resp) { return resp.json(); })
-            .then(function (resp) {
-              if (!resp || resp.status !== 'ok' || !resp.has_draft || !resp.data) {
-                return;
-              }
-              applyDraftObject(resp.data);
-              var serialized = JSON.stringify(resp.data);
-              lastSavedDraft = serialized;
-              try { localStorage.setItem(draftKey, serialized); } catch (e) {}
-              autosaveState.version = resp.version || null;
-              setStatusChip(serverDraftBanner, 'Restored server draft (' + formatTime(resp.updated_at) + ')', 'warn');
-            }).catch(function () {});
-        };
-        fetchServerDraft();
         form.addEventListener('submit', function (event) {
           var skuField = form.querySelector('[name="sku"]');
           var sku = ((skuField || {}).value || '').trim().toUpperCase();
@@ -2408,8 +2212,26 @@ function checked(string $name, string $value, array $formData): string
             showToast('Fill SKU and "What is it?" before saving.');
             return;
           }
-          localStorage.removeItem(draftKey);
+          try { localStorage.removeItem('intakeDraftV1'); } catch (e) {}
         });
+
+        /* SKU uppercase conversion — runs independently of the centralized
+           auto-save engine.   Every keystroke normalises to upper case. */
+        var skuInput = form.querySelector('[name="sku"]');
+        if (skuInput) {
+          skuInput.addEventListener('input', function () {
+            var upper = (this.value || '').toUpperCase();
+            if (this.value !== upper) {
+              var pos = this.selectionStart;
+              this.value = upper;
+              if (typeof pos === 'number') {
+                this.selectionStart = this.selectionEnd = pos;
+              }
+            }
+            applyRequiredState('sku', false);
+            if (errorEl) errorEl.hidden = true;
+          });
+        }
       }
 
       var photoInput = document.getElementById('sku-photo-input');
@@ -2640,7 +2462,7 @@ function checked(string $name, string $value, array $formData): string
               } else {
                 updateProgress(fileIndex, 100);
                 pushUploadMessage((file.name || 'photo') + ' uploaded', 'ok');
-                onDone();
+                onDone(resp);
               }
             }
           };
@@ -2664,6 +2486,32 @@ function checked(string $name, string $value, array $formData): string
           submitButton.disabled = true;
           submitButton.textContent = 'Uploading photos...';
         }
+        var escapeHtml = function (s) {
+          if (typeof s !== 'string') return '';
+          return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        };
+
+        var appendUploadedPhoto = function (photoId, fileName) {
+          var grid = document.querySelector('.sku-photos .sku-photo-grid');
+          var section = document.getElementById('sku-photos');
+          if (!section || !photoId) return;
+          if (!grid) {
+            grid = document.createElement('div');
+            grid.className = 'sku-photo-grid';
+            var uploadMsgs = document.getElementById('photo-upload-messages');
+            if (uploadMsgs && uploadMsgs.nextElementSibling) {
+              section.insertBefore(grid, uploadMsgs.nextElementSibling);
+            } else {
+              section.appendChild(grid);
+            }
+          }
+          var sku = (skuField && skuField.value || '').trim() || 'SKU';
+          var item = document.createElement('div');
+          item.className = 'sku-photo-item';
+          item.innerHTML = '<a class="sku-photo-link" href="photo.php?id=' + photoId + '" target="_blank" rel="noopener" title="Open photo in new tab"><span class="sku-photo-badge">SKU ' + escapeHtml(sku) + '</span><img src="photo.php?id=' + photoId + '" alt="Photo for SKU ' + escapeHtml(sku) + ' — ' + escapeHtml(fileName) + '"></a><div class="sku-photo-meta"><span class="sku-photo-name">' + escapeHtml(fileName) + '</span></div><div class="sku-photo-actions"><button type="button" class="ghost danger js-delete-photo" data-photo-id="' + photoId + '">Delete</button><button type="button" class="ghost js-set-thumb" data-photo-id="' + photoId + '" data-photo-sku="' + escapeHtml(sku) + '">Set thumbnail</button></div>';
+          grid.insertBefore(item, grid.firstChild);
+        };
+
         var idx = 0;
         var total = photoQueue.length;
         var next = function () {
@@ -2673,12 +2521,16 @@ function checked(string $name, string $value, array $formData): string
               submitButton.disabled = false;
               submitButton.textContent = 'Save Intake Item';
             }
-            // reload to show freshly saved photos
-            location.reload();
+            photoQueue.length = 0;
+            syncInputFromQueue();
+            renderPreview();
             return;
           }
           var entry = photoQueue[idx];
-          uploadFileChunked(entry, idx, function () {
+          uploadFileChunked(entry, idx, function (resp) {
+            if (resp && resp.id) {
+              appendUploadedPhoto(resp.id, entry.file.name || 'photo');
+            }
             idx += 1;
             next();
           }, function (msg) {
@@ -2737,7 +2589,6 @@ function checked(string $name, string $value, array $formData): string
         });
       }
       var deleteButtons = document.querySelectorAll('.js-delete-photo');
-      var setThumbButtons = document.querySelectorAll('.js-set-thumb');
       if (deleteButtons.length && deleteForm && deleteInput) {
         deleteButtons.forEach(function (btn) {
           btn.addEventListener('click', function () {
@@ -2810,29 +2661,32 @@ function checked(string $name, string $value, array $formData): string
           });
         });
       }
-      if (setThumbButtons.length) {
-        setThumbButtons.forEach(function (btn) {
-          btn.addEventListener('click', function () {
-            var id = btn.getAttribute('data-photo-id');
-            var skuVal = btn.getAttribute('data-photo-sku');
-            if (!id || !skuVal) return;
-            fetch('set_thumbnail.php', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-              body: 'photo_id=' + encodeURIComponent(id) + '&sku=' + encodeURIComponent(skuVal)
-            })
-              .then(function (r) { return r.json(); })
-              .then(function (data) {
-                if (data.ok) {
-                  location.reload();
-                } else {
-                  alert('Set thumbnail failed: ' + (data.error || 'error'));
-                }
-              })
-              .catch(function () { alert('Set thumbnail failed.'); });
-          });
-        });
-      }
+      document.addEventListener('click', function (e) {
+        var btn = e.target.closest('.js-set-thumb');
+        if (!btn) return;
+        var id = btn.getAttribute('data-photo-id');
+        var skuVal = btn.getAttribute('data-photo-sku');
+        if (!id || !skuVal) return;
+        fetch('set_thumbnail.php', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: 'photo_id=' + encodeURIComponent(id) + '&sku=' + encodeURIComponent(skuVal)
+        })
+          .then(function (r) { return r.json(); })
+          .then(function (data) {
+            if (data.ok) {
+              var thumbImg = document.querySelector('td.thumb-cell a.thumb img');
+              if (thumbImg) {
+                var newSrc = 'photo.php?id=' + id;
+                thumbImg.src = newSrc;
+                thumbImg.parentNode.href = newSrc;
+              }
+            } else {
+              alert('Set thumbnail failed: ' + (data.error || 'error'));
+            }
+          })
+          .catch(function () { alert('Set thumbnail failed.'); });
+      });
       window.addEventListener('beforeunload', clearPreview);
 
       var checkbox = document.getElementById('print-pink');
@@ -2902,9 +2756,8 @@ function checked(string $name, string $value, array $formData): string
             .then(function (r) { return r.json(); })
             .then(function (data) {
               if (data.status === 'ok') {
+                restoreDeletedRow(data.new_id);
                 showToast('Restored ' + (data.restored_sku || 'item'));
-                // Reload so the restored row appears in the table
-                setTimeout(function () { location.reload(); }, 800);
               } else {
                 alert('Nothing to undo.');
               }
@@ -2936,6 +2789,7 @@ function checked(string $name, string $value, array $formData): string
         <ul id="find-sku-results" class="find-sku-list"></ul>
       </div>
     </div>
+  </div>
   </div>
 </body>
 </html>

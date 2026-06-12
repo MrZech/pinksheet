@@ -92,9 +92,7 @@ if (!is_uploaded_file($tmp)) {
 // Validate MIME from first chunk only
 $extension = null;
 if ($chunkIndex === 0) {
-    $finfo = finfo_open(FILEINFO_MIME_TYPE);
-    $mimeType = (string)finfo_file($finfo, $tmp);
-    finfo_close($finfo);
+    $mimeType = detectUploadMimeType($tmp, $originalName);
     $extension = ALLOWED_PHOTO_MIME_TYPES[$mimeType] ?? null;
     if ($extension === null) {
         errorResponse($originalName . ' is not JPG/PNG/WEBP/GIF.');

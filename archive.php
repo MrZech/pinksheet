@@ -160,31 +160,35 @@ function buildArchiveUrl(array $overrides = []): string
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Archive - Dispo.Tech</title>
   <link rel="stylesheet" href="assets/style.css">
+  <script src="assets/menu.js" defer></script>
   <link rel="stylesheet" media="print" href="assets/print.css">
   <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
+  <script src="assets/app.js"></script>
 </head>
 <body class="archive-page">
-  <main class="page">
-    <div class="app-menu">
+  <div class="layout-wrapper">
+  <div class="app-menu">
       <button type="button" class="menu-toggle" aria-expanded="false" aria-controls="global-menu" id="menu-toggle">
         <span class="hamburger" aria-hidden="true"></span>
-        <span>Menu</span>
+        <span class="menu-label">Menu</span>
       </button>
       <nav class="menu-panel" id="global-menu" aria-hidden="true">
         <ul class="menu-links">
-          <li><a class="menu-link" href="home.php">Home</a></li>
+          <li><a class="menu-link" href="home.php">Dashboard</a></li>
+          <li><a class="menu-link" href="intake.php?clear_draft=1" data-new-intake>Intake</a></li>
+          <li><a class="menu-link" href="kanban.php">Status Board</a></li>
           <li><a class="menu-link" href="lookup.php">SKU Lookup</a></li>
           <li><a class="menu-link is-active" href="archive.php">Archive</a></li>
-          <li><a class="menu-link" href="intake.php?clear_draft=1" data-new-intake>New Intake</a></li>
-          <li><a class="menu-link" href="prompt_builder.php">eBay Script Builder</a></li>
+          <li><a class="menu-link" href="prompt_builder.php">Script Builder</a></li>
         </ul>
       </nav>
     </div>
-
+  <main class="page">
     <section class="sheet archive-sheet">
       <header class="sheet-header">
         <div class="updated">Legacy archive</div>
         <div class="sheet-header-right">
+          <span class="autosave-status" id="autosave-status" hidden>Autosave ready</span>
           <span class="badge subtle"><?php echo h((string)$overallTotal); ?> total</span>
           <a class="button-link new-intake-cta" href="intake.php?clear_draft=1" data-new-intake>New Intake</a>
           <button type="button" class="theme-toggle" id="theme-toggle">Dark mode</button>
@@ -357,30 +361,8 @@ function buildArchiveUrl(array $overrides = []): string
         });
       }
 
-      var menuToggle = document.getElementById('menu-toggle');
-      var menuPanel = document.getElementById('global-menu');
-      if (menuToggle && menuPanel) {
-        var setMenuState = function (open) {
-          menuPanel.classList.toggle('is-open', open);
-          menuPanel.setAttribute('aria-hidden', open ? 'false' : 'true');
-          menuToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
-          document.body.classList.toggle('has-open-menu', open);
-        };
-        menuToggle.addEventListener('click', function () {
-          setMenuState(!menuPanel.classList.contains('is-open'));
-        });
-        document.addEventListener('click', function (evt) {
-          if (menuPanel.classList.contains('is-open') && !menuPanel.contains(evt.target) && !menuToggle.contains(evt.target)) {
-            setMenuState(false);
-          }
-        });
-        document.addEventListener('keydown', function (evt) {
-          if (evt.key === 'Escape') {
-            setMenuState(false);
-          }
-        });
-      }
     })();
   </script>
+  </div>
 </body>
 </html>
