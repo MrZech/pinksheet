@@ -20,7 +20,7 @@
   --sidebar-text: #d1d5db;
   --sidebar-text-muted: #9ca3af;
   --sidebar-active-bg: rgba(255, 255, 255, 0.1);
-  --btn-primary-bg: #036b4a;
+  --btn-primary-bg: #006345;
   --btn-primary-hover: #047857;
   --btn-primary-text: #ffffff;
   --color-success: #059669;
@@ -1578,7 +1578,7 @@ body.dark-mode .lookup-table tr:hover {
 
 .lookup-actions .ghost {
   background: transparent;
-  border: 2px solid var(--border-strong);
+  border: 2px solid #94a3b8;
   color: var(--text-primary);
   border-radius: var(--radius-sm);
   padding: 8px 14px;
@@ -1591,7 +1591,7 @@ body.dark-mode .lookup-table tr:hover {
 
 .lookup-actions .ghost:hover {
   background: var(--surface-secondary);
-  border-color: var(--border-strong);
+  border-color: #64748b;
   box-shadow: 0 6px 16px rgba(0, 0, 0, 0.18);
   transform: scale(1.05);
   filter: brightness(1.1);
@@ -1600,7 +1600,7 @@ body.dark-mode .lookup-table tr:hover {
 body[data-theme="dark"] .lookup-actions .ghost,
 body.dark-mode .lookup-actions .ghost {
   color: #e8eaf0;
-  border-color: rgba(255, 255, 255, 0.35);
+  border-color: rgba(255, 255, 255, 0.45);
   background: rgba(255, 255, 255, 0.08);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 }
@@ -2493,7 +2493,7 @@ button.ghost,
 a.ghost {
   background: var(--surface-primary) !important;
   color: var(--text-primary) !important;
-  border: 2px solid var(--border-color) !important;
+  border: 2px solid #94a3b8 !important;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1) !important;
 }
 
@@ -2537,7 +2537,7 @@ button.secondary:hover,
 button.ghost:hover,
 a.ghost:hover {
   background: var(--surface-secondary) !important;
-  border-color: var(--border-strong) !important;
+  border-color: #64748b !important;
   box-shadow: 0 6px 16px rgba(0, 0, 0, 0.18) !important;
   transform: scale(1.05);
   filter: brightness(1.1);
@@ -2612,7 +2612,7 @@ body.dark-mode button.ghost:hover,
 body[data-theme="dark"] a.ghost:hover,
 body.dark-mode a.ghost:hover {
   background: rgba(255, 255, 255, 0.08) !important;
-  border-color: rgba(255, 255, 255, 0.24) !important;
+  border-color: rgba(255, 255, 255, 0.45) !important;
   box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3) !important;
   transform: scale(1.05) !important;
 }
@@ -3256,7 +3256,6 @@ body.dark-mode .pagination-page-btns button.is-current-page {
   max-width: 280px;
   padding: 0 10px 10px;
   flex: 0 0 260px;
-  max-height: calc(100vh - 240px);
   transition: border-color var(--transition-fast), box-shadow var(--transition-fast), background var(--transition-fast);
 }
 
@@ -3269,7 +3268,6 @@ body.dark-mode .pagination-page-btns button.is-current-page {
 .kanban-lane-body {
   min-height: 48px;
   flex: 1;
-  overflow-y: auto;
   padding-top: 4px;
 }
 

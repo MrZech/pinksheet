@@ -64,7 +64,7 @@
 
   var syncToServer = function () {
     if (!dirty) return;
-    var sku = ((window.appState['sku'] || '') + '').trim().toUpperCase();
+    var sku = ((window.appState['sku'] || window.appState['prompt_sku'] || '') + '').trim().toUpperCase();
     if (!sku) {
       setStatus('Add a SKU to save', 'warn');
       return;
