@@ -72,6 +72,7 @@ $initialItemJson = $currentItem ? json_encode($currentItem, JSON_HEX_TAG | JSON_
   <script src="assets/menu.js" defer></script>
   <link rel="stylesheet" media="print" href="assets/print.css">
   <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
+  <script src="assets/qz-tray.js"></script>
   <script src="assets/app.js"></script>
 </head>
 <body class="home prompt-page">

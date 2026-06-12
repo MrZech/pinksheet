@@ -24,6 +24,16 @@ const MAX_STATUS_LENGTH = 30;
 const SUGGESTION_LIMIT = 40;
 const PREVIEW_LIMIT = 500;
 
+/**
+ * Allowed CORS origins for QZ Tray signing endpoints.
+ * Comma-separated list or '*' to allow any origin.
+ * Read from .env variable QZ_ALLOWED_ORIGINS; falls back to '*' for
+ * development convenience.  In production, set this to the exact
+ * deployed origin (e.g. https://app.example.com).
+ */
+$qzAllowedOriginsEnv = getenv('QZ_ALLOWED_ORIGINS');
+define('QZ_ALLOWED_ORIGINS', $qzAllowedOriginsEnv !== false && $qzAllowedOriginsEnv !== '' ? $qzAllowedOriginsEnv : '*');
+
 function loadDotEnv(string $path): void
 {
     if (!is_file($path) || !is_readable($path)) {

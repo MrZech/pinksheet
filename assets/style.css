@@ -2426,7 +2426,7 @@ body.dark-mode .conjoined .segment {
   flex: 0 0 auto;
 }
 
-.sheet.intake .actions button,
+.sheet.intake .actions button:not(.ghost),
 .sheet.intake .actions .button-link {
   padding: 18px 28px;
   font-size: 1.05rem;
@@ -2434,7 +2434,14 @@ body.dark-mode .conjoined .segment {
   box-shadow: 0 4px 16px rgba(16, 185, 129, 0.5);
 }
 
-.sheet.intake .actions button:hover,
+.sheet.intake .actions .ghost.button {
+  padding: 10px 18px;
+  font-size: 0.92rem;
+  min-height: var(--control-height);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.sheet.intake .actions button:not(.ghost):hover,
 .sheet.intake .actions .button-link:hover {
   box-shadow: 0 8px 28px rgba(16, 185, 129, 0.65);
   transform: scale(1.05);
@@ -3492,6 +3499,156 @@ body.kanban-dragging .kanban-lane {
   border-color: rgba(185, 28, 28, 0.45);
   transform: scale(1.05);
   box-shadow: 0 4px 12px rgba(185, 28, 28, 0.25);
+}
+
+/* ── Kanban card print button ──────────────────────────────── */
+.kanban-card .card-print-actions {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  align-self: flex-start;
+  margin-top: 2px;
+  gap: 4px;
+}
+
+.card-print-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: var(--radius-xs);
+  border: 1px solid var(--border-color);
+  background: var(--surface-secondary);
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 0.85rem;
+  line-height: 1;
+  flex-shrink: 0;
+  align-self: flex-start;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  margin-top: 2px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+  padding: 0;
+}
+
+.card-print-btn:hover {
+  background: var(--accent-primary-soft);
+  border-color: var(--accent-primary);
+  color: var(--accent-primary-strong);
+  transform: scale(1.05);
+  box-shadow: 0 4px 12px rgba(5, 150, 105, 0.2);
+}
+
+body[data-theme="dark"] .card-print-btn,
+body.dark-mode .card-print-btn {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.12);
+  color: var(--text-secondary);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+}
+
+body[data-theme="dark"] .card-print-btn:hover,
+body.dark-mode .card-print-btn:hover {
+  background: rgba(87, 211, 138, 0.12);
+  border-color: rgba(87, 211, 138, 0.35);
+  color: #57d38a;
+  box-shadow: 0 4px 12px rgba(87, 211, 138, 0.2);
+}
+
+/* ── QZ Tray print status toast ──────────────────────────────── */
+.qz-print-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  transform: translateX(-50%) translateY(16px);
+  background: var(--text-primary);
+  color: var(--surface-primary);
+  padding: 10px 20px;
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  box-shadow: var(--shadow-floating);
+  font-size: 0.88rem;
+  font-weight: 600;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--transition-base), transform var(--transition-base);
+  z-index: var(--z-toast);
+  white-space: nowrap;
+  max-width: 90vw;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.qz-print-toast-visible {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+.qz-print-toast-ok {
+  background: var(--success-text);
+  color: #052e16;
+}
+
+.qz-print-toast-err {
+  background: var(--danger-text);
+  color: #450a0a;
+}
+
+body[data-theme="dark"] .qz-print-toast,
+body.dark-mode .qz-print-toast {
+  background: var(--surface-elevated);
+  color: var(--text-primary);
+  border-color: var(--line);
+}
+
+body[data-theme="dark"] .qz-print-toast-ok,
+body.dark-mode .qz-print-toast-ok {
+  background: rgba(34, 197, 94, 0.18);
+  color: #86efac;
+  border-color: rgba(74, 222, 128, 0.3);
+}
+
+body[data-theme="dark"] .qz-print-toast-err,
+body.dark-mode .qz-print-toast-err {
+  background: rgba(239, 68, 68, 0.18);
+  color: #fca5a5;
+  border-color: rgba(248, 113, 113, 0.3);
+}
+
+/* ── Print Engine Offline Badge ────────────────────────────────── */
+.print-engine-badge {
+  position: fixed;
+  left: 50%;
+  bottom: 72px;
+  transform: translateX(-50%);
+  background: var(--color-warning);
+  color: #fff;
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-size: 0.77rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  box-shadow: var(--shadow-floating);
+  z-index: calc(var(--z-toast) + 1);
+  pointer-events: none;
+  user-select: none;
+}
+
+body[data-theme="dark"] .print-engine-badge,
+body.dark-mode .print-engine-badge {
+  background: rgba(250, 169, 42, 0.18);
+  color: #fbbf24;
+  border: 1px solid rgba(250, 169, 42, 0.3);
+}
+
+/* ── Print button offline state ────────────────────────────────── */
+.card-print-btn.qz-offline,
+#print-sticker-btn.qz-offline {
+  opacity: 0.35;
+  cursor: not-allowed;
+  pointer-events: none;
 }
 
 .kanban-undo-toast {
