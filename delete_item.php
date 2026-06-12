@@ -115,6 +115,9 @@ try {
         exit;
     }
 } catch (Throwable $e) {
+    if ($pdo && $pdo->inTransaction()) {
+        $pdo->rollBack();
+    }
     http_response_code(500);
     if ($isAjax || $acceptsJson) {
         echo json_encode(['status' => 'error', 'message' => 'Server error']);

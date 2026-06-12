@@ -1,12 +1,17 @@
 <?php
 declare(strict_types=1);
 
-loadDotEnv(__DIR__ . '/.env');
-
 // Expose any runtime errors immediately so the server can report the failing endpoint.
-ini_set('display_errors', '1');
-ini_set('display_startup_errors', '1');
-error_reporting(E_ALL);
+$env = getenv('APP_ENV') ?: 'production';
+if ($env === 'development') {
+    ini_set('display_errors', '1');
+    ini_set('display_startup_errors', '1');
+    error_reporting(E_ALL);
+} else {
+    ini_set('display_errors', '0');
+    ini_set('display_startup_errors', '0');
+    error_reporting(E_ALL & ~E_DEPRECATED & ~E_USER_DEPRECATED);
+}
 // Increase upload limits for photo handling (may be overridden by server config).
 @ini_set('upload_max_filesize', '16M');
 @ini_set('post_max_size', '64M');
@@ -32,7 +37,7 @@ function loadDotEnv(string $path): void
 
     foreach ($lines as $line) {
         $line = trim($line);
-        if ($line === '' || str_starts_with($line, '#')) {
+        if ($line === '' || strpos($line, '#') === 0) {
             continue;
         }
 
@@ -48,8 +53,8 @@ function loadDotEnv(string $path): void
 
         $value = trim($parts[1]);
         if ($value !== '' && (
-            ($value[0] === '"' && str_ends_with($value, '"'))
-            || ($value[0] === "'" && str_ends_with($value, "'"))
+            ($value[0] === '"' && substr($value, -1) === '"')
+            || ($value[0] === "'" && substr($value, -1) === "'")
         )) {
             $value = substr($value, 1, -1);
         }
@@ -59,6 +64,8 @@ function loadDotEnv(string $path): void
         $_SERVER[$name] = $value;
     }
 }
+
+loadDotEnv(__DIR__ . '/.env');
 
 /**
  * Ensure on-disk storage (SQLite + uploads + logs) is writable. Exit with 500 if not.
@@ -104,6 +111,51 @@ function storageFatal(string $message): void
     exit;
 }
 
+/**
+ * Detect the MIME type of an uploaded file with graceful fallback.
+ * Tries finfo (native), then mime_content_type, then extension-based guess.
+ * Returns a string MIME type (e.g. "image/jpeg") or "application/octet-stream".
+ */
+function detectUploadMimeType(string $filePath, string $originalName): string
+{
+    if ($filePath === '' || !is_file($filePath)) {
+        return 'application/octet-stream';
+    }
+    if (function_exists('finfo_open')) {
+        $finfo = @finfo_open(FILEINFO_MIME_TYPE);
+        if ($finfo !== false) {
+            $mime = @finfo_file($finfo, $filePath);
+            @finfo_close($finfo);
+            if ($mime !== false && $mime !== '') {
+                return (string)$mime;
+            }
+        }
+    }
+    if (function_exists('mime_content_type')) {
+        $mime = @mime_content_type($filePath);
+        if ($mime !== false && $mime !== '') {
+            return (string)$mime;
+        }
+    }
+    $extension = strtolower(pathinfo($originalName, PATHINFO_EXTENSION));
+    $extensionMap = [
+        'jpg' => 'image/jpeg',
+        'jpeg' => 'image/jpeg',
+        'png' => 'image/png',
+        'webp' => 'image/webp',
+        'gif' => 'image/gif',
+    ];
+    return $extensionMap[$extension] ?? 'application/octet-stream';
+}
+
+function safeJsonEncode(mixed $data, int $flags = 0, int $depth = 512): string
+{
+    if (!function_exists('json_encode')) {
+        return '{"error":"json extension not available"}';
+    }
+    return json_encode($data, $flags, $depth);
+}
+
 function checkMaintenance(bool $json = false): void
 {
     if (!MAINTENANCE_MODE) {
@@ -112,7 +164,7 @@ function checkMaintenance(bool $json = false): void
     http_response_code(503);
     if ($json) {
         header('Content-Type: application/json; charset=utf-8');
-        echo json_encode([
+        echo safeJsonEncode([
             'status' => 'maintenance',
             'message' => MAINTENANCE_MESSAGE,
         ]);

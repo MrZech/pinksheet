@@ -158,78 +158,35 @@ if (is_dir($backupDir)) {
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title><?php echo $isLookupPage ? 'Dispo.Tech SKU Lookup' : 'Dispo.Tech Intake Home'; ?></title>
   <link rel="stylesheet" href="assets/style.css">
+  <script src="assets/menu.js" defer></script>
   <link rel="stylesheet" media="print" href="assets/print.css">
   <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
-  <style>
-    .pagination-bar {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 12px;
-      padding: 14px 0 4px;
-      flex-wrap: wrap;
-    }
-    .pagination-info {
-      font-size: 13px;
-      opacity: 0.75;
-      min-width: 120px;
-      text-align: center;
-    }
-    .pagination-bar button {
-      padding: 6px 16px;
-      border-radius: 8px;
-      font-size: 13px;
-      font-weight: 700;
-      cursor: pointer;
-      border: 2px solid #888;
-      background: #555;
-      color: #fff;
-      transition: background 0.15s, border-color 0.15s, opacity 0.15s;
-    }
-    .pagination-bar button:disabled {
-      opacity: 0.25;
-      cursor: default;
-    }
-    .pagination-bar button:not(:disabled):hover {
-      background: #333;
-      border-color: #555;
-    }
-    .pagination-page-btns {
-      display: flex;
-      gap: 4px;
-    }
-    .pagination-page-btns button {
-      min-width: 34px;
-      padding: 6px 8px;
-    }
-    .pagination-page-btns button.is-current-page {
-      background: var(--accent-strong, #e879a0);
-      color: #fff;
-      border-color: var(--accent-strong, #e879a0);
-    }
-  </style>
+  <script src="assets/app.js"></script>
 </head>
 <body class="home<?php echo $isLookupPage ? ' lookup-page' : ''; ?>">
-  <main class="page">
-    <div class="app-menu">
+  <div class="layout-wrapper">
+  <div class="app-menu">
       <button type="button" class="menu-toggle" aria-expanded="false" aria-controls="global-menu" id="menu-toggle">
         <span class="hamburger" aria-hidden="true"></span>
-        <span>Menu</span>
+        <span class="menu-label">Menu</span>
       </button>
       <nav class="menu-panel" id="global-menu" aria-hidden="true">
         <ul class="menu-links">
-          <li><a class="menu-link <?php echo $currentPage === 'home' ? 'is-active' : ''; ?>" href="home.php">Home</a></li>
+          <li><a class="menu-link <?php echo $currentPage === 'home' ? 'is-active' : ''; ?>" href="home.php">Dashboard</a></li>
+          <li><a class="menu-link <?php echo $currentPage === 'intake' ? 'is-active' : ''; ?>" href="intake.php?clear_draft=1" data-new-intake>Intake</a></li>
+          <li><a class="menu-link <?php echo $currentPage === 'kanban' ? 'is-active' : ''; ?>" href="kanban.php">Status Board</a></li>
           <li><a class="menu-link <?php echo $currentPage === 'lookup' ? 'is-active' : ''; ?>" href="lookup.php">SKU Lookup</a></li>
           <li><a class="menu-link <?php echo $currentPage === 'archive' ? 'is-active' : ''; ?>" href="archive.php">Archive</a></li>
-          <li><a class="menu-link <?php echo $currentPage === 'intake' ? 'is-active' : ''; ?>" href="intake.php?clear_draft=1" data-new-intake>New Intake</a></li>
-          <li><a class="menu-link" href="prompt_builder.php">eBay Script Builder</a></li>
+          <li><a class="menu-link <?php echo $currentPage === 'script' ? 'is-active' : ''; ?>" href="prompt_builder.php">Script Builder</a></li>
         </ul>
       </nav>
     </div>
+  <main class="page">
     <section class="sheet home-sheet">
       <header class="sheet-header">
         <div class="updated"><?php echo $isLookupPage ? 'Dispo.Tech SKU Lookup' : 'Dispo.Tech Intake'; ?></div>
         <div class="sheet-header-right">
+          <span class="autosave-status" id="autosave-status" hidden>Autosave ready</span>
           <?php if ($backupBadge): ?>
             <span class="badge" title="Latest backup"><?php echo htmlspecialchars($backupBadge, ENT_QUOTES, 'UTF-8'); ?></span>
           <?php endif; ?>
@@ -239,23 +196,30 @@ if (is_dir($backupDir)) {
           <a class="button-link new-intake-cta" href="intake.php?clear_draft=1" data-new-intake>New Intake</a>
       </div>
       </header>
-      <h1><?php echo $isLookupPage ? 'SKU Lookup' : 'Operations Home'; ?></h1>
+      <?php if ($isLookupPage): ?>
+      <h1>SKU Lookup</h1>
       <nav class="breadcrumbs" aria-label="Breadcrumb">
-        <a href="home.php">Home</a>
-        <span><?php echo $isLookupPage ? 'SKU Lookup' : 'Dashboard'; ?></span>
+        <a href="home.php">Dashboard</a>
+        <span>SKU Lookup</span>
       </nav>
-      <p class="lead"><?php echo $isLookupPage ? 'Search, filter, and update SKU records in one place.' : 'Snapshot of intake health plus a recent activity dashboard.'; ?></p>
+      <p class="lead">Search, filter, and update SKU records in one place.</p>
+      <?php else: ?>
+      <div class="dashboard-hero">
+        <h1>Operations Dashboard</h1>
+        <p class="lead">Monitor inventory intake, listings, backups, and sales activity.</p>
+      </div>
+      <?php endif; ?>
 
       <?php if (!$isLookupPage): ?>
       <section class="section quick-actions">
         <h2>Quick actions</h2>
         <div class="quick-links">
           <a class="button-link" href="intake.php?clear_draft=1" data-new-intake>New Intake</a>
-          <a class="button-link" href="lookup.php">Search SKUs</a>
-          <a class="button-link" href="archive.php">Archive</a>
-          <a class="button-link" href="prompt_builder.php">eBay Script Builder</a>
-          <a class="button-link" href="docs/maintenance.md">Maintenance docs</a>
-          <a class="button-link" href="kanban.php">Status Board</a>
+          <a class="button-link secondary" href="lookup.php">Search SKUs</a>
+          <a class="button-link secondary" href="archive.php">Archive</a>
+          <a class="button-link secondary" href="prompt_builder.php">eBay Script Builder</a>
+          <a class="button-link secondary" href="docs/maintenance.md">Maintenance docs</a>
+          <a class="button-link secondary" href="kanban.php">Status Board</a>
           <button type="button" class="button-link ghost" data-run-square-sync>
             Sync Square now
           </button>
@@ -277,22 +241,22 @@ if (is_dir($backupDir)) {
       <section class="section dashboard">
         <h2>Operations Snapshot</h2>
         <div class="dashboard-grid">
-          <div class="dash-card">
-            <p class="dash-label">Total items</p>
+          <div class="dash-card dash-card--metric">
+            <p class="dash-label">Total Inventory</p>
             <p class="dash-value"><?php echo $counts['total'] ?? '—'; ?></p>
             <p class="dash-sub">All records in intake_items</p>
           </div>
-          <div class="dash-card">
-            <p class="dash-label">Updated today</p>
-            <p class="dash-value"><?php echo $counts['today'] ?? '—'; ?></p>
-            <p class="dash-sub">Created today</p>
-          </div>
-          <div class="dash-card">
-            <p class="dash-label">In progress</p>
+          <div class="dash-card dash-card--metric">
+            <p class="dash-label">In Progress</p>
             <p class="dash-value"><?php echo $counts['in_progress'] ?? '—'; ?></p>
             <p class="dash-sub">Not yet SOLD</p>
           </div>
-          <div class="dash-card">
+          <div class="dash-card dash-card--metric">
+            <p class="dash-label">Today's Activity</p>
+            <p class="dash-value"><?php echo $counts['today'] ?? '—'; ?></p>
+            <p class="dash-sub">Created today</p>
+          </div>
+          <div class="dash-card dash-card--metric">
             <p class="dash-label">Sold</p>
             <p class="dash-value"><?php echo $counts['sold'] ?? '—'; ?></p>
             <p class="dash-sub">Marked SOLD</p>
@@ -350,7 +314,7 @@ if (is_dir($backupDir)) {
                   <?php endif; ?>
                   <span class="sku"><?php echo htmlspecialchars($skuVal ?: 'Unknown', ENT_QUOTES, 'UTF-8'); ?></span>
                   <span class="status-price-stack">
-                    <span class="status-chip"><?php echo htmlspecialchars($row['status'] ?: '—', ENT_QUOTES, 'UTF-8'); ?></span>
+                    <span class="status-chip" data-status="<?php echo htmlspecialchars($row['status'] ?: '', ENT_QUOTES, 'UTF-8'); ?>"><?php echo htmlspecialchars($row['status'] ?: '—', ENT_QUOTES, 'UTF-8'); ?></span>
                     <?php if ($rowPrice !== null && $rowPrice !== ''): ?>
                       <span class="status-price"><?php echo '$' . number_format((float)$rowPrice, 2); ?></span>
                     <?php endif; ?>
@@ -463,7 +427,7 @@ if (is_dir($backupDir)) {
                       </td>
                       <td>
                         <span class="status-price-stack">
-                          <span class="status-chip"><?php echo htmlspecialchars($row['status'] ?: 'Intake', ENT_QUOTES, 'UTF-8'); ?></span>
+                          <span class="status-chip" data-status="<?php echo htmlspecialchars($row['status'] ?: 'Intake', ENT_QUOTES, 'UTF-8'); ?>"><?php echo htmlspecialchars($row['status'] ?: 'Intake', ENT_QUOTES, 'UTF-8'); ?></span>
                           <?php if ($rowPrice !== null && $rowPrice !== ''): ?>
                             <span class="status-price"><?php echo '$' . number_format((float)$rowPrice, 2); ?></span>
                           <?php elseif ($missingPrice): ?>
@@ -547,43 +511,7 @@ if (is_dir($backupDir)) {
           link.addEventListener('click', clearIntakeDraft);
         });
       }
-      var menuToggle = document.getElementById('menu-toggle');
-      var menuPanel = document.getElementById('global-menu');
-      if (!menuToggle || !menuPanel) {
-        return;
-      }
-      var bodyElement = document.body;
-
-      var setMenuState = function (open) {
-        menuPanel.classList.toggle('is-open', open);
-        menuPanel.setAttribute('aria-hidden', open ? 'false' : 'true');
-        menuToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
-        bodyElement.classList.toggle('has-open-menu', open);
-      };
-
-      var closeMenu = function () {
-        setMenuState(false);
-      };
-
-      menuToggle.addEventListener('click', function () {
-        var opening = !menuPanel.classList.contains('is-open');
-        setMenuState(opening);
-
-      });
-
-      document.addEventListener('click', function (event) {
-        if (!menuPanel.classList.contains('is-open')) {
-          return;
-        }
-        if (!menuPanel.contains(event.target) && !menuToggle.contains(event.target)) {
-          closeMenu();
-        }
-      });
-
       document.addEventListener('keydown', function (event) {
-        if (event.key === 'Escape') {
-          closeMenu();
-        }
         if (event.ctrlKey && event.key.toLowerCase() === 'l') {
           if (event.target && (event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA')) return;
           event.preventDefault();
@@ -608,7 +536,7 @@ if (is_dir($backupDir)) {
           toastBox.style.position = 'fixed';
           toastBox.style.bottom = '16px';
           toastBox.style.right = '16px';
-          toastBox.style.zIndex = '9999';
+          toastBox.style.zIndex = ''; // z-index set via CSS
           toastBox.style.display = 'flex';
           toastBox.style.flexDirection = 'column';
           toastBox.style.gap = '8px';
@@ -684,7 +612,6 @@ if (is_dir($backupDir)) {
                   if (data.fallback === 'php') detail = 'Completed via PHP fallback.';
                   setBackupIndicator('done', 'Backup finished', detail);
                   hideBackupIndicatorSoon(900);
-                  window.setTimeout(function () { window.location.reload(); }, 600);
                 } else {
                   showToast('Backup failed: ' + (data.error || ('exit ' + data.exit)), false);
                   setBackupIndicator('error', 'Backup failed', (data.error || ('Exit ' + data.exit) || 'Unknown error'));
@@ -1181,6 +1108,9 @@ if (is_dir($backupDir)) {
             var statusSpan = document.createElement('span');
             statusSpan.className = 'status-chip';
             statusSpan.textContent = entry.status || '—';
+            if (entry.status) {
+              statusSpan.setAttribute('data-status', entry.status);
+            }
             statusStack.appendChild(statusSpan);
             if (entry.dispotech_price !== null && entry.dispotech_price !== undefined && entry.dispotech_price !== '') {
               var priceText = document.createElement('span');
@@ -1418,13 +1348,6 @@ if (is_dir($backupDir)) {
             schedulePreview();
           });
         }
-        if (skuInput) {
-          skuInput.addEventListener('input', function () {
-            schedulePreview();
-            applyInventoryFilters();
-            saveFilter();
-          });
-        }
         if (statusSelect) {
           statusSelect.addEventListener('change', function () {
             schedulePreview();
@@ -1528,5 +1451,6 @@ if (is_dir($backupDir)) {
       }
     })();
   </script>
+  </div>
 </body>
 </html>
