@@ -110,6 +110,7 @@ foreach ($items as $item) {
   <title>Status Board · Pinksheet</title>
   <link rel="stylesheet" href="assets/style.css">
   <script src="assets/menu.js" defer></script>
+  <script src="assets/qz-tray.js"></script>
   <script src="assets/app.js"></script>
 </head>
 <body class="home status-board">
@@ -183,6 +184,14 @@ foreach ($items as $item) {
                              <?php echo !empty($card['reviewed']) ? 'checked' : ''; ?>>
                       <label for="reviewed-<?php echo htmlspecialchars($norm, ENT_QUOTES, 'UTF-8'); ?>"><?php echo $lane === 'SOLD' ? 'Sold' : 'Active'; ?></label>
                     </div>
+                  </div>
+                  <div class="card-print-actions">
+                  <button type="button" class="card-print-btn"
+                          data-sku="<?php echo htmlspecialchars($sku, ENT_QUOTES, 'UTF-8'); ?>"
+                          title="Print label for <?php echo htmlspecialchars($sku, ENT_QUOTES, 'UTF-8'); ?>"
+                          aria-label="Print label for <?php echo htmlspecialchars($sku, ENT_QUOTES, 'UTF-8'); ?>">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+                  </button>
                   </div>
                   <button type="button" class="card-delete-btn"
                           data-id="<?php echo (int)($card['id'] ?? 0); ?>"

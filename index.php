@@ -814,6 +814,7 @@ function checked(string $name, string $value, array $formData): string
   <script src="assets/menu.js" defer></script>
   <link rel="stylesheet" media="print" href="assets/print.css">
   <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
+  <script src="assets/qz-tray.js"></script>
   <script src="assets/app.js"></script>
 </head>
 <body>
@@ -1230,6 +1231,7 @@ function checked(string $name, string $value, array $formData): string
 
             <div class="actions">
               <button type="submit">Save Intake Item</button>
+              <button type="button" class="ghost button" id="print-sticker-btn" data-label-preset="compact" title="Generate a small SKU sticker label">Print Sticker</button>
             </div>
           </div><!-- end .form-columns -->
         </form>

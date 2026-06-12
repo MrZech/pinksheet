@@ -158,4 +158,343 @@
     return syncToServer();
   };
 
+  /* ═══════════════════════════════════════════════════════════
+   *  QZ Tray Label Printing
+   *  ═══════════════════════════════════════════════════════════
+   *  Fetches ZPL from the server, initialises a QZ Tray
+   *  connection (certificate + RSA-SHA512 signing handshake),
+   *  discovers available printers, and prints directly.
+   *
+   *  Connection uses a non-blocking 3-try loop.  When the
+   *  local engine is absent, print buttons are silently
+   *  disabled and a static badge reads "Local Print Engine
+   *  Offline" — no alerts, no console noise.
+   *
+   *  Both the intake-form "Print Sticker" button and kanban
+   *  "Print Label" buttons flow through this pipeline.
+   */
+
+  /* ── Print status toast ───────────────────── */
+  var printToastEl = null;
+
+  var showPrintToast = function (message, type, duration) {
+    if (!printToastEl) {
+      printToastEl = document.createElement('div');
+      printToastEl.className = 'qz-print-toast';
+      document.body.appendChild(printToastEl);
+    }
+    printToastEl.textContent = message;
+    printToastEl.className = 'qz-print-toast';
+    if (type === 'ok') { printToastEl.classList.add('qz-print-toast-ok'); }
+    if (type === 'err') { printToastEl.classList.add('qz-print-toast-err'); }
+    printToastEl.classList.add('qz-print-toast-visible');
+
+    clearTimeout(printToastEl._hideTimer);
+    printToastEl._hideTimer = setTimeout(function () {
+      printToastEl.classList.remove('qz-print-toast-visible');
+    }, duration || 4000);
+  };
+
+  /* ── Offline badge ─────────────────────────── */
+  var offlineBadgeEl = null;
+
+  var showOfflineBadge = function () {
+    if (offlineBadgeEl) { return; }
+    offlineBadgeEl = document.createElement('div');
+    offlineBadgeEl.className = 'print-engine-badge';
+    offlineBadgeEl.textContent = 'Local Print Engine Offline';
+    document.body.appendChild(offlineBadgeEl);
+  };
+
+  var removeOfflineBadge = function () {
+    if (offlineBadgeEl) {
+      offlineBadgeEl.parentNode.removeChild(offlineBadgeEl);
+      offlineBadgeEl = null;
+    }
+  };
+
+  var disablePrintButtons = function () {
+    var buttons = document.querySelectorAll('#print-sticker-btn, .card-print-btn');
+    for (var i = 0; i < buttons.length; i++) {
+      buttons[i]._qzOffline = true;
+      buttons[i].setAttribute('disabled', 'disabled');
+      buttons[i].classList.add('qz-offline');
+    }
+  };
+
+  var enablePrintButtons = function () {
+    var buttons = document.querySelectorAll('#print-sticker-btn, .card-print-btn');
+    for (var i = 0; i < buttons.length; i++) {
+      buttons[i]._qzOffline = false;
+      buttons[i].removeAttribute('disabled');
+      buttons[i].classList.remove('qz-offline');
+    }
+  };
+
+  /* ── QZ Tray initialisation (cert + sign handshake) ───── */
+  var qzReady = null;
+  var qzInitAttempts = 0;
+  var QZ_MAX_RETRIES = 3;
+  var QZ_RETRY_DELAY_MS = 1000;
+
+  var initQzTray = function () {
+    if (qzReady !== null) { return qzReady; }
+
+    if (!window.qz) {
+      qzReady = Promise.reject(new Error('qz-tray.js not loaded'));
+      return qzReady;
+    }
+
+    if (qz.websocket.isActive()) {
+      qzReady = Promise.resolve();
+      removeOfflineBadge();
+      enablePrintButtons();
+      return qzReady;
+    }
+
+    qzInitAttempts = 0;
+    qzReady = attemptConnect();
+
+    return qzReady;
+  };
+
+  var attemptConnect = function () {
+    qzInitAttempts++;
+
+    if (!window.qz) {
+      return handleConnectFailure(new Error('qz-tray.js not loaded'));
+    }
+
+    return trySignedConnect().catch(function () {
+      return tryUnsignedConnect();
+    })
+    .then(function () {
+      qzInitAttempts = 0;
+      removeOfflineBadge();
+      enablePrintButtons();
+    })
+    .catch(function (err) {
+      return handleConnectFailure(err);
+    });
+  };
+
+  var trySignedConnect = function () {
+    return fetch('api/qz/certificate.php', { cache: 'no-store' })
+      .then(function (r) {
+        if (!r.ok) { throw new Error('Certificate not available (HTTP ' + r.status + ')'); }
+        return r.text();
+      })
+      .then(function (cert) {
+        return new Promise(function (resolve, reject) {
+          try {
+            qz.security.setCertificatePromise(function (res) { res(cert); });
+            qz.security.setSignatureAlgorithm('SHA512');
+            qz.security.setSignaturePromise(function (requestToSign) {
+              return function (res, rej) {
+                fetch('api/qz/sign.php', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ request: requestToSign })
+                })
+                  .then(function (resp) {
+                    if (!resp.ok) { throw new Error('QZ signing request failed (HTTP ' + resp.status + ').'); }
+                    return resp.text();
+                  })
+                  .then(res, rej);
+              };
+            });
+            qz.websocket.connect().then(resolve, reject);
+          } catch (e) {
+            reject(e);
+          }
+        });
+      });
+  };
+
+  var tryUnsignedConnect = function () {
+    return new Promise(function (resolve, reject) {
+      try {
+        qz.websocket.connect().then(resolve, reject);
+      } catch (e) {
+        reject(e);
+      }
+    });
+  };
+
+  var handleConnectFailure = function (err) {
+    if (qzInitAttempts < QZ_MAX_RETRIES) {
+      return new Promise(function (resolve, reject) {
+        setTimeout(function () {
+          attemptConnect().then(resolve, reject);
+        }, QZ_RETRY_DELAY_MS);
+      });
+    }
+
+    qzInitAttempts = 0;
+    showOfflineBadge();
+    disablePrintButtons();
+    return Promise.reject(err);
+  };
+
+  /* ── Reset QZ connection state (exposed for recovery) ── */
+  window.resetQzTray = function () {
+    qzReady = null;
+    qzInitAttempts = 0;
+    removeOfflineBadge();
+    enablePrintButtons();
+  };
+
+  /* ── Print a ZPL string via QZ Tray ────────── */
+  var printZplViaQz = function (zpl) {
+    if (!window.qz || !qz.websocket.isActive()) {
+      return initQzTray().then(function () {
+        return doPrint(zpl);
+      });
+    }
+    return doPrint(zpl);
+  };
+
+  var doPrint = function (zpl) {
+    return qz.printers.find()
+      .then(function (printers) {
+        if (!printers || printers.length === 0) {
+          throw new Error('No printers found via QZ Tray. Check that a Zebra printer is installed and QZ Tray is running.');
+        }
+
+        var printer = printers[0];
+        for (var i = 0; i < printers.length; i++) {
+          var name = (printers[i] || '').toLowerCase();
+          if (name.indexOf('zebra') !== -1 || name.indexOf('zpl') !== -1) {
+            printer = printers[i];
+            break;
+          }
+        }
+
+        var config = qz.configs.create(printer);
+        return qz.print(config, [{ type: 'raw', format: 'plain', data: zpl }])
+          .then(function () { return printer; });
+      });
+  };
+
+  /* ── Fetch ZPL from server ─────────────────── */
+  var fetchLabelZpl = function (sku, preset) {
+    var url = 'get_label_zpl.php?sku=' + encodeURIComponent(sku) + '&preset=' + encodeURIComponent(preset || 'compact');
+    return fetch(url, { cache: 'no-store' })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        if (data.status !== 'ok') {
+          throw new Error(data.message || 'Could not generate label.');
+        }
+        return data;
+      });
+  };
+
+  /* ── Shared print pipeline for both buttons ── */
+  var runPrintPipeline = function (sku, preset, btn, restoreFn) {
+    if (!sku) {
+      showPrintToast('Enter a SKU before printing.', 'err');
+      return;
+    }
+
+    if (btn._qzOffline) {
+      showPrintToast('Print engine is offline. Start QZ Tray and try again.', 'err');
+      return;
+    }
+
+    btn._disabled = true;
+
+    var step = function (msg) {
+      if (restoreFn) { restoreFn(msg); }
+    };
+
+    step('Generating\u2026');
+
+    fetchLabelZpl(sku, preset)
+      .then(function (data) {
+        step('Connecting to QZ Tray\u2026');
+        return printZplViaQz(data.zpl).then(function (printerName) {
+          return { printer: printerName, sku: data.sku };
+        });
+      })
+      .then(function (result) {
+        showPrintToast('Label for ' + result.sku + ' sent to ' + result.printer + '.', 'ok');
+      })
+      .catch(function () {
+        showPrintToast('Print failed. Check that QZ Tray and a Zebra printer are running.', 'err', 6000);
+      })
+      .finally(function () {
+        btn._disabled = false;
+        if (restoreFn) { restoreFn(''); }
+      });
+  };
+
+  /* ── Print Sticker button (intake form) ─────── */
+  var initPrintSticker = function () {
+    var btn = document.getElementById('print-sticker-btn');
+    if (!btn) { return; }
+
+    btn.addEventListener('click', function () {
+      if (btn._disabled || btn._qzOffline) { return; }
+
+      var skuField = document.querySelector('input[name="sku"]');
+      var sku = skuField ? (skuField.value || '').trim() : '';
+      var preset = btn.getAttribute('data-label-preset') || 'compact';
+
+      var origText = btn.textContent;
+      runPrintPipeline(sku, preset, btn, function (msg) {
+        btn.textContent = msg || origText;
+      });
+    });
+  };
+
+  /* ── Print Label buttons (kanban cards) ─────── */
+  var initKanbanPrint = function () {
+    var board = document.getElementById('kanban-board');
+    if (!board) { return; }
+
+    board.addEventListener('click', function (e) {
+      var btn = e.target.closest('.card-print-btn');
+      if (!btn) { return; }
+      if (btn._disabled || btn._qzOffline) { return; }
+
+      e.stopPropagation();
+      var sku = btn.getAttribute('data-sku') || '';
+
+      var origHtml = btn.innerHTML;
+      runPrintPipeline(sku, 'detail', btn, function (msg) {
+        btn.innerHTML = msg || origHtml;
+      });
+    });
+  };
+
+  /* ── Initialise on DOM ready ───────────────── */
+  var initAll = function () {
+    initPrintSticker();
+    initKanbanPrint();
+
+    /* Pre-flight check: if QZ is already loaded and active, mark ready. */
+    if (window.qz && qz.websocket && qz.websocket.isActive && qz.websocket.isActive()) {
+      removeOfflineBadge();
+      enablePrintButtons();
+    }
+  };
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initAll);
+  } else {
+    initAll();
+  }
+
+  /* ── Recovery listener: re-check on page visibility change ── */
+  document.addEventListener('visibilitychange', function () {
+    if (document.visibilityState === 'visible' && window.qz) {
+      try {
+        if (qz.websocket && qz.websocket.isActive && qz.websocket.isActive()) {
+          removeOfflineBadge();
+          enablePrintButtons();
+        }
+      } catch (_) {}
+    }
+  });
+
 })();
