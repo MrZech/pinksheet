@@ -738,30 +738,25 @@ foreach ($recent as $item) {
 // Possible values: 'final' (full script), 'draft' (chatgpt text only), 'prompt' (prompt only), '' (none).
 $recentScriptStatus = [];
 if ($recent) {
-    // Ensure the script_cache table exists before querying it.
-    $pdo->exec("CREATE TABLE IF NOT EXISTS script_cache (
-        sku_normalized TEXT PRIMARY KEY,
-        sku_display TEXT NOT NULL,
-        prompt_text TEXT,
-        chatgpt_text TEXT,
-        final_text TEXT,
-        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
-    )");
     $recentSkuNorms = array_values(array_filter(array_unique(array_map(
         static fn($i) => normalizeSku(trim((string)($i['sku'] ?? ''))),
         $recent
     )), static fn($s) => $s !== ''));
     if ($recentSkuNorms) {
         $placeholders = implode(',', array_fill(0, count($recentSkuNorms), '?'));
-        $scriptStmt = $pdo->prepare("SELECT sku_normalized, prompt_text, chatgpt_text, final_text FROM script_cache WHERE sku_normalized IN ($placeholders)");
-        $scriptStmt->execute($recentSkuNorms);
-        foreach ($scriptStmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+        $draftStmt = $pdo->prepare("SELECT sku_normalized, payload FROM intake_drafts WHERE sku_normalized IN ($placeholders)");
+        $draftStmt->execute($recentSkuNorms);
+        foreach ($draftStmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
             $sn = (string)$row['sku_normalized'];
-            if (!empty($row['final_text'])) {
+            $payload = json_decode((string)$row['payload'], true);
+            if (!is_array($payload)) {
+                continue;
+            }
+            if (!empty($payload['final_output'])) {
                 $recentScriptStatus[$sn] = 'final';
-            } elseif (!empty($row['chatgpt_text'])) {
+            } elseif (!empty($payload['chatgpt_output'])) {
                 $recentScriptStatus[$sn] = 'draft';
-            } elseif (!empty($row['prompt_text'])) {
+            } elseif (!empty($payload['prompt_output'])) {
                 $recentScriptStatus[$sn] = 'prompt';
             }
         }

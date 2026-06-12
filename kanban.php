@@ -327,7 +327,8 @@ foreach ($items as $item) {
                 toCount.textContent = String(parseInt(toCount.textContent || '0', 10) + 1);
               }
             }
-            lane.appendChild(card);
+            var dropBody = lane.querySelector('.kanban-lane-body');
+            if (dropBody) dropBody.appendChild(card);
             card.style.opacity = '1';
 
             // Update is-sold class and label when card moves into or out of SOLD lane
