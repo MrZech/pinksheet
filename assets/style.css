@@ -3419,14 +3419,14 @@ body.kanban-dragging .kanban-lane {
 }
 
 .kanban-card .reviewed-checkbox {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 8px;
   margin-top: 4px;
-  padding: 6px 14px;
+  padding: 8px 16px;
   background: var(--surface-secondary);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-xs);
+  border: 1.5px solid var(--border-strong);
+  border-radius: 4px;
   font-size: 0.75rem;
   font-weight: 600;
   cursor: pointer;
@@ -3441,7 +3441,7 @@ body.kanban-dragging .kanban-lane {
 }
 
 .kanban-card .reviewed-checkbox:hover {
-  border-color: var(--border-strong);
+  background: rgba(0,0,0,0.04);
 }
 
 .kanban-card .reviewed-checkbox.checked:hover {
