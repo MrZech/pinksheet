@@ -997,33 +997,14 @@ function checked(string $name, string $value, array $formData): string
             }
           ?>
               <label>What is it?
-            <div class="what-field dropdown-mode">
-              <input type="text"
-                     id="what-is-it-input"
-                     name="what_is_it"
-                     maxlength="120"
-                     value="<?php echo h($currentWhat); ?>"
-                     placeholder="Describe the item">
-              <div class="what-counter" id="what-counter">0 / 120</div>
-              <div class="what-menu">
-                <button type="button" class="what-menu-toggle" id="what-menu-toggle" aria-expanded="false" aria-haspopup="listbox" aria-label="Open item type list">▼</button>
-                <div class="what-menu-list" id="what-menu-list" role="listbox" hidden>
+                <select id="what-is-it-input" name="what_is_it" required>
+                  <option value="" <?php echo $currentWhat === '' ? 'selected' : ''; ?>>Select item type</option>
                   <?php foreach ($whatOptionsList as $opt): ?>
-                    <button type="button"
-                            class="what-menu-item"
-                            role="option"
-                            data-value="<?php echo h($opt); ?>">
-                      <span class="what-menu-label"><?php echo h($opt); ?></span>
-                      <?php if (!in_array($opt, baseWhatIsItOptions(), true)): ?>
-                        <span class="what-menu-delete" data-value="<?php echo h($opt); ?>" aria-label="Delete <?php echo h($opt); ?>">×</span>
-                      <?php else: ?>
-                        <span class="what-menu-spacer"></span>
-                      <?php endif; ?>
-                    </button>
+                    <option value="<?php echo h($opt); ?>" <?php echo $currentWhat === $opt ? 'selected' : ''; ?>>
+                      <?php echo h($opt); ?>
+                    </option>
                   <?php endforeach; ?>
-                </div>
-              </div>
-            </div>
+                </select>
           </label>
             </div>
             <p class="error client-error" id="what-error" hidden>Please enter a value for "What is it?".</p>
@@ -1389,7 +1370,6 @@ function checked(string $name, string $value, array $formData): string
   </main>
   <script>
     (function () {
-      var baseWhatOptions = <?php echo json_encode(baseWhatIsItOptions(), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT); ?>;
       var themeToggle = document.getElementById('theme-toggle');
       var applyThemeMode = function (mode) {
         var isDark = mode === 'dark';
@@ -1779,74 +1759,14 @@ function checked(string $name, string $value, array $formData): string
 
       // No main-page mutations during print; nothing to clean up on unload.
 
-      // "What is it?" select with custom entry support
       var whatInput = document.getElementById('what-is-it-input');
       var whatError = document.getElementById('what-error');
-      var whatMenuToggle = document.getElementById('what-menu-toggle');
-      var whatMenuList = document.getElementById('what-menu-list');
-      var whatCounter = document.getElementById('what-counter');
-      var isProtectedWhat = function (value) {
-        return baseWhatOptions.indexOf(value) !== -1;
-      };
-      var closeWhatMenu = function () {
-        if (!whatMenuList || !whatMenuToggle) return;
-        whatMenuList.classList.remove('is-open');
-        whatMenuToggle.setAttribute('aria-expanded', 'false');
-      };
-      var openWhatMenu = function () {
-        if (!whatMenuList || !whatMenuToggle) return;
-        whatMenuList.classList.add('is-open');
-        whatMenuToggle.setAttribute('aria-expanded', 'true');
-      };
-      if (whatMenuToggle && whatMenuList) {
-        whatMenuToggle.addEventListener('click', function () {
-          if (!whatMenuList.classList.contains('is-open')) {
-            openWhatMenu();
-          } else {
-            closeWhatMenu();
+      if (whatInput) {
+        whatInput.addEventListener('change', function () {
+          if (whatError) {
+            whatError.hidden = true;
           }
         });
-        document.addEventListener('click', function (evt) {
-          if (whatMenuList.classList.contains('is-open') && !whatMenuList.contains(evt.target) && evt.target !== whatMenuToggle) {
-            closeWhatMenu();
-          }
-        });
-        whatMenuList.addEventListener('click', function (evt) {
-          var itemBtn = evt.target.closest('.what-menu-item');
-          if (!itemBtn) {
-            return;
-          }
-          var value = itemBtn.getAttribute('data-value') || '';
-          var deleteBtn = evt.target.closest('.what-menu-delete');
-          if (deleteBtn) {
-            if (isProtectedWhat(value)) {
-              alert('Default options cannot be removed.');
-              return;
-            }
-            itemBtn.remove();
-            if (whatInput && whatInput.value === value) {
-              whatInput.value = '';
-            }
-            closeWhatMenu();
-            return;
-          }
-          if (whatInput) {
-            whatInput.value = value;
-            closeWhatMenu();
-          }
-        });
-        // Counter + open menu on focus
-        if (whatInput) {
-          var updateCounter = function () {
-            if (!whatCounter) return;
-            var len = (whatInput.value || '').length;
-            whatCounter.textContent = len + ' / 120';
-          };
-          whatInput.addEventListener('focus', openWhatMenu);
-          whatInput.addEventListener('blur', function () { setTimeout(closeWhatMenu, 120); });
-          whatInput.addEventListener('input', updateCounter);
-          updateCounter();
-        }
       }
 
       var intakeLinks = document.querySelectorAll('[data-new-intake]');
