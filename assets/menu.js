@@ -49,10 +49,6 @@
   });
 
   document.addEventListener('click', function (event) {
-    // On mobile, clicking outside closes the menu. On desktop, ignore.
-    if (desktopQuery.matches) {
-      return;
-    }
     if (!menuPanel.classList.contains('is-open')) {
       return;
     }
@@ -62,9 +58,6 @@
   });
 
   document.addEventListener('keydown', function (event) {
-    if (desktopQuery.matches) {
-      return;
-    }
     if (event.key === 'Escape') {
       setMenuState(false);
     }
