@@ -117,6 +117,9 @@ if (!in_array('compatible_os', $columnNames, true)) {
     $pdo->exec('ALTER TABLE intake_items ADD COLUMN compatible_os TEXT');
 }
 $pdo->exec("CREATE INDEX IF NOT EXISTS idx_intake_items_sku_normalized ON intake_items (sku_normalized)");
+$pdo->exec("CREATE INDEX IF NOT EXISTS idx_intake_items_status ON intake_items (status)");
+$pdo->exec("CREATE INDEX IF NOT EXISTS idx_intake_items_updated_at ON intake_items (updated_at)");
+$pdo->exec("CREATE INDEX IF NOT EXISTS idx_intake_items_what_is_it ON intake_items (what_is_it)");
 $schemaVersion = (int)$pdo->query('PRAGMA user_version')->fetchColumn();
 if ($schemaVersion < 1) {
     $pdo->exec("UPDATE intake_items SET sku_normalized = UPPER(TRIM(COALESCE(sku, ''))) WHERE sku_normalized IS NULL OR sku_normalized = ''");
@@ -214,11 +217,6 @@ $pdo->commit();
     throw $e;
 }
 squareSyncEnsureSchema($pdo);
-
-function normalizeSku(string $sku): string
-{
-    return strtoupper(trim($sku));
-}
 
 function ensureArchiveTable(PDO $pdo): void
 {
@@ -723,14 +721,24 @@ if ($lookupStatus !== '') {
     $recent = $pdo->query('SELECT * FROM intake_items ORDER BY id DESC LIMIT 25')->fetchAll(PDO::FETCH_ASSOC);
 }
 $recentThumbnails = [];
-foreach ($recent as $item) {
-    $skuNorm = normalizeSku(trim((string)($item['sku'] ?? '')));
-    if ($skuNorm === '') {
-        continue;
-    }
-    $photoId = loadLatestPhotoId($pdo, $skuNorm);
-    if ($photoId) {
-        $recentThumbnails[$skuNorm] = $photoId;
+$recentSkuNorms = array_values(array_unique(array_filter(array_map(
+    static fn($i) => normalizeSku(trim((string)($i['sku'] ?? ''))),
+    $recent
+), static fn($s) => $s !== '')));
+if ($recentSkuNorms) {
+    $placeholders = implode(',', array_fill(0, count($recentSkuNorms), '?'));
+    $photoStmt = $pdo->prepare("
+        SELECT sku_normalized, id
+        FROM sku_photos
+        WHERE sku_normalized IN ($placeholders)
+        ORDER BY is_thumb DESC, id DESC
+    ");
+    $photoStmt->execute($recentSkuNorms);
+    foreach ($photoStmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+        $sn = (string)$row['sku_normalized'];
+        if ($sn && !isset($recentThumbnails[$sn])) {
+            $recentThumbnails[$sn] = (int)$row['id'];
+        }
     }
 }
 
@@ -810,12 +818,14 @@ function checked(string $name, string $value, array $formData): string
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Dispo.Tech Intake Sheet</title>
-  <link rel="stylesheet" href="assets/style.css">
-  <script src="assets/menu.js" defer></script>
-  <link rel="stylesheet" media="print" href="assets/print.css">
+  <link rel="stylesheet" href="assets/style.css?v=<?= filemtime('assets/style.css') ?>">
+  <script src="assets/menu.js?v=<?= filemtime('assets/menu.js') ?>" defer></script>
+  <link rel="stylesheet" media="print" href="assets/print.css?v=<?= filemtime('assets/print.css') ?>">
   <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
-  <script src="assets/qz-tray.js"></script>
-  <script src="assets/app.js"></script>
+  <script src="assets/qz-tray.js?v=<?= filemtime('assets/qz-tray.js') ?>"></script>
+  <script>window.CSRF_TOKEN = <?= json_encode(csrf_token()) ?>;</script>
+  <script src="assets/theme.js?v=<?= filemtime('assets/theme.js') ?>"></script>
+  <script src="assets/app.js?v=<?= filemtime('assets/app.js') ?>"></script>
 </head>
 <body>
   <div class="layout-wrapper">
@@ -959,12 +969,12 @@ function checked(string $name, string $value, array $formData): string
         <span class="status-chip warn" id="server-draft-banner" hidden>Restored server draft</span>
       </div>
 
-      <form id="photo-delete-form" method="post" class="visually-hidden">
+      <form id="photo-delete-form" method="post" class="visually-hidden"><?= csrf_field() ?>
         <input type="hidden" name="delete_photo_id" id="delete-photo-id">
         <input type="hidden" name="sku" id="delete-photo-sku" value="<?php echo h($activeSkuNormalized); ?>">
       </form>
 
-          <form id="intake-form" method="post" enctype="multipart/form-data" class="form-grid">
+          <form id="intake-form" method="post" enctype="multipart/form-data" class="form-grid"><?= csrf_field() ?>
             <input type="hidden" id="clear-draft" value="<?php echo $clearDraft ? '1' : '0'; ?>">
             <input type="hidden" id="draft-dismiss" value="<?php echo $saved ? '1' : '0'; ?>">
             <input type="hidden" id="has-server-record" value="<?php echo $currentItem ? '1' : '0'; ?>">
@@ -997,33 +1007,14 @@ function checked(string $name, string $value, array $formData): string
             }
           ?>
               <label>What is it?
-            <div class="what-field dropdown-mode">
-              <input type="text"
-                     id="what-is-it-input"
-                     name="what_is_it"
-                     maxlength="120"
-                     value="<?php echo h($currentWhat); ?>"
-                     placeholder="Describe the item">
-              <div class="what-counter" id="what-counter">0 / 120</div>
-              <div class="what-menu">
-                <button type="button" class="what-menu-toggle" id="what-menu-toggle" aria-expanded="false" aria-haspopup="listbox" aria-label="Open item type list">▼</button>
-                <div class="what-menu-list" id="what-menu-list" role="listbox" hidden>
+                <select id="what-is-it-input" name="what_is_it" required>
+                  <option value="" <?php echo $currentWhat === '' ? 'selected' : ''; ?>>Select item type</option>
                   <?php foreach ($whatOptionsList as $opt): ?>
-                    <button type="button"
-                            class="what-menu-item"
-                            role="option"
-                            data-value="<?php echo h($opt); ?>">
-                      <span class="what-menu-label"><?php echo h($opt); ?></span>
-                      <?php if (!in_array($opt, baseWhatIsItOptions(), true)): ?>
-                        <span class="what-menu-delete" data-value="<?php echo h($opt); ?>" aria-label="Delete <?php echo h($opt); ?>">×</span>
-                      <?php else: ?>
-                        <span class="what-menu-spacer"></span>
-                      <?php endif; ?>
-                    </button>
+                    <option value="<?php echo h($opt); ?>" <?php echo $currentWhat === $opt ? 'selected' : ''; ?>>
+                      <?php echo h($opt); ?>
+                    </option>
                   <?php endforeach; ?>
-                </div>
-              </div>
-            </div>
+                </select>
           </label>
             </div>
             <p class="error client-error" id="what-error" hidden>Please enter a value for "What is it?".</p>
@@ -1266,8 +1257,8 @@ function checked(string $name, string $value, array $formData): string
         <?php elseif ($bulkMessage): ?>
           <p class="success"><?php echo h($bulkMessage); ?></p>
         <?php endif; ?>
-        <form id="undo-delete-form" method="post" action="undo_delete.php" class="visually-hidden"></form>
-        <form id="bulk-form" method="post">
+        <form id="undo-delete-form" method="post" action="undo_delete.php" class="visually-hidden"><?= csrf_field() ?></form>
+        <form id="bulk-form" method="post"><?= csrf_field() ?>
           <div class="bulk-actions">
             <label>
               Set selected to
@@ -1389,32 +1380,6 @@ function checked(string $name, string $value, array $formData): string
   </main>
   <script>
     (function () {
-      var baseWhatOptions = <?php echo json_encode(baseWhatIsItOptions(), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT); ?>;
-      var themeToggle = document.getElementById('theme-toggle');
-      var applyThemeMode = function (mode) {
-        var isDark = mode === 'dark';
-        document.body.dataset.theme = isDark ? 'dark' : 'light';
-        document.body.classList.toggle('dark-mode', isDark);
-        if (themeToggle) {
-          themeToggle.textContent = isDark ? 'Light mode' : 'Dark mode';
-        }
-      };
-      var storedTheme = null;
-      try {
-        storedTheme = localStorage.getItem('themePreference');
-      } catch (e) {}
-      var initialTheme = storedTheme || (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
-      applyThemeMode(initialTheme);
-      if (themeToggle) {
-        themeToggle.addEventListener('click', function () {
-          var nextMode = document.body.dataset.theme === 'dark' ? 'light' : 'dark';
-          applyThemeMode(nextMode);
-          try {
-            localStorage.setItem('themePreference', nextMode);
-          } catch (e) {}
-        });
-      }
-
       var PRINT_MARGIN_IN = 0.18;
       var PRINT_PAGE_WIDTH_IN = 8.5;
       var PRINT_PAGE_HEIGHT_IN = 11;
@@ -1610,7 +1575,7 @@ function checked(string $name, string $value, array $formData): string
         iframe.style.width = '7.9in';
         iframe.style.height = '10.4in';
         iframe.style.border = '0';
-        iframe.style.background = '#fff';
+        iframe.style.background = '#ffffff';
         iframe.setAttribute('aria-hidden', 'true');
         document.body.appendChild(iframe);
         var doc = iframe.contentDocument || iframe.contentWindow.document;
@@ -1779,74 +1744,14 @@ function checked(string $name, string $value, array $formData): string
 
       // No main-page mutations during print; nothing to clean up on unload.
 
-      // "What is it?" select with custom entry support
       var whatInput = document.getElementById('what-is-it-input');
       var whatError = document.getElementById('what-error');
-      var whatMenuToggle = document.getElementById('what-menu-toggle');
-      var whatMenuList = document.getElementById('what-menu-list');
-      var whatCounter = document.getElementById('what-counter');
-      var isProtectedWhat = function (value) {
-        return baseWhatOptions.indexOf(value) !== -1;
-      };
-      var closeWhatMenu = function () {
-        if (!whatMenuList || !whatMenuToggle) return;
-        whatMenuList.classList.remove('is-open');
-        whatMenuToggle.setAttribute('aria-expanded', 'false');
-      };
-      var openWhatMenu = function () {
-        if (!whatMenuList || !whatMenuToggle) return;
-        whatMenuList.classList.add('is-open');
-        whatMenuToggle.setAttribute('aria-expanded', 'true');
-      };
-      if (whatMenuToggle && whatMenuList) {
-        whatMenuToggle.addEventListener('click', function () {
-          if (!whatMenuList.classList.contains('is-open')) {
-            openWhatMenu();
-          } else {
-            closeWhatMenu();
+      if (whatInput) {
+        whatInput.addEventListener('change', function () {
+          if (whatError) {
+            whatError.hidden = true;
           }
         });
-        document.addEventListener('click', function (evt) {
-          if (whatMenuList.classList.contains('is-open') && !whatMenuList.contains(evt.target) && evt.target !== whatMenuToggle) {
-            closeWhatMenu();
-          }
-        });
-        whatMenuList.addEventListener('click', function (evt) {
-          var itemBtn = evt.target.closest('.what-menu-item');
-          if (!itemBtn) {
-            return;
-          }
-          var value = itemBtn.getAttribute('data-value') || '';
-          var deleteBtn = evt.target.closest('.what-menu-delete');
-          if (deleteBtn) {
-            if (isProtectedWhat(value)) {
-              alert('Default options cannot be removed.');
-              return;
-            }
-            itemBtn.remove();
-            if (whatInput && whatInput.value === value) {
-              whatInput.value = '';
-            }
-            closeWhatMenu();
-            return;
-          }
-          if (whatInput) {
-            whatInput.value = value;
-            closeWhatMenu();
-          }
-        });
-        // Counter + open menu on focus
-        if (whatInput) {
-          var updateCounter = function () {
-            if (!whatCounter) return;
-            var len = (whatInput.value || '').length;
-            whatCounter.textContent = len + ' / 120';
-          };
-          whatInput.addEventListener('focus', openWhatMenu);
-          whatInput.addEventListener('blur', function () { setTimeout(closeWhatMenu, 120); });
-          whatInput.addEventListener('input', updateCounter);
-          updateCounter();
-        }
       }
 
       var intakeLinks = document.querySelectorAll('[data-new-intake]');
@@ -1926,7 +1831,7 @@ function checked(string $name, string $value, array $formData): string
       if (undoDeleteForm) {
         undoDeleteForm.addEventListener('submit', function (evt) {
           evt.preventDefault();
-          fetch('undo_delete.php', { method: 'POST' })
+          fetch('undo_delete.php', { method: 'POST', body: 'csrf_token=' + encodeURIComponent(window.CSRF_TOKEN) })
             .then(function (r) { return r.json(); })
             .then(function (data) {
               if (data && data.status === 'ok') {
@@ -2150,7 +2055,7 @@ function checked(string $name, string $value, array $formData): string
                 'Content-Type': 'application/x-www-form-urlencoded',
                 'X-Requested-With': 'XMLHttpRequest'
               },
-              body: 'id=' + encodeURIComponent(id) + '&sku=' + encodeURIComponent(sku) + '&confirm=DELETE'
+              body: 'id=' + encodeURIComponent(id) + '&sku=' + encodeURIComponent(sku) + '&confirm=DELETE&csrf_token=' + encodeURIComponent(window.CSRF_TOKEN)
             })
               .then(function (r) { return r.json(); })
               .then(function (data) {
@@ -2427,6 +2332,7 @@ function checked(string $name, string $value, array $formData): string
           fd.append('total_size', String(file.size));
           fd.append('original_name', file.name || 'photo');
           fd.append('mime_type', file.type || 'application/octet-stream');
+          fd.append('csrf_token', window.CSRF_TOKEN);
           fd.append('chunk', blob);
           var xhr = new XMLHttpRequest();
           xhr.open('POST', 'upload_photo_chunk.php');
@@ -2605,7 +2511,7 @@ function checked(string $name, string $value, array $formData): string
         fetch('update_item.php', {
           method: 'POST',
           headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-          body: 'sku=' + encodeURIComponent(sku) + '&field=' + encodeURIComponent(field) + '&value=' + encodeURIComponent(value)
+          body: 'sku=' + encodeURIComponent(sku) + '&field=' + encodeURIComponent(field) + '&value=' + encodeURIComponent(value) + '&csrf_token=' + encodeURIComponent(window.CSRF_TOKEN)
         })
           .then(function (r) { return r.json(); })
           .then(function (data) {
@@ -2667,7 +2573,7 @@ function checked(string $name, string $value, array $formData): string
         fetch('set_thumbnail.php', {
           method: 'POST',
           headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-          body: 'photo_id=' + encodeURIComponent(id) + '&sku=' + encodeURIComponent(skuVal)
+          body: 'photo_id=' + encodeURIComponent(id) + '&sku=' + encodeURIComponent(skuVal) + '&csrf_token=' + encodeURIComponent(window.CSRF_TOKEN)
         })
           .then(function (r) { return r.json(); })
           .then(function (data) {
@@ -2749,7 +2655,7 @@ function checked(string $name, string $value, array $formData): string
       if (intakeUndoBtn) {
         intakeUndoBtn.addEventListener('click', function () {
           hideIntakeUndoToast();
-          fetch('undo_delete.php', { method: 'POST' })
+          fetch('undo_delete.php', { method: 'POST', body: 'csrf_token=' + encodeURIComponent(window.CSRF_TOKEN) })
             .then(function (r) { return r.json(); })
             .then(function (data) {
               if (data.status === 'ok') {
