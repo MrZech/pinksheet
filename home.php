@@ -533,13 +533,7 @@ if (is_dir($backupDir)) {
           if (toastBox) return toastBox;
           toastBox = document.createElement('div');
           toastBox.id = 'toast-box';
-          toastBox.style.position = 'fixed';
-          toastBox.style.bottom = '16px';
-          toastBox.style.right = '16px';
-          toastBox.style.zIndex = ''; // z-index set via CSS
-          toastBox.style.display = 'flex';
-          toastBox.style.flexDirection = 'column';
-          toastBox.style.gap = '8px';
+          toastBox.className = 'toast-stack';
           document.body.appendChild(toastBox);
           return toastBox;
         };
@@ -547,12 +541,7 @@ if (is_dir($backupDir)) {
           var box = ensureToast();
           var el = document.createElement('div');
           el.textContent = message;
-          el.style.padding = '10px 14px';
-          el.style.borderRadius = '6px';
-          el.style.color = '#0b1721';
-          el.style.background = ok ? '#b6e6e0' : '#ffd7d7';
-          el.style.boxShadow = '0 4px 10px rgba(0,0,0,0.1)';
-          el.style.fontWeight = '600';
+          el.className = ok ? 'toast-card toast-card--success' : 'toast-card toast-card--error';
           box.appendChild(el);
           setTimeout(function () {
             if (el.parentNode) el.parentNode.removeChild(el);

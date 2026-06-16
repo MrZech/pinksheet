@@ -186,7 +186,7 @@ function buildArchiveUrl(array $overrides = []): string
   <main class="page">
     <section class="sheet archive-sheet">
       <header class="sheet-header">
-        <div class="updated">Legacy archive</div>
+        <div class="updated">Dispo.Tech Archive</div>
         <div class="sheet-header-right">
           <span class="autosave-status" id="autosave-status" hidden>Autosave ready</span>
           <span class="badge subtle"><?php echo h((string)$overallTotal); ?> total</span>
@@ -197,17 +197,17 @@ function buildArchiveUrl(array $overrides = []): string
 
       <h1>Archive</h1>
       <nav class="breadcrumbs" aria-label="Breadcrumb">
-        <a href="home.php">Home</a>
+        <a href="home.php">Dashboard</a>
         <span>Archive</span>
       </nav>
       <p class="lead">Search old records here. This page is read-only and intended for legacy purchase history, sold inventory, and other historical references.</p>
-      <section class="section archive-summary">
-        <div class="badge">Archive DB: <?php echo h($archiveDbPath); ?></div>
+      <section class="section archive-summary archive-pill-row">
+        <div class="badge archive-db-path">Archive DB: <?php echo h($archiveDbPath); ?></div>
         <div class="badge">Total rows: <?php echo h((string)$overallTotal); ?></div>
         <div class="badge">Filtered rows: <?php echo h((string)$totalRows); ?></div>
       </section>
 
-      <section class="section archive-summary">
+      <section class="section archive-summary archive-pill-row">
         <div class="badge">Showing <?php echo h((string)$rangeStart); ?>-<?php echo h((string)$rangeEnd); ?> of <?php echo h((string)$totalRows); ?><?php echo h($queryLabel); ?></div>
         <?php if ($statusFilter !== ''): ?><div class="badge subtle">Status: <?php echo h($statusFilter); ?></div><?php endif; ?>
         <?php if ($sourceFilter !== ''): ?><div class="badge subtle">Source: <?php echo h($sourceFilter); ?></div><?php endif; ?>

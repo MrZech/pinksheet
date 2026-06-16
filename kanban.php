@@ -134,11 +134,11 @@ foreach ($items as $item) {
   <main class="page">
     <section class="sheet kanban-shell">
       <header class="sheet-header">
-        <div class="updated">Pinksheet Status Board</div>
+        <div class="updated">Dispo.Tech Status Board</div>
         <div class="sheet-header-right">
           <span class="autosave-status" id="autosave-status" hidden>Autosave ready</span>
-          <button type="button" class="ghost" id="kanban-undo-header-btn" style="display:none;" title="Restore the last deleted item">↩ Undo last delete</button>
-          <a class="button-link" href="home.php">Home</a>
+          <button type="button" class="ghost" id="kanban-undo-header-btn" hidden title="Restore the last deleted item">↩ Undo last delete</button>
+          <a class="button-link" href="home.php">Dashboard</a>
           <button type="button" class="theme-toggle" id="theme-toggle">Dark mode</button>
         </div>
       </header>
@@ -507,7 +507,7 @@ foreach ($items as $item) {
             if (data.status === 'ok') {
               // Show undo toast and make header undo button visible
               showUndoToast(displaySku);
-              if (undoHeaderBtn) undoHeaderBtn.style.display = '';
+            if (undoHeaderBtn) undoHeaderBtn.hidden = false;
             } else {
               alert('Delete failed: ' + (data.message || 'unknown error'));
               restoreDeletedCard();

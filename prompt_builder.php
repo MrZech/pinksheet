@@ -67,7 +67,7 @@ $initialItemJson = $currentItem ? json_encode($currentItem, JSON_HEX_TAG | JSON_
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Dispo.Tech SKU eBay Script Builder</title>
+  <title>Dispo.Tech eBay Script Builder</title>
   <link rel="stylesheet" href="assets/style.css">
   <script src="assets/menu.js" defer></script>
   <link rel="stylesheet" media="print" href="assets/print.css">
@@ -96,7 +96,7 @@ $initialItemJson = $currentItem ? json_encode($currentItem, JSON_HEX_TAG | JSON_
   <main class="page">
     <section class="sheet home-sheet">
       <header class="sheet-header">
-        <div class="updated">Dispo.Tech SKU eBay Script Builder</div>
+        <div class="updated">Dispo.Tech eBay Script Builder</div>
         <div class="sheet-header-right">
           <span class="autosave-status" id="autosave-status" hidden>Autosave ready</span>
           <span class="badge subtle" id="prompt-status-chip" title="Prompt status">Ready</span>
@@ -107,7 +107,7 @@ $initialItemJson = $currentItem ? json_encode($currentItem, JSON_HEX_TAG | JSON_
 
       <h1>SKU eBay Script Builder</h1>
       <nav class="breadcrumbs" aria-label="Breadcrumb">
-        <a href="home.php">Home</a>
+        <a href="home.php">Dashboard</a>
         <span>eBay Script Builder</span>
       </nav>
       <p class="lead">Load a SKU record, generate a ChatGPT prompt, then paste ChatGPT's response into the final eBay description builder.</p>
@@ -165,7 +165,7 @@ $initialItemJson = $currentItem ? json_encode($currentItem, JSON_HEX_TAG | JSON_
               </div>
             </div>
             <textarea class="prompt-output" id="prompt-output" name="prompt_output" spellcheck="false" aria-label="Generated ChatGPT prompt"></textarea>
-            <div class="prompt-source" style="margin-top:16px;">
+            <div class="prompt-source stacked-section">
               <h3>Paste ChatGPT output</h3>
               <p class="hint">Paste the response you want to use on eBay, then build the final listing script with the boilerplate below it.</p>
               <textarea class="final-input" id="chatgpt-output" name="chatgpt_output" spellcheck="false" aria-label="Pasted ChatGPT output"></textarea>
@@ -174,7 +174,7 @@ $initialItemJson = $currentItem ? json_encode($currentItem, JSON_HEX_TAG | JSON_
                 <button type="button" class="ghost" id="clear-final-btn">Clear final text</button>
               </div>
             </div>
-            <div class="prompt-source" style="margin-top:16px;">
+            <div class="prompt-source stacked-section">
               <h3>Final eBay script</h3>
               <p class="hint">This puts your pasted ChatGPT copy above the boilerplate you wanted under the description section.</p>
               <textarea class="prompt-output" id="final-output" name="final_output" spellcheck="false" aria-label="Final eBay listing script"></textarea>
