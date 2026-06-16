@@ -550,7 +550,7 @@ if (is_dir($backupDir)) {
           el.style.padding = '10px 14px';
           el.style.borderRadius = '6px';
           el.style.color = '#0b1721';
-          el.style.background = ok ? '#c5f7d7' : '#ffd7d7';
+          el.style.background = ok ? '#b6e6e0' : '#ffd7d7';
           el.style.boxShadow = '0 4px 10px rgba(0,0,0,0.1)';
           el.style.fontWeight = '600';
           box.appendChild(el);

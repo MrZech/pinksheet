@@ -1610,7 +1610,7 @@ function checked(string $name, string $value, array $formData): string
         iframe.style.width = '7.9in';
         iframe.style.height = '10.4in';
         iframe.style.border = '0';
-        iframe.style.background = '#fff';
+        iframe.style.background = '#ffffff';
         iframe.setAttribute('aria-hidden', 'true');
         document.body.appendChild(iframe);
         var doc = iframe.contentDocument || iframe.contentWindow.document;

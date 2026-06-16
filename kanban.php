@@ -178,11 +178,9 @@ foreach ($items as $item) {
                         <span>$<?php echo number_format((float)$card['dispotech_price'], 2); ?></span>
                       <?php endif; ?>
                     </div>
-                    <div class="reviewed-checkbox<?php echo !empty($card['reviewed']) ? ' checked' : ''; ?>">
-                      <input type="checkbox" id="reviewed-<?php echo htmlspecialchars($norm, ENT_QUOTES, 'UTF-8'); ?>"
-                             data-sku="<?php echo htmlspecialchars($sku, ENT_QUOTES, 'UTF-8'); ?>"
-                             <?php echo !empty($card['reviewed']) ? 'checked' : ''; ?>>
-                      <label for="reviewed-<?php echo htmlspecialchars($norm, ENT_QUOTES, 'UTF-8'); ?>"><?php echo $lane === 'SOLD' ? 'Sold' : 'Active'; ?></label>
+                    <div class="reviewed-checkbox<?php echo !empty($card['reviewed']) ? ' checked' : ''; ?>"
+                         data-sku="<?php echo htmlspecialchars($sku, ENT_QUOTES, 'UTF-8'); ?>">
+                      <span><?php echo $lane === 'SOLD' ? 'Sold' : 'Active'; ?></span>
                     </div>
                   </div>
                   <div class="card-print-actions">
@@ -343,7 +341,7 @@ foreach ($items as $item) {
             // Update is-sold class and label when card moves into or out of SOLD lane
             var isSold = status === 'SOLD';
             card.classList.toggle('is-sold', isSold);
-            var lbl = card.querySelector('.reviewed-checkbox label');
+            var lbl = card.querySelector('.reviewed-checkbox span');
             if (lbl) {
               lbl.textContent = isSold ? 'Sold' : 'Active';
             }
@@ -353,50 +351,32 @@ foreach ($items as $item) {
           });
       });
 
-      // Handle reviewed checkbox changes
-      board.addEventListener('change', function (e) {
-        if (e.target.type === 'checkbox' && e.target.hasAttribute('data-sku')) {
-          var checkbox = e.target;
-          var sku = checkbox.getAttribute('data-sku');
-          var reviewed = checkbox.checked ? '1' : '0';
-          var container = checkbox.closest('.reviewed-checkbox');
+      // Handle reviewed pill toggle
+      board.addEventListener('click', function (e) {
+        var container = e.target.closest('.reviewed-checkbox');
+        if (!container) return;
+        var sku = container.getAttribute('data-sku');
+        if (!sku) return;
 
-          // Toggle the checked class for visual feedback
-          if (checkbox.checked) {
-            container.classList.add('checked');
-          } else {
-            container.classList.remove('checked');
-          }
+        var isChecked = container.classList.toggle('checked');
+        var reviewed = isChecked ? '1' : '0';
 
-          fetch('update_item.php', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: 'sku=' + encodeURIComponent(sku) + '&field=reviewed&value=' + encodeURIComponent(reviewed)
+        fetch('update_item.php', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: 'sku=' + encodeURIComponent(sku) + '&field=reviewed&value=' + encodeURIComponent(reviewed)
+        })
+          .then(function (r) { return r.json(); })
+          .then(function (data) {
+            if (!data.ok) {
+              alert('Failed to update reviewed status: ' + (data.error || 'error'));
+              container.classList.toggle('checked');
+            }
           })
-            .then(function (r) { return r.json(); })
-            .then(function (data) {
-              if (!data.ok) {
-                alert('Failed to update reviewed status: ' + (data.error || 'error'));
-                checkbox.checked = !checkbox.checked; // Revert on error
-                // Revert the class too
-                if (checkbox.checked) {
-                  container.classList.add('checked');
-                } else {
-                  container.classList.remove('checked');
-                }
-              }
-            })
-            .catch(function () {
-              alert('Failed to update reviewed status');
-              checkbox.checked = !checkbox.checked; // Revert on error
-              // Revert the class too
-              if (checkbox.checked) {
-                container.classList.add('checked');
-              } else {
-                container.classList.remove('checked');
-              }
-            });
-        }
+          .catch(function () {
+            alert('Failed to update reviewed status');
+            container.classList.toggle('checked');
+          });
       });
 
       // ── Delete with undo toast ───────────────────────────────────────
