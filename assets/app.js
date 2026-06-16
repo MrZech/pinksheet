@@ -73,7 +73,7 @@
     dirty = false;
     fetch('autosave.php', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': window.CSRF_TOKEN || '' },
       body: JSON.stringify({
         sku: sku,
         data: window.appState
@@ -213,8 +213,15 @@
     }
   };
 
+  var printBtnCache = null;
+  var refreshPrintBtnCache = function () {
+    printBtnCache = document.querySelectorAll('#print-sticker-btn, .card-print-btn');
+  };
+  refreshPrintBtnCache();
+
   var disablePrintButtons = function () {
-    var buttons = document.querySelectorAll('#print-sticker-btn, .card-print-btn');
+    refreshPrintBtnCache();
+    var buttons = printBtnCache;
     for (var i = 0; i < buttons.length; i++) {
       buttons[i]._qzOffline = true;
       buttons[i].setAttribute('disabled', 'disabled');
@@ -223,7 +230,8 @@
   };
 
   var enablePrintButtons = function () {
-    var buttons = document.querySelectorAll('#print-sticker-btn, .card-print-btn');
+    refreshPrintBtnCache();
+    var buttons = printBtnCache;
     for (var i = 0; i < buttons.length; i++) {
       buttons[i]._qzOffline = false;
       buttons[i].removeAttribute('disabled');

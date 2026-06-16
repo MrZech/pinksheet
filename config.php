@@ -17,6 +17,34 @@ if ($env === 'development') {
 @ini_set('post_max_size', '64M');
 @ini_set('max_file_uploads', '50');
 
+/* ── Session & CSRF token ────────────────────────────────────── */
+if (session_status() === PHP_SESSION_NONE && php_sapi_name() !== 'cli') {
+    session_start();
+}
+if (empty($_SESSION['csrf_token'])) {
+    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+}
+
+/* ── Security headers ────────────────────────────────────────── */
+header('X-Frame-Options: DENY');
+header('X-Content-Type-Options: nosniff');
+header('Referrer-Policy: strict-origin-when-cross-origin');
+header('Permissions-Policy: camera=(), microphone=(), geolocation=()');
+$cspDirectives = [
+    "default-src 'self'",
+    "script-src 'self' 'unsafe-inline'",
+    "style-src 'self' 'unsafe-inline'",
+    "img-src 'self' data: blob:",
+    "font-src 'self'",
+    "connect-src 'self' ws://localhost:* wss://localhost:*",
+    "frame-ancestors 'none'",
+    "form-action 'self'",
+];
+header('Content-Security-Policy: ' . implode('; ', $cspDirectives));
+if (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') {
+    header('Strict-Transport-Security: max-age=31536000; includeSubDomains');
+}
+
 const MAINTENANCE_MODE = false;
 const MAINTENANCE_MESSAGE = 'The intake system is temporarily offline for maintenance.';
 const MAX_QUERY_LENGTH = 50;
@@ -183,4 +211,45 @@ function checkMaintenance(bool $json = false): void
     header('Content-Type: text/plain; charset=utf-8');
     echo MAINTENANCE_MESSAGE;
     exit;
+}
+
+function normalizeSku(string $sku): string
+{
+    return strtoupper(trim($sku));
+}
+
+function csrf_token(): string
+{
+    return $_SESSION['csrf_token'] ?? '';
+}
+
+function csrf_meta(): string
+{
+    return '<meta name="csrf-token" content="' . htmlspecialchars(csrf_token(), ENT_QUOTES, 'UTF-8') . '">';
+}
+
+function csrf_field(): string
+{
+    return '<input type="hidden" name="csrf_token" value="' . htmlspecialchars(csrf_token(), ENT_QUOTES, 'UTF-8') . '">';
+}
+
+function validate_csrf(?string $token): bool
+{
+    if ($token === null || $token === '') {
+        return false;
+    }
+    return hash_equals($_SESSION['csrf_token'] ?? '', $token);
+}
+
+function require_csrf(): void
+{
+    $token = $_POST['csrf_token']
+        ?? $_SERVER['HTTP_X_CSRF_TOKEN']
+        ?? '';
+    if (!validate_csrf($token)) {
+        http_response_code(403);
+        header('Content-Type: application/json; charset=utf-8');
+        echo json_encode(['status' => 'error', 'message' => 'Invalid or missing CSRF token']);
+        exit;
+    }
 }

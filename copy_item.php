@@ -9,11 +9,6 @@ const DB_PATH = __DIR__ . '/data/intake.sqlite';
 
 header('Content-Type: application/json; charset=utf-8');
 
-function normalizeSku(string $sku): string
-{
-    return strtoupper(trim($sku));
-}
-
 $sku = normalizeSku((string)($_GET['sku'] ?? ''));
 if ($sku === '') {
     http_response_code(400);

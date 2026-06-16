@@ -6,6 +6,8 @@ checkMaintenance(true);
 
 header('Content-Type: application/json; charset=utf-8');
 
+require_csrf();
+
 // Basic protection: only allow local requests.
 $remote = $_SERVER['REMOTE_ADDR'] ?? '';
 $host = strtolower(trim((string)($_SERVER['HTTP_HOST'] ?? $_SERVER['SERVER_NAME'] ?? '')));

@@ -14,11 +14,6 @@ function h(string $value): string
     return htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
 }
 
-function normalizeSku(string $sku): string
-{
-    return strtoupper(trim($sku));
-}
-
 function resolveArchiveDbPath(): string
 {
     $preferred = __DIR__ . '/data/archive.sqlite';
@@ -159,11 +154,13 @@ function buildArchiveUrl(array $overrides = []): string
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Archive - Dispo.Tech</title>
-  <link rel="stylesheet" href="assets/style.css">
-  <script src="assets/menu.js" defer></script>
-  <link rel="stylesheet" media="print" href="assets/print.css">
+  <link rel="stylesheet" href="assets/style.css?v=<?= filemtime('assets/style.css') ?>">
+  <script src="assets/menu.js?v=<?= filemtime('assets/menu.js') ?>" defer></script>
+  <link rel="stylesheet" media="print" href="assets/print.css?v=<?= filemtime('assets/print.css') ?>">
   <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
-  <script src="assets/app.js"></script>
+  <script>window.CSRF_TOKEN = <?= json_encode(csrf_token()) ?>;</script>
+  <script src="assets/theme.js?v=<?= filemtime('assets/theme.js') ?>"></script>
+  <script src="assets/app.js?v=<?= filemtime('assets/app.js') ?>"></script>
 </head>
 <body class="archive-page">
   <div class="layout-wrapper">
@@ -186,7 +183,7 @@ function buildArchiveUrl(array $overrides = []): string
   <main class="page">
     <section class="sheet archive-sheet">
       <header class="sheet-header">
-        <div class="updated">Legacy archive</div>
+        <div class="updated">Dispo.Tech Archive</div>
         <div class="sheet-header-right">
           <span class="autosave-status" id="autosave-status" hidden>Autosave ready</span>
           <span class="badge subtle"><?php echo h((string)$overallTotal); ?> total</span>
@@ -197,17 +194,17 @@ function buildArchiveUrl(array $overrides = []): string
 
       <h1>Archive</h1>
       <nav class="breadcrumbs" aria-label="Breadcrumb">
-        <a href="home.php">Home</a>
+        <a href="home.php">Dashboard</a>
         <span>Archive</span>
       </nav>
       <p class="lead">Search old records here. This page is read-only and intended for legacy purchase history, sold inventory, and other historical references.</p>
-      <section class="section archive-summary">
-        <div class="badge">Archive DB: <?php echo h($archiveDbPath); ?></div>
+      <section class="section archive-summary archive-pill-row">
+        <div class="badge archive-db-path">Archive DB: <?php echo h($archiveDbPath); ?></div>
         <div class="badge">Total rows: <?php echo h((string)$overallTotal); ?></div>
         <div class="badge">Filtered rows: <?php echo h((string)$totalRows); ?></div>
       </section>
 
-      <section class="section archive-summary">
+      <section class="section archive-summary archive-pill-row">
         <div class="badge">Showing <?php echo h((string)$rangeStart); ?>-<?php echo h((string)$rangeEnd); ?> of <?php echo h((string)$totalRows); ?><?php echo h($queryLabel); ?></div>
         <?php if ($statusFilter !== ''): ?><div class="badge subtle">Status: <?php echo h($statusFilter); ?></div><?php endif; ?>
         <?php if ($sourceFilter !== ''): ?><div class="badge subtle">Source: <?php echo h($sourceFilter); ?></div><?php endif; ?>
@@ -334,35 +331,5 @@ function buildArchiveUrl(array $overrides = []): string
     </section>
   </main>
 
-  <script>
-    (function () {
-      var themeToggle = document.getElementById('theme-toggle');
-      var applyThemeMode = function (mode) {
-        var isDark = mode === 'dark';
-        document.body.dataset.theme = isDark ? 'dark' : 'light';
-        document.body.classList.toggle('dark-mode', isDark);
-        if (themeToggle) {
-          themeToggle.textContent = isDark ? 'Light mode' : 'Dark mode';
-        }
-      };
-      var storedTheme = null;
-      try {
-        storedTheme = localStorage.getItem('themePreference');
-      } catch (e) {}
-      var initialTheme = storedTheme || (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
-      applyThemeMode(initialTheme);
-      if (themeToggle) {
-        themeToggle.addEventListener('click', function () {
-          var nextMode = document.body.dataset.theme === 'dark' ? 'light' : 'dark';
-          applyThemeMode(nextMode);
-          try {
-            localStorage.setItem('themePreference', nextMode);
-          } catch (e) {}
-        });
-      }
-
-    })();
-  </script>
-  </div>
 </body>
 </html>

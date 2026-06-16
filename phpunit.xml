@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="vendor/phpunit/phpunit/phpunit.xsd"
+         bootstrap="tests/bootstrap.php"
+         cacheDirectory=".phpunit.cache"
+         executionOrder="depends,random"
+         failOnRisky="true"
+         failOnWarning="true"
+         colors="true"
+         displayDetailsOnTestsThatTriggerErrors="true"
+         displayDetailsOnTestsThatTriggerDeprecations="true"
+         displayDetailsOnTestsThatTriggerNotices="true"
+         displayDetailsOnTestsThatTriggerWarnings="true">
+  <php>
+    <env name="APP_ENV" value="testing" force="true"/>
+    <env name="QZ_ALLOWED_ORIGINS" value="*"/>
+    <const name="PHPUNIT_TEST_SUITE" value="1"/>
+  </php>
+
+  <testsuites>
+    <testsuite name="unit">
+      <directory>tests/Unit</directory>
+    </testsuite>
+    <testsuite name="integration">
+      <directory>tests/Integration</directory>
+    </testsuite>
+    <testsuite name="module">
+      <directory>tests/Module</directory>
+    </testsuite>
+    <testsuite name="regression">
+      <directory>tests/Regression</directory>
+    </testsuite>
+  </testsuites>
+
+  <source>
+    <include>
+      <directory>.</directory>
+    </include>
+  </source>
+</phpunit>

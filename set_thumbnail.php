@@ -8,6 +8,8 @@ ensureStorageWritable();
 
 header('Content-Type: application/json; charset=utf-8');
 
+require_csrf();
+
 // Only allow local/private network.
 $remote = $_SERVER['REMOTE_ADDR'] ?? '';
 $isPrivate = false;

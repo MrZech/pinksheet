@@ -36,6 +36,8 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') {
     exit;
 }
 
+require_csrf();
+
 $config = squareSyncConfig();
 if (!$config['enabled']) {
     http_response_code(400);

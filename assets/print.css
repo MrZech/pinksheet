@@ -14,6 +14,18 @@
   print-color-adjust: exact;
 }
 
+:root {
+  --ink: #111;
+  --muted: #555;
+  --line: #999;
+  --line-strong: #111;
+  --accent: #111;
+  --accent-strong: #111;
+  --border-color: #999;
+  --border-strong: #111;
+  --border-light: #ccc;
+}
+
 /* ─── BASE ─────────────────────────────────────────────────────────── */
 html, body {
   width: 100%;

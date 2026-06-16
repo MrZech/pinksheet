@@ -13,11 +13,6 @@ function normalizeHeader(string $header): string
     return preg_replace('/[^a-z0-9]+/', '', strtolower(trim($header))) ?? '';
 }
 
-function normalizeSku(string $sku): string
-{
-    return strtoupper(trim($sku));
-}
-
 function firstValue(array $row, array $keys): string
 {
     foreach ($keys as $key) {
