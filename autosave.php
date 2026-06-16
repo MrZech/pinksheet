@@ -22,11 +22,16 @@ if (!is_dir(DB_DIR)) {
     mkdir(DB_DIR, 0777, true);
 }
 
-$pdo = new PDO('sqlite:' . DB_PATH, null, null, [
-    PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-]);
+try {
+    $pdo = new PDO('sqlite:' . DB_PATH, null, null, [
+        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+    ]);
+} catch (Throwable $e) {
+    jsonResponse(['status' => 'error', 'message' => 'Database connection failed'], 500);
+}
 
-$pdo->exec(<<<'SQL'
+try {
+    $pdo->exec(<<<'SQL'
 CREATE TABLE IF NOT EXISTS intake_drafts (
     id              INTEGER PRIMARY KEY AUTOINCREMENT,
     sku_normalized  TEXT NOT NULL,
@@ -34,7 +39,10 @@ CREATE TABLE IF NOT EXISTS intake_drafts (
     updated_at      TEXT NOT NULL DEFAULT (datetime('now'))
 );
 SQL);
-$pdo->exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_intake_drafts_sku ON intake_drafts (sku_normalized)");
+    $pdo->exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_intake_drafts_sku ON intake_drafts (sku_normalized)");
+} catch (Throwable $e) {
+    jsonResponse(['status' => 'error', 'message' => 'Schema initialization failed'], 500);
+}
 
 function normalizeSku(string $sku): string
 {
@@ -80,82 +88,86 @@ function sanitizePayload(array $raw): array
     return $clean;
 }
 
-$method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
+try {
+    $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
 
-/* ──── GET: return existing draft (if any) ──── */
-if ($method === 'GET') {
-    $sku = normalizeSku((string)($_GET['sku'] ?? ''));
+    /* ──── GET: return existing draft (if any) ──── */
+    if ($method === 'GET') {
+        $sku = normalizeSku((string)($_GET['sku'] ?? ''));
+        if ($sku === '') {
+            jsonResponse(['status' => 'ok', 'has_draft' => false]);
+        }
+        $stmt = $pdo->prepare('SELECT payload, updated_at FROM intake_drafts WHERE sku_normalized = :sku LIMIT 1');
+        $stmt->execute(['sku' => $sku]);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        if (!$row) {
+            jsonResponse(['status' => 'ok', 'has_draft' => false]);
+        }
+        $payload = json_decode((string)$row['payload'], true);
+        if (!is_array($payload)) {
+            jsonResponse(['status' => 'ok', 'has_draft' => false]);
+        }
+        jsonResponse([
+            'status'     => 'ok',
+            'has_draft'  => true,
+            'updated_at' => (string)$row['updated_at'],
+            'data'       => $payload,
+        ]);
+    }
+
+    /* ──── POST: upsert draft ──── */
+    $raw   = file_get_contents('php://input');
+    $input = json_decode($raw ?: '{}', true);
+
+    if (!is_array($input)) {
+        jsonResponse(['status' => 'error', 'message' => 'Invalid JSON payload'], 400);
+    }
+
+    $sku     = normalizeSku((string)($input['sku'] ?? ''));
+    $payload = $input['data'] ?? null;
+
     if ($sku === '') {
-        jsonResponse(['status' => 'ok', 'has_draft' => false]);
+        jsonResponse(['status' => 'error', 'message' => 'SKU is required'], 400);
     }
-    $stmt = $pdo->prepare('SELECT payload, updated_at FROM intake_drafts WHERE sku_normalized = :sku LIMIT 1');
-    $stmt->execute(['sku' => $sku]);
-    $row = $stmt->fetch(PDO::FETCH_ASSOC);
-    if (!$row) {
-        jsonResponse(['status' => 'ok', 'has_draft' => false]);
-    }
-    $payload = json_decode((string)$row['payload'], true);
     if (!is_array($payload)) {
-        jsonResponse(['status' => 'ok', 'has_draft' => false]);
+        jsonResponse(['status' => 'error', 'message' => 'Missing or invalid data payload'], 400);
     }
-    jsonResponse([
-        'status'     => 'ok',
-        'has_draft'  => true,
-        'updated_at' => (string)$row['updated_at'],
-        'data'       => $payload,
+
+    /* Sanitise the incoming field data */
+    $sanitised = sanitizePayload($payload);
+    $sanitised['sku_normalized'] = $sku;
+
+    $payloadJson = json_encode($sanitised);
+    if ($payloadJson === false) {
+        jsonResponse(['status' => 'error', 'message' => 'Could not encode payload'], 400);
+    }
+    if (strlen($payloadJson) > 65536) {
+        jsonResponse(['status' => 'error', 'message' => 'Payload too large'], 400);
+    }
+
+    $now = (new DateTime('now'))->format('c');
+
+    /*
+     * Upsert: INSERT a new row, or UPDATE the existing one
+     * when a conflict on the unique sku_normalized index occurs.
+     * SQLite 3.24+ supports ON CONFLICT … DO UPDATE SET.
+     */
+    $stmt = $pdo->prepare(<<<'SQL'
+    INSERT INTO intake_drafts (sku_normalized, payload, updated_at)
+    VALUES (:sku, :payload, :updated_at)
+    ON CONFLICT(sku_normalized) DO UPDATE SET
+        payload    = :payload2,
+        updated_at = :updated_at2
+    SQL);
+    $stmt->execute([
+        'sku'         => $sku,
+        'payload'     => $payloadJson,
+        'updated_at'  => $now,
+        'payload2'    => $payloadJson,
+        'updated_at2' => $now,
     ]);
+
+    jsonResponse(['status' => 'ok', 'saved_at' => $now]);
+} catch (Throwable $e) {
+    jsonResponse(['status' => 'error', 'message' => 'Internal server error'], 500);
 }
-
-/* ──── POST: upsert draft ──── */
-$raw   = file_get_contents('php://input');
-$input = json_decode($raw ?: '{}', true);
-
-if (!is_array($input)) {
-    jsonResponse(['status' => 'error', 'message' => 'Invalid JSON payload'], 400);
-}
-
-$sku     = normalizeSku((string)($input['sku'] ?? ''));
-$payload = $input['data'] ?? null;
-
-if ($sku === '') {
-    jsonResponse(['status' => 'error', 'message' => 'SKU is required'], 400);
-}
-if (!is_array($payload)) {
-    jsonResponse(['status' => 'error', 'message' => 'Missing or invalid data payload'], 400);
-}
-
-/* Sanitise the incoming field data */
-$sanitised = sanitizePayload($payload);
-$sanitised['sku_normalized'] = $sku;
-
-$payloadJson = json_encode($sanitised);
-if ($payloadJson === false) {
-    jsonResponse(['status' => 'error', 'message' => 'Could not encode payload'], 400);
-}
-if (strlen($payloadJson) > 65536) {
-    jsonResponse(['status' => 'error', 'message' => 'Payload too large'], 400);
-}
-
-$now = (new DateTime('now'))->format('c');
-
-/*
- * Upsert: INSERT a new row, or UPDATE the existing one
- * when a conflict on the unique sku_normalized index occurs.
- * SQLite 3.24+ supports ON CONFLICT … DO UPDATE SET.
- */
-$stmt = $pdo->prepare(<<<'SQL'
-INSERT INTO intake_drafts (sku_normalized, payload, updated_at)
-VALUES (:sku, :payload, :updated_at)
-ON CONFLICT(sku_normalized) DO UPDATE SET
-    payload    = :payload2,
-    updated_at = :updated_at2
-SQL);
-$stmt->execute([
-    'sku'         => $sku,
-    'payload'     => $payloadJson,
-    'updated_at'  => $now,
-    'payload2'    => $payloadJson,
-    'updated_at2' => $now,
-]);
-
-jsonResponse(['status' => 'ok', 'saved_at' => $now]);
