@@ -14,6 +14,8 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     exit;
 }
 
+require_csrf();
+
 $sku = strtoupper(trim((string)($_POST['sku'] ?? '')));
 $field = trim((string)($_POST['field'] ?? ''));
 $value = $_POST['value'] ?? null;

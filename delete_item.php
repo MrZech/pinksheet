@@ -40,6 +40,8 @@ function ensureArchiveTable(PDO $pdo): void
 
 header('Content-Type: application/json; charset=utf-8');
 
+require_csrf();
+
 $id = isset($_POST['id']) ? (int)$_POST['id'] : 0;
 $sku = strtoupper(trim((string)($_POST['sku'] ?? '')));
 $confirm = strtoupper(trim((string)($_POST['confirm'] ?? '')));

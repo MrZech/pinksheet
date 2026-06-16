@@ -179,6 +179,14 @@
   --z-modal: 500;
   --z-toast: 600;
   --z-backup-indicator: 700;
+  --surface-panel: #ffffff;
+  --surface-panel-muted: #f5f8fc;
+  --border-panel: rgba(148, 163, 184, 0.26);
+  --shadow-panel: 0 4px 14px rgba(15, 23, 42, 0.06);
+  --shadow-panel-soft: 0 2px 8px rgba(15, 23, 42, 0.05);
+  --shadow-panel-hover: 0 6px 14px rgba(15, 23, 42, 0.08);
+  --shadow-interactive: 0 2px 8px rgba(18, 19, 88, 0.08);
+  --shadow-interactive-hover: 0 4px 10px rgba(18, 19, 88, 0.12);
 }
 
 * {
@@ -277,17 +285,17 @@ body.dark-mode .print-button:hover {
 @media (prefers-color-scheme: dark) {
   body:not([data-theme]):not(.dark-mode) {
     color-scheme: dark;
-    --color-bg: #0D0E1A;
-    --color-bg-alt: #111226;
-    --color-surface: var(--palette-deep-blue);
-    --color-surface-muted: var(--palette-steel-blue);
-    --color-surface-elevated: #1A2040;
-    --color-surface-overlay: rgba(13, 14, 26, 0.94);
+    --color-bg: #09111f;
+    --color-bg-alt: #0f1931;
+    --color-surface: #172441;
+    --color-surface-muted: #223256;
+    --color-surface-elevated: #101a30;
+    --color-surface-overlay: rgba(9, 17, 31, 0.92);
     --color-text: #ffffff;
     --color-text-muted: #B8C5D6;
     --color-text-subtle: #8FA0B8;
-    --color-border: rgba(180, 200, 220, 0.15);
-    --color-border-strong: rgba(91, 197, 189, 0.26);
+    --color-border: rgba(148, 163, 184, 0.18);
+    --color-border-strong: rgba(91, 197, 189, 0.32);
     --sidebar-text: #d9e4f3;
     --sidebar-text-muted: #97AAC8;
     --sidebar-hover-bg: rgba(255, 255, 255, 0.06);
@@ -305,17 +313,17 @@ body.dark-mode .print-button:hover {
 body[data-theme="dark"],
 body.dark-mode {
   color-scheme: dark;
-  --color-bg: #0D0E1A;
-  --color-bg-alt: #111226;
-  --color-surface: var(--palette-deep-blue);
-  --color-surface-muted: var(--palette-steel-blue);
-  --color-surface-elevated: #1A2040;
-  --color-surface-overlay: rgba(13, 14, 26, 0.94);
+  --color-bg: #09111f;
+  --color-bg-alt: #0f1931;
+  --color-surface: #172441;
+  --color-surface-muted: #223256;
+  --color-surface-elevated: #101a30;
+  --color-surface-overlay: rgba(9, 17, 31, 0.92);
   --color-text: #ffffff;
   --color-text-muted: #B8C5D6;
   --color-text-subtle: #8FA0B8;
-  --color-border: rgba(180, 200, 220, 0.15);
-  --color-border-strong: rgba(91, 197, 189, 0.26);
+  --color-border: rgba(148, 163, 184, 0.18);
+  --color-border-strong: rgba(91, 197, 189, 0.32);
   --sidebar-text: #d9e4f3;
   --sidebar-text-muted: #97AAC8;
   --sidebar-hover-bg: rgba(255, 255, 255, 0.06);
@@ -349,8 +357,8 @@ body.dark-mode {
   --accent-primary-soft: rgba(91, 197, 189, 0.18);
   --accent-primary-strong: #5BC5BD;
   --accent-dark: #7DD8D0;
-  --border-color: rgba(180, 200, 220, 0.15);
-  --border-strong: rgba(91, 197, 189, 0.26);
+  --border-color: rgba(148, 163, 184, 0.18);
+  --border-strong: rgba(91, 197, 189, 0.32);
   --border-light: rgba(180, 200, 220, 0.08);
   --metric-default: #5BC5BD;
   --metric-healthy: var(--palette-teal);
@@ -364,6 +372,14 @@ body.dark-mode {
   --surface-secondary: var(--card-bg-alt);
   --surface-elevated: var(--card-bg-elevated);
   --surface-glass: var(--card-glass);
+  --surface-panel: #162342;
+  --surface-panel-muted: #1d2d50;
+  --border-panel: rgba(148, 163, 184, 0.18);
+  --shadow-panel: 0 4px 14px rgba(0, 0, 0, 0.25);
+  --shadow-panel-soft: 0 2px 8px rgba(0, 0, 0, 0.2);
+  --shadow-panel-hover: 0 6px 14px rgba(0, 0, 0, 0.3);
+  --shadow-interactive: 0 2px 8px rgba(0, 0, 0, 0.2);
+  --shadow-interactive-hover: 0 4px 10px rgba(0, 0, 0, 0.25);
   --success-bg: var(--color-success-soft);
   --success-text: var(--accent-primary);
   --danger-bg: var(--color-danger-soft);
@@ -386,7 +402,7 @@ body.dark-mode {
   --accent: var(--accent-primary);
   --accent-strong: var(--accent-primary-hover);
   color: var(--text-primary);
-  background: var(--page-bg);
+  background: linear-gradient(180deg, #08111f 0%, #0d1730 100%);
 }
 
 body[data-theme="dark"] a,
@@ -532,15 +548,21 @@ body[data-theme="dark"] input[type="text"],
 body[data-theme="dark"] input[type="date"],
 body[data-theme="dark"] input[type="number"],
 body[data-theme="dark"] input[type="file"],
-body[data-theme="dark"] select,
 body[data-theme="dark"] textarea,
 body.dark-mode input[type="text"],
 body.dark-mode input[type="date"],
 body.dark-mode input[type="number"],
 body.dark-mode input[type="file"],
-body.dark-mode select,
 body.dark-mode textarea {
   background: rgba(0, 0, 0, 0.2);
+  border-color: var(--border-color);
+  color: var(--text-primary);
+  box-shadow: none;
+}
+
+body[data-theme="dark"] select,
+body.dark-mode select {
+  background: var(--surface-elevated);
   border-color: var(--border-color);
   color: var(--text-primary);
   box-shadow: none;
@@ -2374,7 +2396,6 @@ body.dark-mode fieldset {
 body.dark-mode input[type="text"],
 body.dark-mode input[type="date"],
 body.dark-mode input[type="number"],
-body.dark-mode select,
 body.dark-mode textarea {
   background: rgba(0, 0, 0, 0.2);
   border-color: var(--border-color);
@@ -2382,8 +2403,15 @@ body.dark-mode textarea {
   box-shadow: none;
 }
 
+body.dark-mode select {
+  background: var(--surface-elevated);
+  border-color: var(--border-color);
+  color: var(--text-primary);
+  box-shadow: none;
+}
+
 body.dark-mode select option {
-  background: var(--palette-navy);
+  background: var(--surface-primary);
   color: var(--text-primary);
 }
 
@@ -3534,17 +3562,6 @@ body.kanban-dragging .kanban-lane {
   box-shadow: 0 0 0 2px rgba(54, 173, 163, 0.3), 0 4px 12px rgba(54, 173, 163, 0.25);
 }
 
-.kanban-card.is-sold .reviewed-checkbox span {
-  background: rgba(3, 105, 161, 0.1);
-  border-color: rgba(3, 105, 161, 0.3);
-  color: var(--info-text);
-  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-}
-
-.kanban-card.is-sold .reviewed-checkbox:hover span {
-  background: rgba(3, 105, 161, 0.14);
-}
-
 .kanban-card.is-sold .reviewed-checkbox.checked span {
   background: rgba(3, 105, 161, 0.18);
   border-color: var(--color-info);
@@ -3887,35 +3904,8 @@ body.dark-mode .prompt-field {
   border-color: var(--line);
 }
 
-/* Design refresh */
-:root {
-  --surface-panel: #ffffff;
-  --surface-panel-muted: #f5f8fc;
-  --border-panel: rgba(148, 163, 184, 0.26);
-  --shadow-panel: 0 4px 14px rgba(15, 23, 42, 0.06);
-  --shadow-panel-soft: 0 2px 8px rgba(15, 23, 42, 0.05);
-  --shadow-panel-hover: 0 6px 14px rgba(15, 23, 42, 0.08);
-  --shadow-interactive: 0 2px 8px rgba(18, 19, 88, 0.08);
-  --shadow-interactive-hover: 0 4px 10px rgba(18, 19, 88, 0.12);
-}
-
 body {
   background: linear-gradient(180deg, #edf3fb 0%, #e6edf6 100%);
-}
-
-body[data-theme="dark"],
-body.dark-mode {
-  --color-bg: #09111f;
-  --color-bg-alt: #0f1931;
-  --color-surface: #172441;
-  --color-surface-muted: #223256;
-  --color-surface-elevated: #101a30;
-  --color-surface-overlay: rgba(9, 17, 31, 0.92);
-  --color-border: rgba(148, 163, 184, 0.18);
-  --color-border-strong: rgba(91, 197, 189, 0.32);
-  --surface-panel: #162342;
-  --surface-panel-muted: #1d2d50;
-  background: linear-gradient(180deg, #08111f 0%, #0d1730 100%);
 }
 
 .page {
@@ -4255,9 +4245,23 @@ button.secondary:hover,
 }
 
 .kanban-card .reviewed-checkbox span {
-  padding: 6px 12px;
+  padding: 6px 36px;
   border-radius: 999px;
   letter-spacing: 0.04em;
+}
+
+.kanban-card .reviewed-checkbox .ck-icon {
+  display: none;
+  width: 14px;
+  height: 14px;
+  margin-right: 6px;
+  flex-shrink: 0;
+  color: #22c55e;
+}
+
+.kanban-card .reviewed-checkbox.checked .ck-icon,
+.kanban-card.is-sold .reviewed-checkbox.checked .ck-icon {
+  display: inline;
 }
 
 .card-delete-btn,

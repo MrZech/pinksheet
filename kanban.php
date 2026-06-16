@@ -40,6 +40,7 @@ $items = $pdo->query("
     FROM intake_items
     WHERE sku IS NOT NULL AND TRIM(sku) <> ''
     ORDER BY updated_at DESC, id DESC
+    LIMIT 5000
 ")->fetchAll();
 
 $rowMentionsRefurb = static function (array $row): bool {
@@ -108,10 +109,12 @@ foreach ($items as $item) {
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Status Board · Pinksheet</title>
-  <link rel="stylesheet" href="assets/style.css">
-  <script src="assets/menu.js" defer></script>
-  <script src="assets/qz-tray.js"></script>
-  <script src="assets/app.js"></script>
+  <link rel="stylesheet" href="assets/style.css?v=<?= filemtime('assets/style.css') ?>">
+  <script src="assets/menu.js?v=<?= filemtime('assets/menu.js') ?>" defer></script>
+  <script src="assets/qz-tray.js?v=<?= filemtime('assets/qz-tray.js') ?>"></script>
+  <script>window.CSRF_TOKEN = <?= json_encode(csrf_token()) ?>;</script>
+  <script src="assets/theme.js?v=<?= filemtime('assets/theme.js') ?>"></script>
+  <script src="assets/app.js?v=<?= filemtime('assets/app.js') ?>"></script>
 </head>
 <body class="home status-board">
   <div class="layout-wrapper">
@@ -180,7 +183,7 @@ foreach ($items as $item) {
                     </div>
                     <div class="reviewed-checkbox<?php echo !empty($card['reviewed']) ? ' checked' : ''; ?>"
                          data-sku="<?php echo htmlspecialchars($sku, ENT_QUOTES, 'UTF-8'); ?>">
-                      <span><?php echo $lane === 'SOLD' ? 'Sold' : 'Active'; ?></span>
+                      <span><svg class="ck-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg><?php echo $lane === 'SOLD' ? 'Sold' : 'Active'; ?></span>
                     </div>
                   </div>
                   <div class="card-print-actions">
@@ -240,28 +243,6 @@ foreach ($items as $item) {
         }
       }
 
-      var themeToggle = document.getElementById('theme-toggle');
-      function setTheme(mode) {
-        var isDark = mode === 'dark';
-        document.body.dataset.theme = isDark ? 'dark' : 'light';
-        document.body.classList.toggle('dark-mode', isDark);
-        if (themeToggle) {
-          themeToggle.textContent = isDark ? 'Light mode' : 'Dark mode';
-        }
-      }
-      var storedTheme = null;
-      try {
-        storedTheme = localStorage.getItem('themePreference');
-      } catch (e) {}
-      setTheme(storedTheme || (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'));
-      if (themeToggle) {
-        themeToggle.addEventListener('click', function () {
-          var nextMode = document.body.dataset.theme === 'dark' ? 'light' : 'dark';
-          setTheme(nextMode);
-          try { localStorage.setItem('themePreference', nextMode); } catch (e) {}
-        });
-      }
-
       board.addEventListener('dragstart', function (e) {
         var card = e.target.closest('.kanban-card');
         if (!card) return;
@@ -317,7 +298,7 @@ foreach ($items as $item) {
         fetch('update_item.php', {
           method: 'POST',
           headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-          body: 'sku=' + encodeURIComponent(sku) + '&field=status&value=' + encodeURIComponent(status)
+          body: 'sku=' + encodeURIComponent(sku) + '&field=status&value=' + encodeURIComponent(status) + '&csrf_token=' + encodeURIComponent(window.CSRF_TOKEN)
         })
           .then(function (r) { return r.json(); })
           .then(function (data) {
@@ -364,7 +345,7 @@ foreach ($items as $item) {
         fetch('update_item.php', {
           method: 'POST',
           headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-          body: 'sku=' + encodeURIComponent(sku) + '&field=reviewed&value=' + encodeURIComponent(reviewed)
+          body: 'sku=' + encodeURIComponent(sku) + '&field=reviewed&value=' + encodeURIComponent(reviewed) + '&csrf_token=' + encodeURIComponent(window.CSRF_TOKEN)
         })
           .then(function (r) { return r.json(); })
           .then(function (data) {
@@ -390,6 +371,7 @@ foreach ($items as $item) {
       var UNDO_DURATION = 6000; // ms
       var lastDeletedCard = null;
       var lastDeletedLaneStatus = '';
+      var lastDeletedCardNextSibling = null;
 
       var hideUndoToast = function () {
         if (undoToast) undoToast.classList.remove('is-visible');
@@ -418,32 +400,44 @@ foreach ($items as $item) {
         }, UNDO_DURATION);
       };
 
-      var restoreDeletedCard = function () {
+      var restoreDeletedCard = function (newId) {
         if (!lastDeletedCard) return;
         var targetLane = board.querySelector('.kanban-lane[data-status="' + lastDeletedLaneStatus + '"]');
         if (!targetLane) return;
         var body = targetLane.querySelector('.kanban-lane-body');
         if (!body) return;
-        lastDeletedCard.style.transition = 'opacity 180ms ease';
-        lastDeletedCard.style.opacity = '0';
-        lastDeletedCard.style.transform = '';
-        body.appendChild(lastDeletedCard);
+        var card = lastDeletedCard;
+        var nextSib = lastDeletedCardNextSibling;
+        if (newId) {
+          card.setAttribute('data-id', String(newId));
+          var delBtn = card.querySelector('.card-delete-btn');
+          if (delBtn) delBtn.setAttribute('data-id', String(newId));
+        }
+        card.style.transition = 'opacity 180ms ease';
+        card.style.opacity = '0';
+        card.style.transform = '';
+        if (nextSib && body.contains(nextSib)) {
+          body.insertBefore(card, nextSib);
+        } else {
+          body.appendChild(card);
+        }
         requestAnimationFrame(function () {
-          lastDeletedCard.style.opacity = '1';
+          card.style.opacity = '1';
         });
         var count = targetLane.querySelector('.kanban-count');
         if (count) count.textContent = String(parseInt(count.textContent || '0', 10) + 1);
         lastDeletedCard = null;
         lastDeletedLaneStatus = '';
+        lastDeletedCardNextSibling = null;
       };
 
       var doUndo = function () {
         hideUndoToast();
-        fetch('undo_delete.php', { method: 'POST' })
+        fetch('undo_delete.php', { method: 'POST', body: 'csrf_token=' + encodeURIComponent(window.CSRF_TOKEN) })
           .then(function (r) { return r.json(); })
           .then(function (data) {
             if (data.status === 'ok') {
-              restoreDeletedCard();
+              restoreDeletedCard(data.new_id);
             } else {
               alert('Nothing to undo.');
             }
@@ -482,6 +476,7 @@ foreach ($items as $item) {
         var laneCount = lane ? lane.querySelector('.kanban-count') : null;
         lastDeletedCard = card;
         lastDeletedLaneStatus = lane ? lane.getAttribute('data-status') : '';
+        lastDeletedCardNextSibling = card.nextElementSibling;
         card.style.transition = 'opacity 180ms ease, transform 180ms ease';
         card.style.opacity = '0';
         card.style.transform = 'scale(0.95)';
@@ -500,7 +495,7 @@ foreach ($items as $item) {
             'Content-Type': 'application/x-www-form-urlencoded',
             'X-Requested-With': 'XMLHttpRequest'
           },
-          body: 'id=' + encodeURIComponent(id) + '&sku=' + encodeURIComponent(sku) + '&confirm=DELETE'
+          body: 'id=' + encodeURIComponent(id) + '&sku=' + encodeURIComponent(sku) + '&confirm=DELETE&csrf_token=' + encodeURIComponent(window.CSRF_TOKEN)
         })
           .then(function (r) { return r.json(); })
           .then(function (data) {

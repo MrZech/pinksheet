@@ -157,11 +157,13 @@ if (is_dir($backupDir)) {
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title><?php echo $isLookupPage ? 'Dispo.Tech SKU Lookup' : 'Dispo.Tech Intake Home'; ?></title>
-  <link rel="stylesheet" href="assets/style.css">
-  <script src="assets/menu.js" defer></script>
-  <link rel="stylesheet" media="print" href="assets/print.css">
+  <link rel="stylesheet" href="assets/style.css?v=<?= filemtime('assets/style.css') ?>">
+  <script src="assets/menu.js?v=<?= filemtime('assets/menu.js') ?>" defer></script>
+  <link rel="stylesheet" media="print" href="assets/print.css?v=<?= filemtime('assets/print.css') ?>">
   <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
-  <script src="assets/app.js"></script>
+  <script>window.CSRF_TOKEN = <?= json_encode(csrf_token()) ?>;</script>
+  <script src="assets/theme.js?v=<?= filemtime('assets/theme.js') ?>"></script>
+  <script src="assets/app.js?v=<?= filemtime('assets/app.js') ?>"></script>
 </head>
 <body class="home<?php echo $isLookupPage ? ' lookup-page' : ''; ?>">
   <div class="layout-wrapper">
@@ -469,30 +471,6 @@ if (is_dir($backupDir)) {
   </div>
   <script>
     (function () {
-      var themeToggle = document.getElementById('theme-toggle');
-      var applyThemeMode = function (mode) {
-        var isDark = mode === 'dark';
-        document.body.dataset.theme = isDark ? 'dark' : 'light';
-        document.body.classList.toggle('dark-mode', isDark);
-        if (themeToggle) {
-          themeToggle.textContent = isDark ? 'Light mode' : 'Dark mode';
-        }
-      };
-      var storedTheme = null;
-      try {
-        storedTheme = localStorage.getItem('themePreference');
-      } catch (e) {}
-      var initialTheme = storedTheme || (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
-      applyThemeMode(initialTheme);
-      if (themeToggle) {
-        themeToggle.addEventListener('click', function () {
-          var nextMode = document.body.dataset.theme === 'dark' ? 'light' : 'dark';
-          applyThemeMode(nextMode);
-          try {
-            localStorage.setItem('themePreference', nextMode);
-          } catch (e) {}
-        });
-      }
       var printButton = document.getElementById('print-button');
       if (printButton) {
         printButton.addEventListener('click', function () {
@@ -591,7 +569,7 @@ if (is_dir($backupDir)) {
             setBackupState(true);
             showToast('Backup started', true);
             setBackupIndicator('running', 'Backup running…', 'This can take a bit if your backup mirror is slow.');
-            fetch('backup_now.php', { method: 'POST', credentials: 'same-origin', cache: 'no-store' })
+            fetch('backup_now.php', { method: 'POST', credentials: 'same-origin', cache: 'no-store', body: 'csrf_token=' + encodeURIComponent(window.CSRF_TOKEN) })
               .then(function (r) { return r.json(); })
               .then(function (data) {
                 if (data.ok) {
@@ -638,7 +616,7 @@ if (is_dir($backupDir)) {
             setSquareSyncState(true);
             showToast('Square sync started', true);
             setBackupIndicator('running', 'Square sync running...', 'Pushing current intake inventory to Square.');
-            fetch('sync_square_now.php', { method: 'POST', credentials: 'same-origin', cache: 'no-store' })
+            fetch('sync_square_now.php', { method: 'POST', credentials: 'same-origin', cache: 'no-store', body: 'csrf_token=' + encodeURIComponent(window.CSRF_TOKEN) })
               .then(function (r) { return r.json(); })
               .then(function (data) {
                 if (data.ok) {
@@ -693,7 +671,7 @@ if (is_dir($backupDir)) {
           var runVerify = function () {
             setVerifyState(true);
             showToast('Verification started', true);
-            fetch('verify_now.php', { method: 'POST', credentials: 'same-origin', cache: 'no-store' })
+            fetch('verify_now.php', { method: 'POST', credentials: 'same-origin', cache: 'no-store', body: 'csrf_token=' + encodeURIComponent(window.CSRF_TOKEN) })
               .then(function (r) { return r.json(); })
               .then(function (data) {
                 if (data.ok) {
@@ -716,7 +694,7 @@ if (is_dir($backupDir)) {
           fetch('update_item.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: 'sku=' + encodeURIComponent(sku) + '&field=' + encodeURIComponent(field) + '&value=' + encodeURIComponent(value)
+            body: 'sku=' + encodeURIComponent(sku) + '&field=' + encodeURIComponent(field) + '&value=' + encodeURIComponent(value) + '&csrf_token=' + encodeURIComponent(window.CSRF_TOKEN)
           })
             .then(function (r) { return r.json(); })
             .then(function (data) {
@@ -1004,6 +982,7 @@ if (is_dir($backupDir)) {
                 })
                 .catch(function () {});
           };
+          var filterTimer = null;
           skuInput.addEventListener('input', function () {
             clearTimeout(suggestionTimer);
             suggestionTimer = setTimeout(function () {
@@ -1011,9 +990,12 @@ if (is_dir($backupDir)) {
                 fetchSuggestions();
               }
             }, 220);
-            schedulePreview();
-            applyInventoryFilters();
-            saveFilter();
+            clearTimeout(filterTimer);
+            filterTimer = setTimeout(function () {
+              schedulePreview();
+              applyInventoryFilters();
+              saveFilter();
+            }, 220);
           });
         }
         var previewTimer = null;

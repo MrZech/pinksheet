@@ -10,11 +10,6 @@ function h(?string $value): string
     return htmlspecialchars((string)$value, ENT_QUOTES, 'UTF-8');
 }
 
-function normalizeSku(string $sku): string
-{
-    return strtoupper(trim($sku));
-}
-
 function formatLabel(string $key): string
 {
     return ucwords(str_replace('_', ' ', $key));
@@ -68,12 +63,14 @@ $initialItemJson = $currentItem ? json_encode($currentItem, JSON_HEX_TAG | JSON_
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Dispo.Tech eBay Script Builder</title>
-  <link rel="stylesheet" href="assets/style.css">
-  <script src="assets/menu.js" defer></script>
-  <link rel="stylesheet" media="print" href="assets/print.css">
+  <link rel="stylesheet" href="assets/style.css?v=<?= filemtime('assets/style.css') ?>">
+  <script src="assets/menu.js?v=<?= filemtime('assets/menu.js') ?>" defer></script>
+  <link rel="stylesheet" media="print" href="assets/print.css?v=<?= filemtime('assets/print.css') ?>">
   <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
-  <script src="assets/qz-tray.js"></script>
-  <script src="assets/app.js"></script>
+  <script src="assets/qz-tray.js?v=<?= filemtime('assets/qz-tray.js') ?>"></script>
+  <script>window.CSRF_TOKEN = <?= json_encode(csrf_token()) ?>;</script>
+  <script src="assets/theme.js?v=<?= filemtime('assets/theme.js') ?>"></script>
+  <script src="assets/app.js?v=<?= filemtime('assets/app.js') ?>"></script>
 </head>
 <body class="home prompt-page">
   <div class="layout-wrapper">
@@ -191,7 +188,6 @@ $initialItemJson = $currentItem ? json_encode($currentItem, JSON_HEX_TAG | JSON_
 
   <script>
     (function () {
-      var themeToggle = document.getElementById('theme-toggle');
       var statusChip = document.getElementById('prompt-status-chip');
       var skuInput = document.getElementById('prompt-sku');
       var form = document.getElementById('prompt-form');
@@ -208,28 +204,6 @@ $initialItemJson = $currentItem ? json_encode($currentItem, JSON_HEX_TAG | JSON_
       var saveStatusChip = document.getElementById('save-status-chip');
       var initialItem = <?php echo $initialItemJson; ?>;
       var currentSkuNormalized = '';
-
-      var applyThemeMode = function (mode) {
-        var isDark = mode === 'dark';
-        document.body.dataset.theme = isDark ? 'dark' : 'light';
-        document.body.classList.toggle('dark-mode', isDark);
-        if (themeToggle) {
-          themeToggle.textContent = isDark ? 'Light mode' : 'Dark mode';
-        }
-      };
-      var storedTheme = null;
-      try {
-        storedTheme = localStorage.getItem('themePreference');
-      } catch (e) {}
-      var initialTheme = storedTheme || (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
-      applyThemeMode(initialTheme);
-      if (themeToggle) {
-        themeToggle.addEventListener('click', function () {
-          var nextMode = document.body.dataset.theme === 'dark' ? 'light' : 'dark';
-          applyThemeMode(nextMode);
-          try { localStorage.setItem('themePreference', nextMode); } catch (e) {}
-        });
-      }
 
       var setStatus = function (message, tone) {
         if (!statusChip) return;

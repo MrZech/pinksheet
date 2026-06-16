@@ -141,8 +141,7 @@ function squareSyncLoadRow(PDO $pdo, string $skuNormalized): ?array
 
 function squareSyncLoadPreferredPhoto(PDO $pdo, string $skuNormalized): ?array
 {
-    $columns = $pdo->query('PRAGMA table_info(sku_photos)')->fetchAll(PDO::FETCH_ASSOC);
-    $hasThumb = in_array('is_thumb', array_column($columns, 'name'), true);
+    $hasThumb = (bool)$pdo->query("SELECT 1 FROM pragma_table_info('sku_photos') WHERE name = 'is_thumb'")->fetchColumn();
     $order = $hasThumb ? 'is_thumb DESC, id DESC' : 'id DESC';
     $stmt = $pdo->prepare('SELECT id, sku_normalized, original_name, stored_name, mime_type FROM sku_photos WHERE sku_normalized = :sku ORDER BY ' . $order . ' LIMIT 1');
     $stmt->execute(['sku' => $skuNormalized]);
