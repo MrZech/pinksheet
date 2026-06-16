@@ -44,11 +44,6 @@ SQL);
     jsonResponse(['status' => 'error', 'message' => 'Schema initialization failed'], 500);
 }
 
-function normalizeSku(string $sku): string
-{
-    return strtoupper(trim($sku));
-}
-
 /** Send a JSON response and exit. */
 function jsonResponse(array $data, int $status = 200): void
 {
@@ -116,6 +111,7 @@ try {
     }
 
     /* ──── POST: upsert draft ──── */
+    require_csrf();
     $raw   = file_get_contents('php://input');
     $input = json_decode($raw ?: '{}', true);
 

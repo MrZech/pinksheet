@@ -8,11 +8,6 @@ ensureStorageWritable();
 const DB_PATH = __DIR__ . '/data/intake.sqlite';
 const PHOTO_UPLOAD_DIR = __DIR__ . '/data/sku_photos';
 
-function normalizeSku(string $sku): string
-{
-    return strtoupper(trim($sku));
-}
-
 function normalizedSkuDirectory(string $skuNormalized): string
 {
     $dir = preg_replace('/[^A-Z0-9_-]+/', '_', $skuNormalized);

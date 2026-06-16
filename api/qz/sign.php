@@ -30,32 +30,43 @@ checkMaintenance(true);
 $allowedOrigins = explode(',', QZ_ALLOWED_ORIGINS);
 $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
 
-/* Validate origin when configured restrictively */
+/* Build the list of acceptable origins */
+$acceptableOrigins = [];
 if (QZ_ALLOWED_ORIGINS !== '*') {
-    if ($origin === '') {
-        http_response_code(400);
-        header('Content-Type: text/plain; charset=utf-8');
-        echo 'Origin header is required when QZ_ALLOWED_ORIGINS is restricted.';
-        exit;
-    }
-    $matched = false;
-    foreach ($allowedOrigins as $allowed) {
-        $allowed = trim($allowed);
-        if ($allowed !== '' && $origin === $allowed) {
-            $matched = true;
-            break;
+    foreach ($allowedOrigins as $o) {
+        $o = trim($o);
+        if ($o !== '') {
+            $acceptableOrigins[] = $o;
         }
     }
-    if (!$matched) {
-        http_response_code(403);
-        header('Content-Type: text/plain; charset=utf-8');
-        echo 'Origin not allowed.';
-        exit;
-    }
-    header('Access-Control-Allow-Origin: ' . $origin);
-} else {
-    header('Access-Control-Allow-Origin: *');
 }
+/* Fallback: same-origin derived from the request */
+if (empty($acceptableOrigins)) {
+    $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+    $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+    $acceptableOrigins[] = $scheme . '://' . $host;
+}
+
+if ($origin === '') {
+    http_response_code(400);
+    header('Content-Type: text/plain; charset=utf-8');
+    echo 'Origin header is required for CORS requests.';
+    exit;
+}
+$matched = false;
+foreach ($acceptableOrigins as $allowed) {
+    if ($origin === $allowed) {
+        $matched = true;
+        break;
+    }
+}
+if (!$matched) {
+    http_response_code(403);
+    header('Content-Type: text/plain; charset=utf-8');
+    echo 'Origin not allowed.';
+    exit;
+}
+header('Access-Control-Allow-Origin: ' . $origin);
 header('Access-Control-Allow-Methods: POST, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type');
 

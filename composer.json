@@ -1,0 +1,30 @@
+{
+  "name": "dispotec/pinksheet",
+  "description": "Pinksheet inventory management test suite",
+  "type": "project",
+  "require": {
+    "php": ">=8.1"
+  },
+  "require-dev": {
+    "phpunit/phpunit": "^11.0"
+  },
+  "autoload": {
+    "classmap": [
+      "config.php",
+      "square_sync.php",
+      "assets/zpl.php"
+    ]
+  },
+  "autoload-dev": {
+    "classmap": [
+      "tests/"
+    ]
+  },
+  "scripts": {
+    "test": "phpunit",
+    "test:unit": "phpunit --testsuite unit",
+    "test:integration": "phpunit --testsuite integration",
+    "test:module": "phpunit --testsuite module",
+    "test:regression": "phpunit --testsuite regression"
+  }
+}

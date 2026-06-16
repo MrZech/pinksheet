@@ -7,6 +7,7 @@ ensureStorageWritable();
 
 const DB_PATH = __DIR__ . '/data/intake.sqlite';
 const PHOTO_UPLOAD_DIR = __DIR__ . '/data/sku_photos';
+const PHOTO_CACHE_MAX_AGE = 31536000; // 1 year
 
 function normalizedSkuDirectory(string $skuNormalized): string
 {
@@ -64,14 +65,30 @@ try {
     }
 
     $mimeType = (string)($photo['mime_type'] ?? 'application/octet-stream');
+    $fileSize = filesize($path);
+    $fileMtime = filemtime($path);
+
+    // Generate deterministic ETag from file inode + mtime + size (avoids hashing large files)
+    $etag = sprintf('W/"%x-%x-%x"', $photoId, $fileMtime, $fileSize);
+
+    // Check conditional request
+    if (isset($_SERVER['HTTP_IF_NONE_MATCH']) && trim((string)$_SERVER['HTTP_IF_NONE_MATCH']) === $etag) {
+        http_response_code(304);
+        header('Cache-Control: public, max-age=' . PHOTO_CACHE_MAX_AGE);
+        header('ETag: ' . $etag);
+        exit;
+    }
+
     $originalName = preg_replace('/[^A-Za-z0-9._-]+/', '_', (string)($photo['original_name'] ?? 'photo'));
     $downloadName = trim((string)$originalName, '._-');
     if ($downloadName === '') {
         $downloadName = 'photo';
     }
 
+    header('Cache-Control: public, max-age=' . PHOTO_CACHE_MAX_AGE);
+    header('ETag: ' . $etag);
     header('Content-Type: ' . $mimeType);
-    header('Content-Length: ' . (string)filesize($path));
+    header('Content-Length: ' . (string)$fileSize);
     header('Content-Disposition: inline; filename="' . $downloadName . '"');
     readfile($path);
 } catch (Throwable $e) {

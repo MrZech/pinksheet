@@ -9,6 +9,8 @@ const DB_PATH = __DIR__ . '/data/intake.sqlite';
 
 header('Content-Type: application/json; charset=utf-8');
 
+require_csrf();
+
 /**
  * Ensure the archive table used for soft deletes exists.
  */

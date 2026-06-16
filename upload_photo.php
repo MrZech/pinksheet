@@ -19,10 +19,7 @@ const ALLOWED_PHOTO_MIME_TYPES = [
 
 header('Content-Type: application/json; charset=utf-8');
 
-function normalizeSku(string $sku): string
-{
-    return strtoupper(trim($sku));
-}
+require_csrf();
 
 function normalizedSkuDirectory(string $skuNormalized): string
 {
