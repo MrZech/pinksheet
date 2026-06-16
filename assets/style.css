@@ -3419,7 +3419,7 @@ body.kanban-dragging .kanban-lane {
 }
 
 .kanban-card .reviewed-checkbox {
-  display: inline-flex;
+  display: flex;
   align-items: center;
   gap: 8px;
   margin-top: 4px;
