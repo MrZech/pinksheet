@@ -3439,12 +3439,17 @@ body.kanban-dragging .kanban-lane {
 .kanban-card {
   background: var(--surface-primary);
   border-radius: var(--radius-sm);
-  padding: 8px 8px 14px;
+  padding: 8px 8px 12px;
   margin-bottom: 8px;
   cursor: grab;
   border: 1px solid var(--line);
   box-shadow: var(--shadow-xs);
   touch-action: none;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 130px;
+  height: auto;
   transition: border-color var(--transition-fast), box-shadow var(--transition-fast), opacity var(--transition-fast), transform var(--transition-fast);
 }
 
@@ -3463,7 +3468,8 @@ body.kanban-dragging .kanban-lane {
 .card-inner {
   display: flex;
   gap: 8px;
-  align-items: flex-start;
+  align-items: stretch;
+  flex: 1;
 }
 
 .card-thumb {
@@ -3494,6 +3500,7 @@ body.kanban-dragging .kanban-lane {
   display: flex;
   flex-direction: column;
   gap: 3px;
+  padding-bottom: 0;
 }
 
 .kanban-card .sku {
@@ -3537,6 +3544,7 @@ body.kanban-dragging .kanban-lane {
 .kanban-card .reviewed-checkbox {
   margin-top: auto;
   cursor: pointer;
+  position: relative;
 }
 
 @keyframes pill-pop {
@@ -4248,13 +4256,15 @@ button.secondary:hover,
 }
 
 .kanban-card {
-  padding: 10px;
+  padding: 10px 10px 12px;
+  min-height: 140px;
 }
 
 .card-inner {
   display: grid;
   grid-template-columns: 72px minmax(0, 1fr) auto auto;
   gap: 10px;
+  align-items: stretch;
 }
 
 .kanban-card .what {
@@ -4266,7 +4276,7 @@ button.secondary:hover,
 
 .kanban-card .reviewed-checkbox span {
   padding: 6px 36px;
-  border-radius: 999px;
+  border-radius: 4px;
   letter-spacing: 0.04em;
 }
 
@@ -4552,7 +4562,8 @@ body.dark-mode .button-link:hover {
   }
 
   .kanban-card {
-    padding: 6px 6px 12px;
+    padding: 6px 6px 10px;
+    min-height: 110px;
   }
 
   .card-inner {
