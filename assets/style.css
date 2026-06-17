@@ -3757,80 +3757,30 @@ body.dark-mode .card-delete-btn:hover {
 }
 
 /* ── QR Code Elements ────────────────────────────────────────── */
-.card-qr-row {
-  display: none;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-  margin: 8px 0 4px;
-  padding: 8px;
-  background: var(--surface-secondary);
-  border: 1px solid var(--border-panel);
-  border-radius: 8px;
-}
-
-.card-qr-row.is-visible {
-  display: flex;
-}
-
-.card-qr-render {
-  width: 100px;
-  height: 100px;
-  display: flex;
+.card-qr-inline {
+  display: inline-flex;
   align-items: center;
   justify-content: center;
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  border-radius: 4px;
   overflow: hidden;
+  background: #ffffff;
+  border: 1px solid #d5dce6;
 }
 
-.card-qr-render img,
-.card-qr-render canvas {
-  width: 100px !important;
-  height: 100px !important;
-}
-
-.card-qr-label {
-  font-size: 0.68rem;
-  color: var(--text-tertiary);
-  text-align: center;
-  line-height: 1.2;
-}
-
-.card-qr-btn {
-  display: inline-flex !important;
-  align-items: center !important;
-  justify-content: center !important;
+.card-qr-inline canvas,
+.card-qr-inline img {
   width: 36px !important;
   height: 36px !important;
-  border: 1px solid #d5dce6 !important;
-  border-radius: 4px !important;
-  box-shadow: none !important;
-  background-color: #ffffff !important;
-  color: #475569;
-  cursor: pointer;
-  font-size: 0.85rem;
-  line-height: 1;
-  flex-shrink: 0;
-  padding: 0 !important;
-  box-sizing: border-box;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  display: block;
 }
 
-.card-qr-btn:hover {
-  background-color: #f1f5f9 !important;
-}
-
-body[data-theme="dark"] .card-qr-btn,
-body.dark-mode .card-qr-btn {
-  background-color: #1e293b !important;
-  border-color: #334155 !important;
-  color: #94a3b8;
-  box-shadow: none !important;
-}
-
-body[data-theme="dark"] .card-qr-btn:hover,
-body.dark-mode .card-qr-btn:hover {
-  background-color: #334155 !important;
-  color: #cbd5e1;
+body[data-theme="dark"] .card-qr-inline,
+body.dark-mode .card-qr-inline {
+  background: #1e293b;
+  border-color: #334155;
 }
 
 /* ── Desktop QR Scanner Modal ────────────────────────────────── */

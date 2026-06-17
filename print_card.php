@@ -73,6 +73,7 @@ $photoCount = count($photos);
   <meta charset="utf-8">
   <title>Print - <?= $displaySku ?></title>
   <base href="<?= rtrim(dirname($_SERVER['SCRIPT_NAME']), '/') . '/' ?>">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" integrity="sha512-CNgIRecGo7nphbeZ04Sc13ka07paqdeTu0WR1IM4kNcpmBAUSHSQX0FslNhTDadL4O5SAGapGt4FodqL8My0mA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
   <style>
     * {
       box-sizing: border-box;
@@ -123,7 +124,13 @@ $photoCount = count($photos);
       flex-shrink: 0;
     }
 
-    .print-card-header h1 {
+    .print-card-header-left {
+      display: flex;
+      flex-direction: column;
+      gap: 2pt;
+    }
+
+    .print-card-header-left h1 {
       font-size: 18pt;
       font-weight: 800;
       margin: 0;
@@ -136,6 +143,22 @@ $photoCount = count($photos);
       text-transform: uppercase;
       letter-spacing: 0.06em;
       color: #555;
+    }
+
+    .print-card-qr {
+      width: 48px;
+      height: 48px;
+      flex-shrink: 0;
+      border: 0.5pt solid #ccc;
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    .print-card-qr canvas,
+    .print-card-qr img {
+      width: 48px !important;
+      height: 48px !important;
+      display: block;
     }
 
     .print-card-body {
@@ -310,8 +333,19 @@ $photoCount = count($photos);
 <body>
   <div class="print-card-container">
     <div class="print-card-header">
-      <h1><?= $displaySku ?></h1>
-      <div class="print-card-status"><?= $laneStatus ?></div>
+      <div class="print-card-header-left">
+        <h1><?= $displaySku ?></h1>
+        <div class="print-card-status"><?= $laneStatus ?></div>
+      </div>
+      <div class="print-card-qr" id="print-card-qr"
+           data-url="<?php
+               $isHttps = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+                   || (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https')
+                   || (isset($_SERVER['HTTP_CF_VISITOR']) && str_contains($_SERVER['HTTP_CF_VISITOR'], '"scheme":"https"'));
+               $protocol = $isHttps ? 'https' : 'http';
+               $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+               echo htmlspecialchars($protocol . '://' . $host . '/intake.php?sku=' . urlencode($displaySku), ENT_QUOTES, 'UTF-8');
+           ?>"></div>
     </div>
 
     <div class="print-card-body">
@@ -362,5 +396,25 @@ $photoCount = count($photos);
 
     <div class="print-card-footer">Dispo.Tech — Card Print</div>
   </div>
+  <script>
+    (function () {
+      var qrEl = document.getElementById('print-card-qr');
+      if (qrEl && typeof QRCode !== 'undefined') {
+        var url = qrEl.getAttribute('data-url');
+        if (url) {
+          try {
+            new QRCode(qrEl, {
+              text: url,
+              width: 48,
+              height: 48,
+              colorDark: '#111111',
+              colorLight: '#ffffff',
+              correctLevel: QRCode.CorrectLevel.H
+            });
+          } catch (e) {}
+        }
+      }
+    })();
+  </script>
 </body>
 </html>

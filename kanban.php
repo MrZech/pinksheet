@@ -172,17 +172,22 @@ foreach ($items as $item) {
                     <div class="card-thumb card-thumb-empty"></div>
                   <?php endif; ?>
                   <div class="card-action-buttons">
+                    <div class="card-qr-inline"
+                         data-sku="<?php echo htmlspecialchars($norm, ENT_QUOTES, 'UTF-8'); ?>"
+                         data-url="<?php
+                             $isHttps = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+                                 || (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https')
+                                 || (isset($_SERVER['HTTP_CF_VISITOR']) && str_contains($_SERVER['HTTP_CF_VISITOR'], '"scheme":"https"'));
+                             $protocol = $isHttps ? 'https' : 'http';
+                             $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+                             $qrUrl = $protocol . '://' . $host . '/intake.php?sku=' . urlencode($norm);
+                         ?><?php echo htmlspecialchars($qrUrl, ENT_QUOTES, 'UTF-8'); ?>">
+                    </div>
                     <button type="button" class="card-print-btn"
                             data-sku="<?php echo htmlspecialchars($sku, ENT_QUOTES, 'UTF-8'); ?>"
                             title="Print card for <?php echo htmlspecialchars($sku, ENT_QUOTES, 'UTF-8'); ?>"
                             aria-label="Print card for <?php echo htmlspecialchars($sku, ENT_QUOTES, 'UTF-8'); ?>">
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
-                    </button>
-                    <button type="button" class="card-qr-btn"
-                            data-sku="<?php echo htmlspecialchars($norm, ENT_QUOTES, 'UTF-8'); ?>"
-                            title="Show QR code for <?php echo htmlspecialchars($sku, ENT_QUOTES, 'UTF-8'); ?>"
-                            aria-label="Show QR code for <?php echo htmlspecialchars($sku, ENT_QUOTES, 'UTF-8'); ?>">
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
                     </button>
                     <button type="button" class="card-delete-btn"
                             data-id="<?php echo (int)($card['id'] ?? 0); ?>"
@@ -192,20 +197,6 @@ foreach ($items as $item) {
                       🗑
                     </button>
                   </div>
-                </div>
-                <div class="card-qr-row">
-                  <div class="card-qr-render"
-                       data-sku="<?php echo htmlspecialchars($norm, ENT_QUOTES, 'UTF-8'); ?>"
-                       data-url="<?php
-                           $isHttps = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
-                               || (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https')
-                               || (isset($_SERVER['HTTP_CF_VISITOR']) && str_contains($_SERVER['HTTP_CF_VISITOR'], '"scheme":"https"'));
-                           $protocol = $isHttps ? 'https' : 'http';
-                           $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
-                           $qrUrl = $protocol . '://' . $host . '/intake.php?sku=' . urlencode($norm);
-                       ?><?php echo htmlspecialchars($qrUrl, ENT_QUOTES, 'UTF-8'); ?>">
-                  </div>
-                  <span class="card-qr-label">Scan to open in intake</span>
                 </div>
                 <div class="card-body">
                   <div class="sku">
@@ -619,125 +610,70 @@ foreach ($items as $item) {
       <button type="button" class="scanner-close-btn" id="scanner-close-btn">Close</button>
     </div>
     <div class="scanner-body">
-      <div>
-        <div id="scanner-container"></div>
-        <div class="scanner-result-msg" id="scanner-result-msg"></div>
-      </div>
+      <div id="scanner-container"></div>
     </div>
   </div>
 
   <script>
   (function () {
-    // ── QR Code Toggle on Kanban Cards ──────────────────────────
-    var qrInstances = {};
-
-    var toggleQrCode = function (btn) {
-      var card = btn.closest('.kanban-card');
-      if (!card) return;
-      var qrRow = card.querySelector('.card-qr-row');
-      if (!qrRow) return;
-      var renderEl = qrRow.querySelector('.card-qr-render');
-      if (!renderEl) return;
-
-      var isOpen = qrRow.classList.contains('is-visible');
-      if (isOpen) {
-        qrRow.classList.remove('is-visible');
-        return;
+    // ── Generate QR codes on all inline QR containers ──────────
+    var els = document.querySelectorAll('.card-qr-inline');
+    for (var i = 0; i < els.length; i++) {
+      var url = els[i].getAttribute('data-url');
+      if (url && typeof QRCode !== 'undefined') {
+        try {
+          new QRCode(els[i], {
+            text: url,
+            width: 36,
+            height: 36,
+            colorDark: '#0f172a',
+            colorLight: '#ffffff',
+            correctLevel: QRCode.CorrectLevel.H
+          });
+        } catch (e) {}
       }
+    }
 
-      var url = renderEl.getAttribute('data-url');
-      if (!url) return;
-
-      // Clear previous QR if any (to re-render cleanly)
-      renderEl.innerHTML = '';
-      var id = renderEl.getAttribute('data-sku');
-      if (id && qrInstances[id]) {
-        delete qrInstances[id];
-      }
-
-      try {
-        var qr = new QRCode(renderEl, {
-          text: url,
-          width: 100,
-          height: 100,
-          colorDark: '#0f172a',
-          colorLight: '#ffffff',
-          correctLevel: QRCode.CorrectLevel.H
-        });
-        if (id) qrInstances[id] = qr;
-        qrRow.classList.add('is-visible');
-      } catch (e) {
-        // QR lib not available
-      }
-    };
-
-    document.addEventListener('click', function (e) {
-      var btn = e.target.closest('.card-qr-btn');
-      if (btn) {
-        e.stopPropagation();
-        toggleQrCode(btn);
-      }
-    });
-
-    // ── Desktop QR Scanner ──────────────────────────────────────
+    // ── Desktop QR Scanner (Html5QrcodeScanner) ────────────────
     var scannerOverlay = document.getElementById('scanner-overlay');
     var scanBtn = document.getElementById('scanner-scan-btn');
     var closeBtn = document.getElementById('scanner-close-btn');
-    var resultMsg = document.getElementById('scanner-result-msg');
     var scannerContainer = document.getElementById('scanner-container');
-    var html5QrScanner = null;
+    var html5QrcodeScanner = null;
 
     var stopScanner = function () {
-      if (html5QrScanner) {
+      if (html5QrcodeScanner) {
         try {
-          html5QrScanner.stop().then(function () {
-            html5QrScanner.clear();
-          }).catch(function () {});
+          html5QrcodeScanner.clear();
         } catch (e) {}
-        html5QrScanner = null;
+        html5QrcodeScanner = null;
       }
       if (scannerContainer) scannerContainer.innerHTML = '';
-      if (resultMsg) resultMsg.textContent = '';
     };
 
     var startScanner = function () {
-      if (!scannerContainer || !window.Html5Qrcode) return;
-
+      if (!scannerContainer || typeof Html5QrcodeScanner === 'undefined') return;
       stopScanner();
-      if (resultMsg) resultMsg.textContent = 'Initializing camera...';
 
-      html5QrScanner = new Html5Qrcode('scanner-container');
+      html5QrcodeScanner = new Html5QrcodeScanner('scanner-container', {
+        fps: 10,
+        qrbox: { width: 250, height: 250 }
+      }, /* verbose */ false);
 
-      html5QrScanner.start(
-        { facingMode: 'environment' },
-        {
-          fps: 10,
-          qrbox: { width: 250, height: 250 }
-        },
-        function (decodedText) {
-          // On each successful decode — auto-navigate
-          var match = decodedText.match(/[?&]sku=([A-Z0-9_-]+)/i);
-          if (match && match[1]) {
-            var sku = match[1];
-            if (resultMsg) resultMsg.textContent = 'Scanned: ' + sku + ' — navigating...';
-            stopScanner();
-            if (scannerOverlay) scannerOverlay.classList.remove('is-open');
-            window.location.href = 'kanban.php?highlight=' + encodeURIComponent(sku);
-          } else {
-            if (resultMsg) resultMsg.textContent = 'Scanned code is not a valid item QR';
-          }
-        },
-        function () {
-          // Decode error — keep scanning
+      html5QrcodeScanner.render(function (decodedText) {
+        var match = decodedText.match(/[?&]sku=([A-Z0-9_-]+)/i);
+        if (match && match[1]) {
+          var sku = match[1];
+          stopScanner();
+          scannerOverlay.classList.remove('is-open');
+          window.location.href = 'kanban.php?highlight=' + encodeURIComponent(sku);
         }
-      ).catch(function (err) {
-        if (resultMsg) resultMsg.textContent = 'Camera error: ' + (err.message || 'unknown');
-      });
+      }, function () {});
     };
 
     if (scanBtn) {
       scanBtn.addEventListener('click', function () {
-        if (scannerOverlay) scannerOverlay.classList.add('is-open');
+        scannerOverlay.classList.add('is-open');
         setTimeout(startScanner, 300);
       });
     }
@@ -745,19 +681,16 @@ foreach ($items as $item) {
     if (closeBtn) {
       closeBtn.addEventListener('click', function () {
         stopScanner();
-        if (scannerOverlay) scannerOverlay.classList.remove('is-open');
+        scannerOverlay.classList.remove('is-open');
       });
     }
 
-    // Close on backdrop click
-    if (scannerOverlay) {
-      scannerOverlay.addEventListener('click', function (e) {
-        if (e.target === scannerOverlay) {
-          stopScanner();
-          scannerOverlay.classList.remove('is-open');
-        }
-      });
-    }
+    scannerOverlay.addEventListener('click', function (e) {
+      if (e.target === scannerOverlay) {
+        stopScanner();
+        scannerOverlay.classList.remove('is-open');
+      }
+    });
   })();
   </script>
   </div>
