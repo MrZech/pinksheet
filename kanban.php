@@ -162,45 +162,62 @@ foreach ($items as $item) {
                    data-id="<?php echo (int)($card['id'] ?? 0); ?>"
                    data-sku="<?php echo htmlspecialchars($sku, ENT_QUOTES, 'UTF-8'); ?>"
                    data-sku-normalized="<?php echo htmlspecialchars($norm, ENT_QUOTES, 'UTF-8'); ?>">
-                <div class="card-inner">
+                <div class="card-top-row">
                   <?php if ($thumb): ?>
                     <img class="card-thumb" src="photo.php?id=<?php echo $thumb; ?>" alt="" draggable="false">
                   <?php else: ?>
                     <div class="card-thumb card-thumb-empty"></div>
                   <?php endif; ?>
-                  <div class="card-body">
-                    <div class="sku">
-                      <a href="intake.php?sku=<?php echo urlencode($sku); ?>" title="Open <?php echo htmlspecialchars($sku, ENT_QUOTES, 'UTF-8'); ?> in intake">
-                        <?php echo htmlspecialchars($sku, ENT_QUOTES, 'UTF-8'); ?>
-                      </a>
-                    </div>
-                    <div class="what"><?php echo htmlspecialchars($card['what_is_it'] ?? '', ENT_QUOTES, 'UTF-8'); ?></div>
-                    <div class="meta">
-                      <span><?php echo htmlspecialchars($card['updated_at'] ?? '', ENT_QUOTES, 'UTF-8'); ?></span>
-                      <?php if (isset($card['dispotech_price']) && $card['dispotech_price'] !== ''): ?>
-                        <span>$<?php echo number_format((float)$card['dispotech_price'], 2); ?></span>
-                      <?php endif; ?>
-                    </div>
-                    <div class="reviewed-checkbox<?php echo !empty($card['reviewed']) ? ' checked' : ''; ?>"
-                         data-sku="<?php echo htmlspecialchars($sku, ENT_QUOTES, 'UTF-8'); ?>">
-                      <span><svg class="ck-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg><span class="label-text"><?php echo !empty($card['reviewed']) ? ($lane === 'SOLD' ? 'Sold' : 'Active') : 'Inactive'; ?></span></span>
-                    </div>
+                  <div class="card-action-buttons">
+                    <button type="button" class="card-print-btn"
+                            data-sku="<?php echo htmlspecialchars($sku, ENT_QUOTES, 'UTF-8'); ?>"
+                            title="Print card for <?php echo htmlspecialchars($sku, ENT_QUOTES, 'UTF-8'); ?>"
+                            aria-label="Print card for <?php echo htmlspecialchars($sku, ENT_QUOTES, 'UTF-8'); ?>">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+                    </button>
+                    <button type="button" class="card-delete-btn"
+                            data-id="<?php echo (int)($card['id'] ?? 0); ?>"
+                            data-sku="<?php echo htmlspecialchars($norm, ENT_QUOTES, 'UTF-8'); ?>"
+                            title="Delete <?php echo htmlspecialchars($sku, ENT_QUOTES, 'UTF-8'); ?>"
+                            aria-label="Delete <?php echo htmlspecialchars($sku, ENT_QUOTES, 'UTF-8'); ?>">
+                      🗑
+                    </button>
                   </div>
-                  <div class="card-print-actions">
-                  <button type="button" class="card-print-btn"
-                          data-sku="<?php echo htmlspecialchars($sku, ENT_QUOTES, 'UTF-8'); ?>"
-                          title="Print label for <?php echo htmlspecialchars($sku, ENT_QUOTES, 'UTF-8'); ?>"
-                          aria-label="Print label for <?php echo htmlspecialchars($sku, ENT_QUOTES, 'UTF-8'); ?>">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
-                  </button>
+                </div>
+                <div class="card-body">
+                  <div class="sku">
+                    <a href="intake.php?sku=<?php echo urlencode($sku); ?>" title="Open <?php echo htmlspecialchars($sku, ENT_QUOTES, 'UTF-8'); ?> in intake">
+                      <?php echo htmlspecialchars($sku, ENT_QUOTES, 'UTF-8'); ?>
+                    </a>
                   </div>
-                  <button type="button" class="card-delete-btn"
-                          data-id="<?php echo (int)($card['id'] ?? 0); ?>"
-                          data-sku="<?php echo htmlspecialchars($norm, ENT_QUOTES, 'UTF-8'); ?>"
-                          title="Delete <?php echo htmlspecialchars($sku, ENT_QUOTES, 'UTF-8'); ?>"
-                          aria-label="Delete <?php echo htmlspecialchars($sku, ENT_QUOTES, 'UTF-8'); ?>">
-                    🗑
-                  </button>
+                  <div class="what"><?php echo htmlspecialchars($card['what_is_it'] ?? '', ENT_QUOTES, 'UTF-8'); ?></div>
+                  <div class="meta">
+                    <span><?php echo htmlspecialchars($card['updated_at'] ?? '', ENT_QUOTES, 'UTF-8'); ?></span>
+                    <?php if (isset($card['dispotech_price']) && $card['dispotech_price'] !== ''): ?>
+                      <span>$<?php echo number_format((float)$card['dispotech_price'], 2); ?></span>
+                    <?php endif; ?>
+                  </div>
+                   <?php
+                        $reviewedVal = (int)($card['reviewed'] ?? 0);
+                        if ($reviewedVal === 2) {
+                            $cardStatus = 'sold';
+                            $cardLabel = 'SOLD';
+                        } elseif ($reviewedVal === 1) {
+                            $cardStatus = 'active';
+                            $cardLabel = 'ACTIVE';
+                        } else {
+                            $cardStatus = 'inactive';
+                            $cardLabel = 'INACTIVE';
+                        }
+                    ?>
+                   <div class="status-badge-container status-<?= $cardStatus ?>"
+                        data-status="<?= $cardStatus ?>"
+                        data-sku="<?= htmlspecialchars($sku, ENT_QUOTES, 'UTF-8'); ?>">
+                     <?php if ($cardStatus === 'active'): ?>
+                        <svg class="ck-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                     <?php endif; ?>
+                     <span class="label-text"><?= $cardLabel ?></span>
+                   </div>
                 </div>
               </div>
             <?php endforeach; ?>
@@ -319,56 +336,84 @@ foreach ($items as $item) {
             if (dropBody) dropBody.appendChild(card);
             card.style.opacity = '1';
 
-            // Update is-sold class and label when card moves into or out of SOLD lane
+            // When dropped on SOLD lane, also set reviewed=2 (sold) and update badge
+            if (status === 'SOLD') {
+              fetch('update_item.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: 'sku=' + encodeURIComponent(sku) + '&field=reviewed&value=2&csrf_token=' + encodeURIComponent(window.CSRF_TOKEN)
+              }).then(function (r) { return r.json(); }).then(function (d) {
+                if (d.ok) {
+                  var badge = card.querySelector('.status-badge-container');
+                  if (badge) updateStatusBadge(badge, 'sold');
+                }
+              });
+            }
             var isSold = status === 'SOLD';
             card.classList.toggle('is-sold', isSold);
-            var reviewedBox = card.querySelector('.reviewed-checkbox');
-            if (reviewedBox) {
-              updateReviewedLabel(reviewedBox);
-            }
           })
           .catch(function () {
             alert('Update failed');
           });
       });
 
-      // Handle reviewed pill toggle
-      var updateReviewedLabel = function (container) {
+      // Handle status badge click — only toggles inactive ↔ active (sold is read-only)
+      var updateStatusBadge = function (container, newStatus) {
         var span = container.querySelector('.label-text');
         if (!span) return;
-        var isChecked = container.classList.contains('checked');
-        var card = container.closest('.kanban-card');
-        var isSold = card && card.classList.contains('is-sold');
-        span.textContent = isChecked ? (isSold ? 'Sold' : 'Active') : 'Inactive';
+        var label = newStatus === 'sold' ? 'SOLD' : (newStatus === 'active' ? 'ACTIVE' : 'INACTIVE');
+        span.textContent = label;
+        container.setAttribute('data-status', newStatus);
+        container.className = 'status-badge-container status-' + newStatus;
+        var ck = container.querySelector('.ck-icon');
+        if (newStatus === 'active') {
+          if (!ck) {
+            var svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+            svg.setAttribute('class', 'ck-icon');
+            svg.setAttribute('width', '16');
+            svg.setAttribute('height', '16');
+            svg.setAttribute('viewBox', '0 0 24 24');
+            svg.setAttribute('fill', 'none');
+            svg.setAttribute('stroke', 'currentColor');
+            svg.setAttribute('stroke-width', '3');
+            svg.setAttribute('stroke-linecap', 'round');
+            svg.setAttribute('stroke-linejoin', 'round');
+            var polyline = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
+            polyline.setAttribute('points', '20 6 9 17 4 12');
+            svg.appendChild(polyline);
+            container.insertBefore(svg, span);
+          }
+        } else {
+          if (ck) ck.remove();
+        }
       };
 
       board.addEventListener('click', function (e) {
-        var container = e.target.closest('.reviewed-checkbox');
+        var container = e.target.closest('.status-badge-container');
         if (!container) return;
+        var current = container.getAttribute('data-status') || 'inactive';
+        // Sold is read-only — cannot toggle via click
+        if (current === 'sold') return;
         var sku = container.getAttribute('data-sku');
         if (!sku) return;
 
-        var isChecked = container.classList.toggle('checked');
-        updateReviewedLabel(container);
-        var reviewed = isChecked ? '1' : '0';
+        var reviewed = current === 'active' ? '0' : '1';
 
         fetch('update_item.php', {
           method: 'POST',
           headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-          body: 'sku=' + encodeURIComponent(sku) + '&field=reviewed&value=' + encodeURIComponent(reviewed) + '&csrf_token=' + encodeURIComponent(window.CSRF_TOKEN)
+          body: 'sku=' + encodeURIComponent(sku) + '&field=reviewed&value=' + reviewed + '&csrf_token=' + encodeURIComponent(window.CSRF_TOKEN)
         })
           .then(function (r) { return r.json(); })
           .then(function (data) {
-            if (!data.ok) {
-              alert('Failed to update reviewed status: ' + (data.error || 'error'));
-              container.classList.toggle('checked');
-              updateReviewedLabel(container);
+            if (data.ok) {
+              updateStatusBadge(container, reviewed === '1' ? 'active' : 'inactive');
+            } else {
+              alert('Failed to update status: ' + (data.error || 'error'));
             }
           })
           .catch(function () {
-            alert('Failed to update reviewed status');
-            container.classList.toggle('checked');
-            updateReviewedLabel(container);
+            alert('Failed to update status');
           });
       });
 
@@ -443,7 +488,12 @@ foreach ($items as $item) {
         lastDeletedCardNextSibling = null;
       };
 
+      var undoing = false;
       var doUndo = function () {
+        if (undoing) return;
+        undoing = true;
+        if (undoBtn) undoBtn.disabled = true;
+        if (undoHeaderBtn) undoHeaderBtn.disabled = true;
         hideUndoToast();
         fetch('undo_delete.php', {
           method: 'POST',
@@ -452,6 +502,9 @@ foreach ($items as $item) {
         })
           .then(function (r) { return r.json(); })
           .then(function (data) {
+            undoing = false;
+            if (undoBtn) undoBtn.disabled = false;
+            if (undoHeaderBtn) undoHeaderBtn.disabled = false;
             if (data.status === 'ok') {
               restoreDeletedCard(data.new_id);
             } else {
@@ -459,6 +512,9 @@ foreach ($items as $item) {
             }
           })
           .catch(function () {
+            undoing = false;
+            if (undoBtn) undoBtn.disabled = false;
+            if (undoHeaderBtn) undoHeaderBtn.disabled = false;
             alert('Undo failed — please reload the page.');
           });
       };

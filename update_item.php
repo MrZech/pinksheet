@@ -58,7 +58,11 @@ try {
         $stmt = $pdo->prepare('UPDATE intake_items SET status = :val, updated_at = datetime("now") WHERE ' . $skuWhere);
         $stmt->execute([':val' => (string)$value, ':sku' => $sku]);
     } elseif ($field === 'reviewed') {
-        $reviewed = $value === '1' || $value === 1 || $value === true ? 1 : 0;
+        $reviewed = match (true) {
+            $value === '2' || $value === 2 => 2,
+            $value === '1' || $value === 1 || $value === true => 1,
+            default => 0,
+        };
         $stmt = $pdo->prepare('UPDATE intake_items SET reviewed = :val, updated_at = datetime("now") WHERE ' . $skuWhere);
         $stmt->execute([':val' => $reviewed, ':sku' => $sku]);
     } else {
@@ -78,8 +82,11 @@ try {
             exit;
         }
     }
+    $updatedStmt = $pdo->prepare('SELECT updated_at FROM intake_items WHERE ' . $skuWhere);
+    $updatedStmt->execute([':sku' => $sku]);
+    $updatedAt = (string)($updatedStmt->fetchColumn() ?? '');
     $squareSync = squareSyncItemBySku($pdo, $sku);
-    echo json_encode(['ok' => true, 'square_sync' => $squareSync['status'] ?? 'skipped']);
+    echo json_encode(['ok' => true, 'updated_at' => $updatedAt, 'square_sync' => $squareSync['status'] ?? 'skipped']);
 } catch (Throwable $e) {
     http_response_code(500);
     echo json_encode(['ok' => false, 'error' => 'DB error']);

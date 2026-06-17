@@ -1828,9 +1828,12 @@ function checked(string $name, string $value, array $formData): string
         }
       };
 
+      var intakeUndoing = false;
       if (undoDeleteForm) {
         undoDeleteForm.addEventListener('submit', function (evt) {
           evt.preventDefault();
+          if (intakeUndoing) return;
+          intakeUndoing = true;
           fetch('undo_delete.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -1838,6 +1841,7 @@ function checked(string $name, string $value, array $formData): string
           })
             .then(function (r) { return r.json(); })
             .then(function (data) {
+              intakeUndoing = false;
               if (data && data.status === 'ok') {
                 restoreDeletedRow(data.new_id);
                 showToast('Restored ' + (data.restored_sku || 'item'));
@@ -1846,6 +1850,7 @@ function checked(string $name, string $value, array $formData): string
               }
             })
             .catch(function () {
+              intakeUndoing = false;
               alert('Undo failed. Please retry.');
             });
         });
@@ -2493,23 +2498,19 @@ function checked(string $name, string $value, array $formData): string
           addFilesToQueue(items);
         });
       }
-      var deleteButtons = document.querySelectorAll('.js-delete-photo');
-      if (deleteButtons.length && deleteForm && deleteInput) {
-        deleteButtons.forEach(function (btn) {
-          btn.addEventListener('click', function () {
-            var id = btn.getAttribute('data-photo-id');
-            if (!id) return;
-            var ok = confirm('Delete this photo?');
-            if (!ok) return;
-            deleteInput.value = id;
-            if (skuField) {
-              deleteSku.value = skuField.value;
+      var refreshRowTimestamp = function (el, serverTime) {
+        if (serverTime) {
+          var row = el && el.closest('tr');
+          if (!row) return;
+          var cells = row.cells;
+          for (var i = 0; i < cells.length; i++) {
+            if (cells[i].textContent && cells[i].textContent.match(/^\d{4}-\d{2}-\d{2}/)) {
+              cells[i].textContent = serverTime;
+              break;
             }
-            deleteForm.submit();
-          });
-        });
-      }
-      var refreshRowTimestamp = function (el) {
+          }
+          return;
+        }
         var row = el && el.closest('tr');
         if (!row) return;
         var cells = row.cells;
@@ -2522,6 +2523,25 @@ function checked(string $name, string $value, array $formData): string
           }
         }
       };
+      var refreshRowCell = function (row, field, value) {
+        if (!row) return;
+        // Update the displayed value in the row cells after a save
+        if (field === 'status' || field === 'price') {
+          var cells = row.cells;
+          for (var i = 0; i < cells.length; i++) {
+            var sel = cells[i].querySelector('.js-inline-status');
+            if (sel && field === 'status') {
+              sel.value = value;
+              continue;
+            }
+            var inp = cells[i].querySelector('.js-inline-price');
+            if (inp && field === 'price') {
+              inp.value = value;
+              continue;
+            }
+          }
+        }
+      };
       var inlineUpdate = function (el, sku, field, value) {
         fetch('update_item.php', {
           method: 'POST',
@@ -2531,7 +2551,9 @@ function checked(string $name, string $value, array $formData): string
           .then(function (r) { return r.json(); })
           .then(function (data) {
             if (data.ok) {
-              refreshRowTimestamp(el);
+              var row = el && el.closest('tr');
+              refreshRowTimestamp(el, data.updated_at);
+              refreshRowCell(row, field, value);
               showToast('Updated ' + field);
             } else {
               showToast('Update failed: ' + (data.error || 'error'));
@@ -2678,8 +2700,12 @@ function checked(string $name, string $value, array $formData): string
         intakeUndoTimer = setTimeout(hideIntakeUndoToast, INTAKE_UNDO_DURATION);
       };
 
+      var intakeBtnUndoing = false;
       if (intakeUndoBtn) {
         intakeUndoBtn.addEventListener('click', function () {
+          if (intakeBtnUndoing) return;
+          intakeBtnUndoing = true;
+          intakeUndoBtn.disabled = true;
           hideIntakeUndoToast();
           fetch('undo_delete.php', {
             method: 'POST',
@@ -2688,6 +2714,8 @@ function checked(string $name, string $value, array $formData): string
           })
             .then(function (r) { return r.json(); })
             .then(function (data) {
+              intakeBtnUndoing = false;
+              intakeUndoBtn.disabled = false;
               if (data.status === 'ok') {
                 restoreDeletedRow(data.new_id);
                 showToast('Restored ' + (data.restored_sku || 'item'));
@@ -2695,7 +2723,11 @@ function checked(string $name, string $value, array $formData): string
                 alert(data && data.message ? data.message : 'Nothing to undo.');
               }
             })
-            .catch(function () { alert('Undo failed.'); });
+            .catch(function () {
+              intakeBtnUndoing = false;
+              intakeUndoBtn.disabled = false;
+              alert('Undo failed. Please retry.');
+            });
         });
       }
       if (toastElement && toastElement.dataset.active === '1') {

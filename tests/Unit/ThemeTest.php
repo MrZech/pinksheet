@@ -145,7 +145,7 @@ final class ThemeTest extends TestCase
     public function test_kanban_card_has_reviewed_checkbox(): void
     {
         $html = file_get_contents($this->kanbanFile);
-        $this->assertStringContainsString('reviewed-checkbox', $html);
+        $this->assertStringContainsString('status-badge-container', $html);
     }
 
     public function test_kanban_card_has_data_sku_attribute(): void
