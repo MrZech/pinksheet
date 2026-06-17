@@ -47,9 +47,17 @@ $stmt->execute([strtoupper($sku)]);
 $photos = $stmt->fetchAll();
 
 $laneStatus = htmlspecialchars($item['status'] ?? 'Intake', ENT_QUOTES, 'UTF-8');
-$isSold = $laneStatus === 'SOLD';
-$isReviewed = !empty($item['reviewed']);
-$pillText = $isReviewed ? ($isSold ? 'Sold' : 'Active') : 'Inactive';
+$reviewedVal = (int)($item['reviewed'] ?? 0);
+if ($reviewedVal === 2) {
+    $pillClass = 'sold';
+    $pillText = 'SOLD';
+} elseif ($reviewedVal === 1) {
+    $pillClass = 'active';
+    $pillText = 'ACTIVE';
+} else {
+    $pillClass = '';
+    $pillText = 'INACTIVE';
+}
 $whatIsIt = htmlspecialchars($item['what_is_it'] ?? '', ENT_QUOTES, 'UTF-8');
 $notes = htmlspecialchars($item['notes'] ?? '', ENT_QUOTES, 'UTF-8');
 $updatedAt = htmlspecialchars($item['updated_at'] ?? '', ENT_QUOTES, 'UTF-8');
@@ -65,9 +73,9 @@ $photoCount = count($photos);
   <meta charset="utf-8">
   <title>Print - <?= $displaySku ?></title>
   <base href="<?= rtrim(dirname($_SERVER['SCRIPT_NAME']), '/') . '/' ?>">
-  <link rel="stylesheet" href="assets/style.css">
   <style>
     * {
+      box-sizing: border-box;
       box-shadow: none !important;
       text-shadow: none !important;
       -webkit-print-color-adjust: exact;
@@ -96,9 +104,13 @@ $photoCount = count($photos);
     }
 
     .print-card-container {
-      max-width: 7.5in;
-      margin: 0.3in auto;
-      padding: 0;
+      height: 100vh;
+      max-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-start;
+      padding: 20px;
+      overflow: hidden;
     }
 
     .print-card-header {
@@ -108,6 +120,7 @@ $photoCount = count($photos);
       padding-bottom: 8pt;
       margin-bottom: 10pt;
       border-bottom: 1.5pt solid #111;
+      flex-shrink: 0;
     }
 
     .print-card-header h1 {
@@ -128,13 +141,16 @@ $photoCount = count($photos);
     .print-card-body {
       display: flex;
       flex-direction: column;
-      gap: 8pt;
+      gap: 6pt;
+      flex: 1;
+      min-height: 0;
     }
 
     .print-card-field {
       border: 0.5pt solid #ccc;
       border-top: 1.5pt solid #111;
       padding: 6pt 8pt;
+      border-radius: 4px;
     }
 
     .print-card-field h2 {
@@ -158,12 +174,12 @@ $photoCount = count($photos);
     .print-card-meta-row {
       display: flex;
       gap: 8pt;
-      flex-wrap: wrap;
+      flex-shrink: 0;
     }
 
     .print-card-meta-row .print-card-field {
       flex: 1;
-      min-width: 120pt;
+      min-width: 0;
     }
 
     .print-card-pill {
@@ -194,54 +210,99 @@ $photoCount = count($photos);
     .print-photo-grid {
       display: grid;
       grid-template-columns: repeat(<?= min($photoCount, 4) ?>, 1fr);
-      gap: 8px;
+      gap: 6px;
       width: 100%;
     }
 
     .print-photo-grid img {
       width: 100%;
-      max-height: 150px;
+      max-height: 120px;
       object-fit: contain;
       border: 0.5pt solid #ccc;
-      border-radius: 3pt;
+      border-radius: 4px;
       background: #fafafa;
     }
 
     .print-card-footer {
-      margin-top: 10pt;
+      margin-top: 6pt;
       padding-top: 4pt;
       border-top: 0.5pt solid #ddd;
       font-size: 6pt;
       color: #bbb;
       text-align: center;
       letter-spacing: 0.06em;
+      flex-shrink: 0;
+    }
+
+    .notes-box {
+      border-radius: 4px;
+      border: 1px solid #b8c2d0;
+      padding: 10px;
     }
 
     @media print {
       html, body {
-        height: 100% !important;
+        height: 100vh !important;
+        max-height: 100% !important;
         margin: 0 !important;
         padding: 0 !important;
+        overflow: hidden !important;
+        background: #ffffff !important;
+        color: #000000 !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
       }
 
       .print-card-container {
+        height: 100vh !important;
+        max-height: 100vh !important;
+        display: flex !important;
+        flex-direction: column !important;
+        justify-content: flex-start !important;
+        padding: 20px !important;
+        overflow: hidden !important;
         page-break-inside: avoid !important;
         break-inside: avoid !important;
-        max-height: 100% !important;
-        display: block !important;
-        overflow: hidden !important;
+        page-break-after: avoid !important;
+        page-break-before: avoid !important;
+      }
+
+      .print-card-body {
+        flex: 1 !important;
+        min-height: 0 !important;
       }
 
       .print-photo-grid {
         display: grid !important;
         grid-template-columns: repeat(<?= min($photoCount, 4) ?>, 1fr) !important;
-        gap: 8px !important;
+        gap: 6px !important;
         width: 100% !important;
       }
 
       .print-photo-grid img {
-        max-height: 150px !important;
+        max-height: 120px !important;
+        width: auto !important;
         object-fit: contain !important;
+        margin-bottom: 0 !important;
+      }
+
+      .print-card-field,
+      .notes-box,
+      textarea,
+      input[type="text"],
+      input[type="number"],
+      select {
+        border-radius: 4px !important;
+        border: 1px solid #b8c2d0 !important;
+        padding: 10px !important;
+      }
+
+      .print-card-pill {
+        border-radius: 4px !important;
+      }
+
+      nav, .sidebar, .kanban-board-header, .action-buttons, #print-trigger-btn {
+        display: none !important;
       }
     }
   </style>
@@ -264,7 +325,7 @@ $photoCount = count($photos);
       <div class="print-card-meta-row">
         <div class="print-card-field">
           <h2>Status</h2>
-          <span class="print-card-pill<?= $isReviewed ? ($isSold ? ' sold' : ' active') : '' ?>"><?= $pillText ?></span>
+          <span class="print-card-pill<?= $pillClass !== '' ? ' ' . $pillClass : '' ?>"><?= $pillText ?></span>
         </div>
 
         <?php if ($price !== ''): ?>
@@ -283,7 +344,7 @@ $photoCount = count($photos);
       <?php if ($notes !== ''): ?>
       <div class="print-card-field">
         <h2>Notes</h2>
-        <div class="value"><?= nl2br($notes) ?></div>
+        <div class="value notes-box"><?= nl2br($notes) ?></div>
       </div>
       <?php endif; ?>
 
