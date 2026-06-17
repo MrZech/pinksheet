@@ -1007,14 +1007,15 @@ function checked(string $name, string $value, array $formData): string
             }
           ?>
               <label>What is it?
-                <select id="what-is-it-input" name="what_is_it" required>
-                  <option value="" <?php echo $currentWhat === '' ? 'selected' : ''; ?>>Select item type</option>
+                <input type="text" id="what-is-it-input" name="what_is_it"
+                       value="<?php echo h($currentWhat); ?>"
+                       list="what-is-it-datalist" required
+                       placeholder="Type or select an item type">
+                <datalist id="what-is-it-datalist">
                   <?php foreach ($whatOptionsList as $opt): ?>
-                    <option value="<?php echo h($opt); ?>" <?php echo $currentWhat === $opt ? 'selected' : ''; ?>>
-                      <?php echo h($opt); ?>
-                    </option>
+                    <option value="<?php echo h($opt); ?>">
                   <?php endforeach; ?>
-                </select>
+                </datalist>
           </label>
             </div>
             <p class="error client-error" id="what-error" hidden>Please enter a value for "What is it?".</p>
@@ -1276,7 +1277,8 @@ function checked(string $name, string $value, array $formData): string
             <span class="hint">Check boxes in the table, then update that status in bulk. You can undo the most recent delete.</span>
           </div>
             <div class="table-wrap">
-            <table>
+            <div class="table-responsive-wrapper">
+            <table class="inventory-main-table">
               <thead>
                 <tr>
                   <th>Select</th>
@@ -1371,6 +1373,7 @@ function checked(string $name, string $value, array $formData): string
                 <?php endif; ?>
               </tbody>
             </table>
+          </div>
           </div>
         </form>
       </section>
