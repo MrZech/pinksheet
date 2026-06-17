@@ -1,5 +1,9 @@
 # App data and backups (kept outside git)
 data/intake.sqlite
+data/intake.sqlite-journal
+data/intake.sqlite-wal
+data/intake.sqlite-shm
+data/intake.sqlite.bak-*
 data/backups/
 data/chunks/
 data/sku_photos/
