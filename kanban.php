@@ -113,6 +113,8 @@ foreach ($items as $item) {
   <script src="assets/menu.js?v=<?= filemtime('assets/menu.js') ?>" defer></script>
   <script src="assets/qz-tray.js?v=<?= filemtime('assets/qz-tray.js') ?>"></script>
   <script>window.CSRF_TOKEN = <?= json_encode(csrf_token()) ?>;</script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" integrity="sha512-CNgIRecGo7nphbeZ04Sc13ka07paqdeTu0WR1IM4kNcpmBAUSHSQX0FslNhTDadL4O5SAGapGt4FodqL8My0mA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js" integrity="sha512-r6rDA7W6ZeQhvl8S7yRVQUKVHdexq+GAlNkNNqVC7YyIV+NwqCTJe2hDWCiffTyRNOeGEzRRJ9ifvRm/HCzGYg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
   <script src="assets/theme.js?v=<?= filemtime('assets/theme.js') ?>" defer></script>
   <script src="assets/app.js?v=<?= filemtime('assets/app.js') ?>"></script>
 </head>
@@ -143,6 +145,7 @@ foreach ($items as $item) {
           <button type="button" class="ghost" id="kanban-undo-header-btn" hidden title="Restore the last deleted item">↩ Undo last delete</button>
           <a class="button-link" href="home.php">Dashboard</a>
           <button type="button" class="theme-toggle" id="theme-toggle">Dark mode</button>
+          <button type="button" class="ghost scanner-scan-btn" id="scanner-scan-btn" title="Scan QR code to upload photo">📷 Scan QR</button>
         </div>
       </header>
       <h1>Status Board</h1>
@@ -175,6 +178,12 @@ foreach ($items as $item) {
                             aria-label="Print card for <?php echo htmlspecialchars($sku, ENT_QUOTES, 'UTF-8'); ?>">
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
                     </button>
+                    <button type="button" class="card-qr-btn"
+                            data-sku="<?php echo htmlspecialchars($norm, ENT_QUOTES, 'UTF-8'); ?>"
+                            title="Show QR code for <?php echo htmlspecialchars($sku, ENT_QUOTES, 'UTF-8'); ?>"
+                            aria-label="Show QR code for <?php echo htmlspecialchars($sku, ENT_QUOTES, 'UTF-8'); ?>">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+                    </button>
                     <button type="button" class="card-delete-btn"
                             data-id="<?php echo (int)($card['id'] ?? 0); ?>"
                             data-sku="<?php echo htmlspecialchars($norm, ENT_QUOTES, 'UTF-8'); ?>"
@@ -183,6 +192,13 @@ foreach ($items as $item) {
                       🗑
                     </button>
                   </div>
+                </div>
+                <div class="card-qr-row">
+                  <div class="card-qr-render"
+                       data-sku="<?php echo htmlspecialchars($norm, ENT_QUOTES, 'UTF-8'); ?>"
+                       data-url="<?php echo htmlspecialchars((isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' ? 'https' : 'http') . '://' . ($_SERVER['HTTP_HOST'] ?? 'localhost') . '/mobile_action.php?sku=' . urlencode($norm) . '&token=' . urlencode(csrf_token()), ENT_QUOTES, 'UTF-8'); ?>">
+                  </div>
+                  <span class="card-qr-label">Scan to upload photo</span>
                 </div>
                 <div class="card-body">
                   <div class="sku">
@@ -587,6 +603,155 @@ foreach ($items as $item) {
       });
 
     })();
+  </script>
+
+  <!-- ── QR Scanner Overlay ──────────────────────────────── -->
+  <div class="scanner-overlay" id="scanner-overlay">
+    <div class="scanner-header">
+      <h2>Scan QR Code</h2>
+      <button type="button" class="scanner-close-btn" id="scanner-close-btn">Close</button>
+    </div>
+    <div class="scanner-body">
+      <div>
+        <div id="scanner-container"></div>
+        <div class="scanner-result-msg" id="scanner-result-msg"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+  (function () {
+    // ── QR Code Toggle on Kanban Cards ──────────────────────────
+    var qrInstances = {};
+
+    var toggleQrCode = function (btn) {
+      var card = btn.closest('.kanban-card');
+      if (!card) return;
+      var qrRow = card.querySelector('.card-qr-row');
+      if (!qrRow) return;
+      var renderEl = qrRow.querySelector('.card-qr-render');
+      if (!renderEl) return;
+
+      var isOpen = qrRow.classList.contains('is-visible');
+      if (isOpen) {
+        qrRow.classList.remove('is-visible');
+        return;
+      }
+
+      var url = renderEl.getAttribute('data-url');
+      if (!url) return;
+
+      // Clear previous QR if any (to re-render cleanly)
+      renderEl.innerHTML = '';
+      var id = renderEl.getAttribute('data-sku');
+      if (id && qrInstances[id]) {
+        delete qrInstances[id];
+      }
+
+      try {
+        var qr = new QRCode(renderEl, {
+          text: url,
+          width: 100,
+          height: 100,
+          colorDark: '#0f172a',
+          colorLight: '#ffffff',
+          correctLevel: QRCode.CorrectLevel.H
+        });
+        if (id) qrInstances[id] = qr;
+        qrRow.classList.add('is-visible');
+      } catch (e) {
+        // QR lib not available
+      }
+    };
+
+    document.addEventListener('click', function (e) {
+      var btn = e.target.closest('.card-qr-btn');
+      if (btn) {
+        e.stopPropagation();
+        toggleQrCode(btn);
+      }
+    });
+
+    // ── Desktop QR Scanner ──────────────────────────────────────
+    var scannerOverlay = document.getElementById('scanner-overlay');
+    var scanBtn = document.getElementById('scanner-scan-btn');
+    var closeBtn = document.getElementById('scanner-close-btn');
+    var resultMsg = document.getElementById('scanner-result-msg');
+    var scannerContainer = document.getElementById('scanner-container');
+    var html5QrScanner = null;
+
+    var stopScanner = function () {
+      if (html5QrScanner) {
+        try {
+          html5QrScanner.stop().then(function () {
+            html5QrScanner.clear();
+          }).catch(function () {});
+        } catch (e) {}
+        html5QrScanner = null;
+      }
+      if (scannerContainer) scannerContainer.innerHTML = '';
+      if (resultMsg) resultMsg.textContent = '';
+    };
+
+    var startScanner = function () {
+      if (!scannerContainer || !window.Html5Qrcode) return;
+
+      stopScanner();
+      if (resultMsg) resultMsg.textContent = 'Initializing camera...';
+
+      html5QrScanner = new Html5Qrcode('scanner-container');
+
+      html5QrScanner.start(
+        { facingMode: 'environment' },
+        {
+          fps: 10,
+          qrbox: { width: 250, height: 250 }
+        },
+        function (decodedText) {
+          // On each successful decode — auto-navigate
+          var match = decodedText.match(/[?&]sku=([A-Z0-9_-]+)/i);
+          if (match && match[1]) {
+            var sku = match[1];
+            if (resultMsg) resultMsg.textContent = 'Scanned: ' + sku + ' — navigating...';
+            stopScanner();
+            if (scannerOverlay) scannerOverlay.classList.remove('is-open');
+            window.location.href = 'kanban.php?highlight=' + encodeURIComponent(sku);
+          } else {
+            if (resultMsg) resultMsg.textContent = 'Scanned code is not a valid item QR';
+          }
+        },
+        function () {
+          // Decode error — keep scanning
+        }
+      ).catch(function (err) {
+        if (resultMsg) resultMsg.textContent = 'Camera error: ' + (err.message || 'unknown');
+      });
+    };
+
+    if (scanBtn) {
+      scanBtn.addEventListener('click', function () {
+        if (scannerOverlay) scannerOverlay.classList.add('is-open');
+        setTimeout(startScanner, 300);
+      });
+    }
+
+    if (closeBtn) {
+      closeBtn.addEventListener('click', function () {
+        stopScanner();
+        if (scannerOverlay) scannerOverlay.classList.remove('is-open');
+      });
+    }
+
+    // Close on backdrop click
+    if (scannerOverlay) {
+      scannerOverlay.addEventListener('click', function (e) {
+        if (e.target === scannerOverlay) {
+          stopScanner();
+          scannerOverlay.classList.remove('is-open');
+        }
+      });
+    }
+  })();
   </script>
   </div>
 </body>

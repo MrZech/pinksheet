@@ -3720,6 +3720,180 @@ body.dark-mode .card-delete-btn:hover {
   background-color: #2d1b1b !important;
 }
 
+/* ── QR Code Elements ────────────────────────────────────────── */
+.card-qr-row {
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  margin: 8px 0 4px;
+  padding: 8px;
+  background: var(--surface-secondary);
+  border: 1px solid var(--border-panel);
+  border-radius: 8px;
+}
+
+.card-qr-row.is-visible {
+  display: flex;
+}
+
+.card-qr-render {
+  width: 100px;
+  height: 100px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.card-qr-render img,
+.card-qr-render canvas {
+  width: 100px !important;
+  height: 100px !important;
+}
+
+.card-qr-label {
+  font-size: 0.68rem;
+  color: var(--text-tertiary);
+  text-align: center;
+  line-height: 1.2;
+}
+
+.card-qr-btn {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 36px !important;
+  height: 36px !important;
+  border: 1px solid #d5dce6 !important;
+  border-radius: 4px !important;
+  box-shadow: none !important;
+  background-color: #ffffff !important;
+  color: #475569;
+  cursor: pointer;
+  font-size: 0.85rem;
+  line-height: 1;
+  flex-shrink: 0;
+  padding: 0 !important;
+  box-sizing: border-box;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.card-qr-btn:hover {
+  background-color: #f1f5f9 !important;
+}
+
+body[data-theme="dark"] .card-qr-btn,
+body.dark-mode .card-qr-btn {
+  background-color: #1e293b !important;
+  border-color: #334155 !important;
+  color: #94a3b8;
+  box-shadow: none !important;
+}
+
+body[data-theme="dark"] .card-qr-btn:hover,
+body.dark-mode .card-qr-btn:hover {
+  background-color: #334155 !important;
+  color: #cbd5e1;
+}
+
+/* ── Desktop QR Scanner Modal ────────────────────────────────── */
+.scanner-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal);
+  display: none;
+  flex-direction: column;
+  background: rgba(0, 0, 0, 0.88);
+  backdrop-filter: blur(6px);
+}
+
+.scanner-overlay.is-open {
+  display: flex;
+}
+
+.scanner-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px;
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+}
+
+.scanner-header h2 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  color: #fff;
+}
+
+.scanner-close-btn {
+  background: transparent;
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 4px;
+  padding: 6px 16px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  min-height: 36px;
+}
+
+.scanner-close-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+.scanner-body {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  min-height: 0;
+}
+
+#scanner-container {
+  width: min(480px, 100%);
+  max-height: 100%;
+}
+
+#scanner-container video {
+  border-radius: 8px;
+}
+
+#scanner-container .html5-qrcode-element {
+  color: #fff;
+}
+
+#scanner-container #html5-qrcode-button-camera-permission,
+#scanner-container button {
+  background: var(--palette-teal) !important;
+  color: #fff !important;
+  border: none !important;
+  border-radius: 4px !important;
+  padding: 8px 16px !important;
+  font-size: 0.85rem !important;
+  cursor: pointer !important;
+}
+
+.scanner-result-msg {
+  margin-top: 10px;
+  text-align: center;
+  color: #fff;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.scanner-scan-btn {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 6px;
+  padding: 8px 16px !important;
+  font-size: 0.85rem !important;
+}
+
 /* ── QZ Tray print status toast ──────────────────────────────── */
 .qz-print-toast {
   position: fixed;
