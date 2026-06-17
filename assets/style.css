@@ -2068,6 +2068,42 @@ body.dark-mode .compat-os-btn.is-active {
   flex: 1;
 }
 
+/* ── Intake Page QR Code ──────────────────────────────────────── */
+.intake-qr-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 10px;
+  background: var(--surface-secondary);
+  border: 1px solid var(--border-panel);
+  border-radius: 8px;
+  min-width: 120px;
+  align-self: start;
+}
+
+.intake-qr-render {
+  width: 90px;
+  height: 90px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.intake-qr-render img,
+.intake-qr-render canvas {
+  width: 90px !important;
+  height: 90px !important;
+}
+
+.intake-qr-label {
+  font-size: 0.65rem;
+  color: var(--text-tertiary);
+  text-align: center;
+  line-height: 1.1;
+}
+
 .what-field input[type="text"]#what-is-it-input {
   width: 100%;
   padding-right: 116px;
