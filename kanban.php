@@ -183,7 +183,7 @@ foreach ($items as $item) {
                     </div>
                     <div class="reviewed-checkbox<?php echo !empty($card['reviewed']) ? ' checked' : ''; ?>"
                          data-sku="<?php echo htmlspecialchars($sku, ENT_QUOTES, 'UTF-8'); ?>">
-                      <span><svg class="ck-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg><?php echo $lane === 'SOLD' ? 'Sold' : 'Active'; ?></span>
+                      <span><svg class="ck-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg><span class="label-text"><?php echo !empty($card['reviewed']) ? ($lane === 'SOLD' ? 'Sold' : 'Active') : 'Inactive'; ?></span></span>
                     </div>
                   </div>
                   <div class="card-print-actions">
@@ -322,9 +322,9 @@ foreach ($items as $item) {
             // Update is-sold class and label when card moves into or out of SOLD lane
             var isSold = status === 'SOLD';
             card.classList.toggle('is-sold', isSold);
-            var lbl = card.querySelector('.reviewed-checkbox span');
-            if (lbl) {
-              lbl.textContent = isSold ? 'Sold' : 'Active';
+            var reviewedBox = card.querySelector('.reviewed-checkbox');
+            if (reviewedBox) {
+              updateReviewedLabel(reviewedBox);
             }
           })
           .catch(function () {
@@ -333,6 +333,15 @@ foreach ($items as $item) {
       });
 
       // Handle reviewed pill toggle
+      var updateReviewedLabel = function (container) {
+        var span = container.querySelector('.label-text');
+        if (!span) return;
+        var isChecked = container.classList.contains('checked');
+        var card = container.closest('.kanban-card');
+        var isSold = card && card.classList.contains('is-sold');
+        span.textContent = isChecked ? (isSold ? 'Sold' : 'Active') : 'Inactive';
+      };
+
       board.addEventListener('click', function (e) {
         var container = e.target.closest('.reviewed-checkbox');
         if (!container) return;
@@ -340,6 +349,7 @@ foreach ($items as $item) {
         if (!sku) return;
 
         var isChecked = container.classList.toggle('checked');
+        updateReviewedLabel(container);
         var reviewed = isChecked ? '1' : '0';
 
         fetch('update_item.php', {
@@ -352,11 +362,13 @@ foreach ($items as $item) {
             if (!data.ok) {
               alert('Failed to update reviewed status: ' + (data.error || 'error'));
               container.classList.toggle('checked');
+              updateReviewedLabel(container);
             }
           })
           .catch(function () {
             alert('Failed to update reviewed status');
             container.classList.toggle('checked');
+            updateReviewedLabel(container);
           });
       });
 
