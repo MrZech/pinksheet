@@ -4591,9 +4591,15 @@ body.dark-mode .button-link:hover {
    ═══════════════════════════════════════════════════════════════════ */
 @media print {
   html, body {
-    height: 100% !important;
+    height: 100vh !important;
+    max-height: 100% !important;
     margin: 0 !important;
     padding: 0 !important;
+    overflow: hidden !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
     page-break-after: avoid !important;
     page-break-before: avoid !important;
   }
@@ -4601,35 +4607,53 @@ body.dark-mode .button-link:hover {
   .print-card-container {
     page-break-inside: avoid !important;
     break-inside: avoid !important;
+    page-break-after: avoid !important;
+    page-break-before: avoid !important;
     height: 100vh !important;
-    max-height: 100% !important;
-    display: block !important;
+    max-height: 100vh !important;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: flex-start !important;
+    padding: 20px !important;
     overflow: hidden !important;
   }
 
-  .kanban-board-header,
-  .app-menu,
-  .menu-panel,
-  .menu-toggle,
-  .action-sidebar,
-  .kanban-count,
-  .kanban-lane h3 {
+  .print-card-body {
+    flex: 1 !important;
+    min-height: 0 !important;
+  }
+
+  nav, .sidebar, .kanban-board-header, .app-menu, .menu-panel, .menu-toggle,
+  .action-sidebar, .action-buttons, .kanban-count, .kanban-lane h3,
+  #print-trigger-btn, .card-print-btn, .card-delete-btn {
     display: none !important;
   }
 
   .print-photo-grid {
     display: grid !important;
-    grid-template-columns: repeat(4, 1fr) !important;
-    gap: 8px !important;
+    gap: 6px !important;
     width: 100% !important;
   }
 
   .print-photo-grid img {
-    max-height: 150px !important;
+    max-height: 120px !important;
+    width: auto !important;
     object-fit: contain !important;
+    margin-bottom: 0 !important;
   }
 
-  .print-card-page .status-badge-container {
+  .print-card-field,
+  .notes-box,
+  textarea,
+  input[type="text"],
+  input[type="number"],
+  select {
+    border-radius: 4px !important;
+    border: 1px solid #b8c2d0 !important;
+    padding: 10px !important;
+  }
+
+  .print-card-pill {
     border-radius: 4px !important;
   }
 }
