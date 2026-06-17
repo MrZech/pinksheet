@@ -202,7 +202,7 @@ foreach ($items as $item) {
                                || (isset($_SERVER['HTTP_CF_VISITOR']) && str_contains($_SERVER['HTTP_CF_VISITOR'], '"scheme":"https"'));
                            $protocol = $isHttps ? 'https' : 'http';
                            $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
-                           $qrUrl = $protocol . '://' . $host . '/mobile_action.php?sku=' . urlencode($norm) . '&token=' . urlencode(csrf_token());
+                           $qrUrl = $protocol . '://' . $host . '/intake.php?sku=' . urlencode($norm);
                        ?><?php echo htmlspecialchars($qrUrl, ENT_QUOTES, 'UTF-8'); ?>">
                   </div>
                   <span class="card-qr-label">Scan to upload photo</span>
