@@ -205,7 +205,7 @@ foreach ($items as $item) {
                            $qrUrl = $protocol . '://' . $host . '/intake.php?sku=' . urlencode($norm);
                        ?><?php echo htmlspecialchars($qrUrl, ENT_QUOTES, 'UTF-8'); ?>">
                   </div>
-                  <span class="card-qr-label">Scan to upload photo</span>
+                  <span class="card-qr-label">Scan to open in intake</span>
                 </div>
                 <div class="card-body">
                   <div class="sku">

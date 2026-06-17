@@ -1000,7 +1000,7 @@ function checked(string $name, string $value, array $formData): string
                   </div>
                   <span class="hint" id="copy-sku-status" hidden></span>
                 </div>
-                <div class="intake-qr-wrap" id="intake-qr-wrap"<?php $activeSkuNormalized === '' ? ' hidden' : '' ?>>
+                <div class="intake-qr-wrap" id="intake-qr-wrap"<?= $activeSkuNormalized === '' ? ' hidden' : '' ?>>
                   <div class="intake-qr-render" id="intake-qr-render"
                        data-sku="<?php echo h($activeSkuNormalized); ?>"
                        data-url="<?php $isHttps = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https') || (isset($_SERVER['HTTP_CF_VISITOR']) && str_contains($_SERVER['HTTP_CF_VISITOR'], '"scheme":"https"')); $protocol = $isHttps ? 'https' : 'http'; $host = $_SERVER['HTTP_HOST'] ?? 'localhost'; echo h($protocol . '://' . $host . '/intake.php?sku=' . urlencode($activeSkuNormalized)); ?>">
