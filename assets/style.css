@@ -2826,6 +2826,7 @@ body.dark-mode .warning {
   padding: 8px;
   background: var(--surface-primary);
   min-height: 164px;
+  overflow: visible;
   transition: border-color var(--transition-fast), background var(--transition-fast);
 }
 
@@ -2942,12 +2943,12 @@ body.dark-mode .msg.err {
 .sku-photo-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 8px;
   justify-content: flex-end;
   padding: 4px 0;
-  min-height: 36px;
+  min-height: 40px;
   position: relative;
-  z-index: 2;
+  z-index: 10;
 }
 
 .inline-form {
@@ -3000,12 +3001,12 @@ body.dark-mode .ghost.button:hover {
   border: 2px solid var(--border-strong);
   background: transparent;
   color: var(--text-primary);
-  padding: 6px 12px;
+  padding: 8px 14px;
   border-radius: var(--radius-sm);
-  font-size: 0.82rem;
+  font-size: 0.85rem;
   cursor: pointer;
-  min-height: 32px;
-  min-width: 64px;
+  min-height: 36px;
+  min-width: 72px;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   user-select: none;
@@ -3118,10 +3119,10 @@ body.dark-mode .sku-photo-item span {
 }
 
 .recent-items .js-inline-status {
-  min-width: 170px;
-  max-width: 260px;
+  min-width: 200px;
+  max-width: 320px;
   width: 100%;
-  padding: 4px 6px;
+  padding: 6px 10px;
   text-overflow: ellipsis;
 }
 
@@ -3345,11 +3346,16 @@ body.dark-mode .pagination-page-btns button.is-current-page {
   box-sizing: border-box;
 }
 
-.kanban-shell {
+.sheet.kanban-shell {
   width: 100%;
   max-width: none;
   margin: 0;
   overflow: visible;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  padding: 0;
 }
 
 .kanban-scroll {
@@ -3439,7 +3445,7 @@ body.kanban-dragging .kanban-lane {
 .kanban-card {
   background: var(--surface-primary);
   border-radius: var(--radius-sm);
-  padding: 8px 8px 12px;
+  padding: 16px;
   margin-bottom: 8px;
   cursor: grab;
   border: 1px solid var(--line);
@@ -3447,9 +3453,9 @@ body.kanban-dragging .kanban-lane {
   touch-action: none;
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
   min-height: 130px;
   height: auto;
+  box-sizing: border-box;
   transition: border-color var(--transition-fast), box-shadow var(--transition-fast), opacity var(--transition-fast), transform var(--transition-fast);
 }
 
@@ -3465,11 +3471,19 @@ body.kanban-dragging .kanban-lane {
   border-color: var(--palette-teal);
 }
 
-.card-inner {
+.card-top-row {
   display: flex;
-  gap: 8px;
-  align-items: stretch;
-  flex: 1;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.card-action-buttons {
+  display: flex;
+  flex-direction: row;
+  gap: 6px;
+  flex-shrink: 0;
+  margin-left: auto;
 }
 
 .card-thumb {
@@ -3541,10 +3555,23 @@ body.kanban-dragging .kanban-lane {
   flex-wrap: wrap;
 }
 
-.kanban-card .reviewed-checkbox {
-  margin-top: auto;
+.kanban-card .status-badge-container {
+  margin-top: 12px;
   cursor: pointer;
   position: relative;
+  width: 100%;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  height: 38px !important;
+  border: 1px solid rgba(71, 85, 105, 0.15) !important;
+  border-radius: 4px !important;
+  padding: 0 !important;
+  box-sizing: border-box !important;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
 }
 
 @keyframes pill-pop {
@@ -3554,135 +3581,113 @@ body.kanban-dragging .kanban-lane {
   100% { transform: scale(1); }
 }
 
-.kanban-card .reviewed-checkbox span {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 8px 16px;
-  background: var(--surface-secondary);
-  border: 1.5px solid var(--border-strong);
-  border-radius: 4px;
-  font-size: 0.75rem;
-  font-weight: 700;
-  color: var(--text-secondary);
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-  transition: background var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast), box-shadow var(--transition-fast);
+.kanban-card .status-badge-container.status-active {
+  background-color: #e2f0d9 !important;
+  color: #385723 !important;
+  border-color: rgba(56, 87, 35, 0.2) !important;
+  font-size: 0.85rem;
+  font-weight: 800;
 }
 
-.kanban-card .reviewed-checkbox.checked span {
-  background: rgba(54, 173, 163, 0.18);
-  border-color: var(--palette-teal);
-  color: var(--palette-teal);
-  box-shadow: 0 0 0 1px rgba(54, 173, 163, 0.25), 0 2px 8px rgba(54, 173, 163, 0.2);
-  animation: pill-pop 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) 1;
+.kanban-card .status-badge-container.status-inactive {
+  background-color: #f1f5f9 !important;
+  color: #475569 !important;
+  border-color: rgba(71, 85, 105, 0.15) !important;
 }
 
-.kanban-card .reviewed-checkbox:hover span {
-  background: rgba(0,0,0,0.04);
-  box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+.kanban-card .status-badge-container.status-sold {
+  background-color: #e0f2fe !important;
+  color: #0369a1 !important;
+  border-color: rgba(3, 105, 161, 0.15) !important;
+  font-size: 0.85rem;
+  font-weight: 800;
 }
 
-.kanban-card .reviewed-checkbox.checked:hover span {
-  background: rgba(54, 173, 163, 0.22);
-  border-color: var(--accent-primary);
-  box-shadow: 0 0 0 2px rgba(54, 173, 163, 0.3), 0 4px 12px rgba(54, 173, 163, 0.25);
+.kanban-card .status-badge-container .ck-icon {
+  width: 14px;
+  height: 14px;
+  margin-right: 6px;
+  flex-shrink: 0;
+  color: #22c55e;
 }
 
-.kanban-card.is-sold .reviewed-checkbox.checked span {
-  background: rgba(3, 105, 161, 0.18);
-  border-color: var(--color-info);
-  color: #7dd3fc;
-  box-shadow: 0 0 0 1px rgba(3, 105, 161, 0.35), 0 2px 8px rgba(3, 105, 161, 0.2);
-  animation: pill-pop 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) 1;
-}
-
-.kanban-card.is-sold .reviewed-checkbox.checked:hover span {
-  background: rgba(3, 105, 161, 0.24);
-  box-shadow: 0 0 0 2px rgba(3, 105, 161, 0.4), 0 4px 12px rgba(3, 105, 161, 0.25);
+.kanban-card .status-badge-container .label-text {
+  display: inline;
 }
 
 .card-delete-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 26px;
-  height: 26px;
-  border-radius: var(--radius-xs);
-  border: 1px solid rgba(185, 28, 28, 0.28);
-  background: var(--danger-bg);
-  color: var(--danger-text);
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 36px !important;
+  height: 36px !important;
+  border: 1px solid #d5dce6 !important;
+  border-radius: 4px !important;
+  box-shadow: none !important;
+  background-color: #ffffff !important;
+  color: #b91c1c;
   cursor: pointer;
   font-size: 0.85rem;
   line-height: 1;
   flex-shrink: 0;
-  align-self: flex-start;
+  padding: 0 !important;
+  box-sizing: border-box;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  margin-top: 2px;
-  box-shadow: 0 2px 6px rgba(185, 28, 28, 0.15);
 }
 
 .card-delete-btn:hover {
-  background: rgba(185, 28, 28, 0.14);
-  border-color: rgba(185, 28, 28, 0.45);
-  transform: scale(1.05);
-  box-shadow: 0 4px 12px rgba(185, 28, 28, 0.25);
-}
-
-/* ── Kanban card print button ──────────────────────────────── */
-.kanban-card .card-print-actions {
-  display: flex;
-  align-items: center;
-  flex-shrink: 0;
-  align-self: flex-start;
-  margin-top: 2px;
-  gap: 4px;
+  background-color: #fef2f2 !important;
 }
 
 .card-print-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 26px;
-  height: 26px;
-  border-radius: var(--radius-xs);
-  border: 1px solid var(--border-color);
-  background: var(--surface-secondary);
-  color: var(--text-secondary);
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 36px !important;
+  height: 36px !important;
+  border: 1px solid #d5dce6 !important;
+  border-radius: 4px !important;
+  box-shadow: none !important;
+  background-color: #ffffff !important;
+  color: #475569;
   cursor: pointer;
   font-size: 0.85rem;
   line-height: 1;
   flex-shrink: 0;
-  align-self: flex-start;
+  padding: 0 !important;
+  box-sizing: border-box;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  margin-top: 2px;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
-  padding: 0;
 }
 
 .card-print-btn:hover {
-  background: var(--palette-teal-soft);
-  border-color: var(--palette-teal);
-  color: var(--palette-teal);
-  transform: scale(1.05);
-  box-shadow: 0 4px 12px rgba(54, 173, 163, 0.2);
+  background-color: #f1f5f9 !important;
 }
 
 body[data-theme="dark"] .card-print-btn,
 body.dark-mode .card-print-btn {
-  background: transparent;
-  border-color: var(--border-color);
-  color: var(--text-secondary);
-  box-shadow: none;
+  background-color: #1e293b !important;
+  border-color: #334155 !important;
+  color: #94a3b8;
+  box-shadow: none !important;
 }
 
 body[data-theme="dark"] .card-print-btn:hover,
 body.dark-mode .card-print-btn:hover {
-  background: var(--accent-primary-soft);
-  border-color: var(--accent-primary);
-  color: var(--accent-primary);
-  box-shadow: 0 4px 12px rgba(91, 197, 189, 0.2);
+  background-color: #334155 !important;
+  color: #cbd5e1;
+}
+
+body[data-theme="dark"] .card-delete-btn,
+body.dark-mode .card-delete-btn {
+  background-color: #1e293b !important;
+  border-color: #334155 !important;
+  box-shadow: none !important;
+  color: #b91c1c;
+}
+
+body[data-theme="dark"] .card-delete-btn:hover,
+body.dark-mode .card-delete-btn:hover {
+  background-color: #2d1b1b !important;
 }
 
 /* ── QZ Tray print status toast ──────────────────────────────── */
@@ -4256,15 +4261,17 @@ button.secondary:hover,
 }
 
 .kanban-card {
-  padding: 10px 10px 12px;
+  padding: 16px;
   min-height: 140px;
 }
 
-.card-inner {
-  display: grid;
-  grid-template-columns: 72px minmax(0, 1fr) auto auto;
-  gap: 10px;
-  align-items: stretch;
+.card-top-row {
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.card-action-buttons {
+  gap: 6px;
 }
 
 .kanban-card .what {
@@ -4274,31 +4281,11 @@ button.secondary:hover,
   -webkit-box-orient: vertical;
 }
 
-.kanban-card .reviewed-checkbox span {
-  padding: 6px 36px;
-  border-radius: 4px;
-  letter-spacing: 0.04em;
-}
-
-.kanban-card .reviewed-checkbox .ck-icon {
-  display: none;
-  width: 14px;
-  height: 14px;
-  margin-right: 6px;
-  flex-shrink: 0;
-  color: #22c55e;
-}
-
-.kanban-card .reviewed-checkbox.checked .ck-icon,
-.kanban-card.is-sold .reviewed-checkbox.checked .ck-icon {
-  display: inline;
-}
-
 .card-delete-btn,
 .card-print-btn {
-  width: 30px;
-  height: 30px;
-  border-radius: 10px;
+  width: 36px !important;
+  height: 36px !important;
+  border-radius: 4px !important;
   margin-top: 0;
 }
 
@@ -4562,12 +4549,13 @@ body.dark-mode .button-link:hover {
   }
 
   .kanban-card {
-    padding: 6px 6px 10px;
+    padding: 12px;
     min-height: 110px;
   }
 
-  .card-inner {
-    gap: 6px;
+  .card-top-row {
+    gap: 8px;
+    margin-bottom: 6px;
   }
 
   .section h2 {
@@ -4595,6 +4583,54 @@ body.dark-mode .button-link:hover {
 
   .dashboard-grid {
     grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   PRINT STYLES — Kanban card single-page browser print
+   ═══════════════════════════════════════════════════════════════════ */
+@media print {
+  html, body {
+    height: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    page-break-after: avoid !important;
+    page-break-before: avoid !important;
+  }
+
+  .print-card-container {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+    height: 100vh !important;
+    max-height: 100% !important;
+    display: block !important;
+    overflow: hidden !important;
+  }
+
+  .kanban-board-header,
+  .app-menu,
+  .menu-panel,
+  .menu-toggle,
+  .action-sidebar,
+  .kanban-count,
+  .kanban-lane h3 {
+    display: none !important;
+  }
+
+  .print-photo-grid {
+    display: grid !important;
+    grid-template-columns: repeat(4, 1fr) !important;
+    gap: 8px !important;
+    width: 100% !important;
+  }
+
+  .print-photo-grid img {
+    max-height: 150px !important;
+    object-fit: contain !important;
+  }
+
+  .print-card-page .status-badge-container {
+    border-radius: 4px !important;
   }
 }
 
