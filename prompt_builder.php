@@ -69,7 +69,7 @@ $initialItemJson = $currentItem ? json_encode($currentItem, JSON_HEX_TAG | JSON_
   <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
   <script src="assets/qz-tray.js?v=<?= filemtime('assets/qz-tray.js') ?>"></script>
   <script>window.CSRF_TOKEN = <?= json_encode(csrf_token()) ?>;</script>
-  <script src="assets/theme.js?v=<?= filemtime('assets/theme.js') ?>"></script>
+  <script src="assets/theme.js?v=<?= filemtime('assets/theme.js') ?>" defer></script>
   <script src="assets/app.js?v=<?= filemtime('assets/app.js') ?>"></script>
 </head>
 <body class="home prompt-page">
