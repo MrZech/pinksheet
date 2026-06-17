@@ -822,6 +822,7 @@ function checked(string $name, string $value, array $formData): string
   <script src="assets/menu.js?v=<?= filemtime('assets/menu.js') ?>" defer></script>
   <link rel="stylesheet" media="print" href="assets/print.css?v=<?= filemtime('assets/print.css') ?>">
   <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" integrity="sha512-CNgIRecGo7nphbeZ04Sc13ka07paqdeTu0WR1IM4kNcpmBAUSHSQX0FslNhTDadL4O5SAGapGt4FodqL8My0mA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
   <script src="assets/qz-tray.js?v=<?= filemtime('assets/qz-tray.js') ?>"></script>
   <script>window.CSRF_TOKEN = <?= json_encode(csrf_token()) ?>;</script>
   <script src="assets/theme.js?v=<?= filemtime('assets/theme.js') ?>" defer></script>
@@ -998,6 +999,13 @@ function checked(string $name, string $value, array $formData): string
                     <button type="button" class="ghost subtle" id="find-sku-button">Find SKU</button>
                   </div>
                   <span class="hint" id="copy-sku-status" hidden></span>
+                </div>
+                <div class="intake-qr-wrap" id="intake-qr-wrap"<?php $activeSkuNormalized === '' ? ' hidden' : '' ?>>
+                  <div class="intake-qr-render" id="intake-qr-render"
+                       data-sku="<?php echo h($activeSkuNormalized); ?>"
+                       data-url="<?php $isHttps = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https') || (isset($_SERVER['HTTP_CF_VISITOR']) && str_contains($_SERVER['HTTP_CF_VISITOR'], '"scheme":"https"')); $protocol = $isHttps ? 'https' : 'http'; $host = $_SERVER['HTTP_HOST'] ?? 'localhost'; echo h($protocol . '://' . $host . '/intake.php?sku=' . urlencode($activeSkuNormalized)); ?>">
+                  </div>
+                  <span class="intake-qr-label">QR code</span>
                 </div>
               <?php
             $currentWhat = trim((string)($formData['what_is_it'] ?? ''));
@@ -2743,6 +2751,45 @@ function checked(string $name, string $value, array $formData): string
 
       // Keep screen view at full readable size; print layout is handled by CSS.
     })();
+  </script>
+
+  <script>
+  (function () {
+    var qrInstance = null;
+    var qrWrap = document.getElementById('intake-qr-wrap');
+    var qrRender = document.getElementById('intake-qr-render');
+    var skuInput = document.querySelector('input[name="sku"]');
+
+    var updateQrCode = function () {
+      if (!qrRender || !qrWrap) return;
+      var sku = skuInput ? skuInput.value.trim().toUpperCase() : '';
+      if (!sku) {
+        qrWrap.hidden = true;
+        return;
+      }
+      var isHttps = window.location.protocol === 'https:';
+      var host = window.location.host;
+      var url = (isHttps ? 'https' : 'http') + '://' + host + '/intake.php?sku=' + encodeURIComponent(sku);
+      qrRender.innerHTML = '';
+      qrInstance = null;
+      try {
+        qrInstance = new QRCode(qrRender, {
+          text: url,
+          width: 90,
+          height: 90,
+          colorDark: '#0f172a',
+          colorLight: '#ffffff',
+          correctLevel: QRCode.CorrectLevel.H
+        });
+        qrWrap.hidden = false;
+      } catch (e) {}
+    };
+
+    if (skuInput) {
+      skuInput.addEventListener('input', updateQrCode);
+    }
+    updateQrCode();
+  })();
   </script>
 
   <div class="modal" id="find-sku-modal" hidden>
