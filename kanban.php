@@ -196,7 +196,14 @@ foreach ($items as $item) {
                 <div class="card-qr-row">
                   <div class="card-qr-render"
                        data-sku="<?php echo htmlspecialchars($norm, ENT_QUOTES, 'UTF-8'); ?>"
-                       data-url="<?php echo htmlspecialchars((isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' ? 'https' : 'http') . '://' . ($_SERVER['HTTP_HOST'] ?? 'localhost') . '/mobile_action.php?sku=' . urlencode($norm) . '&token=' . urlencode(csrf_token()), ENT_QUOTES, 'UTF-8'); ?>">
+                       data-url="<?php
+                           $isHttps = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+                               || (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https')
+                               || (isset($_SERVER['HTTP_CF_VISITOR']) && str_contains($_SERVER['HTTP_CF_VISITOR'], '"scheme":"https"'));
+                           $protocol = $isHttps ? 'https' : 'http';
+                           $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+                           $qrUrl = $protocol . '://' . $host . '/mobile_action.php?sku=' . urlencode($norm) . '&token=' . urlencode(csrf_token());
+                       ?><?php echo htmlspecialchars($qrUrl, ENT_QUOTES, 'UTF-8'); ?>">
                   </div>
                   <span class="card-qr-label">Scan to upload photo</span>
                 </div>
