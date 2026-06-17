@@ -3106,11 +3106,41 @@ body.dark-mode .sku-photo-item span {
 .table-wrap {
   width: 100%;
   max-width: 100%;
-  overflow-x: auto;
   border: 1px solid var(--line);
   border-radius: var(--radius-md);
   background: var(--surface-primary);
   box-shadow: var(--shadow-xs);
+}
+
+.table-responsive-wrapper {
+  width: 100% !important;
+  overflow-x: auto !important;
+  -webkit-overflow-scrolling: touch;
+  box-sizing: border-box;
+}
+
+.inventory-main-table {
+  width: 100% !important;
+  min-width: 1000px;
+  border-collapse: collapse;
+}
+
+.inventory-main-table th:last-child,
+.inventory-main-table td:last-child {
+  min-width: 120px !important;
+  white-space: nowrap !important;
+  text-align: center;
+}
+
+.open-btn, .print-btn {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 6px 12px !important;
+  height: 34px !important;
+  border-radius: 4px !important;
+  box-sizing: border-box;
+  font-size: 14px !important;
 }
 
 .recent-items {
