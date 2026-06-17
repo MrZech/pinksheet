@@ -11,6 +11,7 @@ try {
         PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
         PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
     ]);
+    $pdo->exec('PRAGMA cache_size = -8000'); // 8MB query cache
 } catch (Throwable $e) {
     http_response_code(500);
     header('Content-Type: text/plain; charset=utf-8');
@@ -167,7 +168,7 @@ foreach ($items as $item) {
                    data-sku-normalized="<?php echo htmlspecialchars($norm, ENT_QUOTES, 'UTF-8'); ?>">
                 <div class="card-top-row">
                   <?php if ($thumb): ?>
-                    <img class="card-thumb" src="photo.php?id=<?php echo $thumb; ?>" alt="" draggable="false">
+                    <img class="card-thumb" src="photo.php?id=<?php echo $thumb; ?>" alt="" draggable="false" loading="lazy">
                   <?php else: ?>
                     <div class="card-thumb card-thumb-empty"></div>
                   <?php endif; ?>
@@ -616,6 +617,42 @@ foreach ($items as $item) {
 
   <script>
   (function () {
+    // ── State cache keys ─────────────────────────────────────────
+    var CACHE_TTL = 30000; // 30 seconds
+
+    var saveState = function () {
+      try {
+        sessionStorage.setItem('kanban_scroll', document.querySelector('.kanban-scroll')?.scrollTop || 0);
+        sessionStorage.setItem('kanban_ts', Date.now());
+      } catch (e) {}
+    };
+
+    var restoreState = function () {
+      try {
+        var ts = parseInt(sessionStorage.getItem('kanban_ts'), 10);
+        if (ts && (Date.now() - ts) < CACHE_TTL) {
+          var scrollTop = parseInt(sessionStorage.getItem('kanban_scroll'), 10);
+          if (scrollTop > 0) {
+            var scroller = document.querySelector('.kanban-scroll');
+            if (scroller) scroller.scrollTop = scrollTop;
+          }
+        }
+      } catch (e) {}
+    };
+
+    restoreState();
+
+    // Save state on page nav
+    window.addEventListener('beforeunload', saveState);
+
+    // ── Track dynamic listeners for cleanup ──────────────────────
+    var cleanupFns = [];
+
+    var addListener = function (el, event, fn) {
+      el.addEventListener(event, fn);
+      cleanupFns.push(function () { el.removeEventListener(event, fn); });
+    };
+
     // ── Generate QR codes on all inline QR containers ──────────
     var els = document.querySelectorAll('.card-qr-inline');
     for (var i = 0; i < els.length; i++) {
@@ -672,24 +709,32 @@ foreach ($items as $item) {
     };
 
     if (scanBtn) {
-      scanBtn.addEventListener('click', function () {
+      addListener(scanBtn, 'click', function () {
         scannerOverlay.classList.add('is-open');
         setTimeout(startScanner, 300);
       });
     }
 
     if (closeBtn) {
-      closeBtn.addEventListener('click', function () {
+      addListener(closeBtn, 'click', function () {
         stopScanner();
         scannerOverlay.classList.remove('is-open');
       });
     }
 
-    scannerOverlay.addEventListener('click', function (e) {
+    addListener(scannerOverlay, 'click', function (e) {
       if (e.target === scannerOverlay) {
         stopScanner();
         scannerOverlay.classList.remove('is-open');
       }
+    });
+
+    // Clean up all tracked listeners on unload
+    window.addEventListener('beforeunload', function () {
+      for (var i = 0; i < cleanupFns.length; i++) {
+        try { cleanupFns[i](); } catch (e) {}
+      }
+      saveState();
     });
   })();
   </script>
