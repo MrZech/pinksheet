@@ -1831,16 +1831,18 @@ function checked(string $name, string $value, array $formData): string
       if (undoDeleteForm) {
         undoDeleteForm.addEventListener('submit', function (evt) {
           evt.preventDefault();
-          fetch('undo_delete.php', { method: 'POST', body: 'csrf_token=' + encodeURIComponent(window.CSRF_TOKEN) })
+          fetch('undo_delete.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: 'csrf_token=' + encodeURIComponent(window.CSRF_TOKEN)
+          })
             .then(function (r) { return r.json(); })
             .then(function (data) {
               if (data && data.status === 'ok') {
                 restoreDeletedRow(data.new_id);
                 showToast('Restored ' + (data.restored_sku || 'item'));
-              } else if (data && data.status === 'empty') {
-                alert('Nothing to undo.');
               } else {
-                alert('Undo failed. Please retry.');
+                alert(data && data.message ? data.message : 'Undo failed. Please retry.');
               }
             })
             .catch(function () {
@@ -1898,13 +1900,13 @@ function checked(string $name, string $value, array $formData): string
           copySkuStatus.textContent = 'Loading...';
           copySkuStatus.className = 'hint';
           fetchSkuData(sku, function (err, data) {
-            if (err || !data || !data.ok || !data.item) {
+            if (err || !data || data.status !== 'ok' || !data.data) {
               copySkuStatus.hidden = false;
-              copySkuStatus.textContent = data && data.error ? data.error : 'Could not load that SKU.';
+              copySkuStatus.textContent = data && data.message ? data.message : 'Could not load that SKU.';
               copySkuStatus.className = 'hint error';
               return;
             }
-            applyDataFiltered(data.item);
+            applyDataFiltered(data.data);
             copySkuStatus.hidden = false;
             copySkuStatus.textContent = 'Copied fields; SKU and photos left blank.';
             copySkuStatus.className = 'hint ok';
@@ -2507,7 +2509,20 @@ function checked(string $name, string $value, array $formData): string
           });
         });
       }
-      var inlineUpdate = function (sku, field, value) {
+      var refreshRowTimestamp = function (el) {
+        var row = el && el.closest('tr');
+        if (!row) return;
+        var cells = row.cells;
+        for (var i = 0; i < cells.length; i++) {
+          if (cells[i].textContent && cells[i].textContent.match(/^\d{4}-\d{2}-\d{2}/)) {
+            var now = new Date();
+            var pad = function (n) { return String(n).padStart(2, '0'); };
+            cells[i].textContent = now.getFullYear() + '-' + pad(now.getMonth() + 1) + '-' + pad(now.getDate()) + ' ' + pad(now.getHours()) + ':' + pad(now.getMinutes()) + ':' + pad(now.getSeconds());
+            break;
+          }
+        }
+      };
+      var inlineUpdate = function (el, sku, field, value) {
         fetch('update_item.php', {
           method: 'POST',
           headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -2516,6 +2531,7 @@ function checked(string $name, string $value, array $formData): string
           .then(function (r) { return r.json(); })
           .then(function (data) {
             if (data.ok) {
+              refreshRowTimestamp(el);
               showToast('Updated ' + field);
             } else {
               showToast('Update failed: ' + (data.error || 'error'));
@@ -2526,14 +2542,14 @@ function checked(string $name, string $value, array $formData): string
       inlineStatuses.forEach(function (sel) {
         sel.addEventListener('change', function () {
           var sku = sel.getAttribute('data-sku') || '';
-          inlineUpdate(sku, 'status', sel.value);
+          inlineUpdate(sel, sku, 'status', sel.value);
         });
       });
       inlinePrices.forEach(function (input) {
         input.addEventListener('change', function () {
           var sku = input.getAttribute('data-sku') || '';
           var field = input.getAttribute('data-field') || '';
-          inlineUpdate(sku, field, input.value);
+          inlineUpdate(input, sku, field, input.value);
         });
       });
 
@@ -2565,10 +2581,20 @@ function checked(string $name, string $value, array $formData): string
         });
       }
       document.addEventListener('click', function (e) {
-        var btn = e.target.closest('.js-set-thumb');
-        if (!btn) return;
-        var id = btn.getAttribute('data-photo-id');
-        var skuVal = btn.getAttribute('data-photo-sku');
+        var delBtn = e.target.closest('.js-delete-photo');
+        if (delBtn) {
+          var pid = delBtn.getAttribute('data-photo-id');
+          if (!pid) return;
+          if (!confirm('Delete this photo?')) return;
+          if (deleteInput) deleteInput.value = pid;
+          if (skuField) deleteSku.value = skuField.value;
+          if (deleteForm) deleteForm.submit();
+          return;
+        }
+        var thumbBtn = e.target.closest('.js-set-thumb');
+        if (!thumbBtn) return;
+        var id = thumbBtn.getAttribute('data-photo-id');
+        var skuVal = thumbBtn.getAttribute('data-photo-sku');
         if (!id || !skuVal) return;
         fetch('set_thumbnail.php', {
           method: 'POST',
@@ -2655,14 +2681,18 @@ function checked(string $name, string $value, array $formData): string
       if (intakeUndoBtn) {
         intakeUndoBtn.addEventListener('click', function () {
           hideIntakeUndoToast();
-          fetch('undo_delete.php', { method: 'POST', body: 'csrf_token=' + encodeURIComponent(window.CSRF_TOKEN) })
+          fetch('undo_delete.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: 'csrf_token=' + encodeURIComponent(window.CSRF_TOKEN)
+          })
             .then(function (r) { return r.json(); })
             .then(function (data) {
               if (data.status === 'ok') {
                 restoreDeletedRow(data.new_id);
                 showToast('Restored ' + (data.restored_sku || 'item'));
               } else {
-                alert('Nothing to undo.');
+                alert(data && data.message ? data.message : 'Nothing to undo.');
               }
             })
             .catch(function () { alert('Undo failed.'); });

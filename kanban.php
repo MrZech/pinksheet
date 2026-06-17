@@ -433,13 +433,17 @@ foreach ($items as $item) {
 
       var doUndo = function () {
         hideUndoToast();
-        fetch('undo_delete.php', { method: 'POST', body: 'csrf_token=' + encodeURIComponent(window.CSRF_TOKEN) })
+        fetch('undo_delete.php', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: 'csrf_token=' + encodeURIComponent(window.CSRF_TOKEN)
+        })
           .then(function (r) { return r.json(); })
           .then(function (data) {
             if (data.status === 'ok') {
               restoreDeletedCard(data.new_id);
             } else {
-              alert('Nothing to undo.');
+              alert(data && data.message ? data.message : 'Nothing to undo.');
             }
           })
           .catch(function () {
