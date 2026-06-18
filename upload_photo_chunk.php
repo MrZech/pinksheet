@@ -40,14 +40,14 @@ function sanitizeFilename(string $name): string
 function errorResponse(string $message, int $code = 400): void
 {
     http_response_code($code);
-    @file_put_contents(__DIR__ . '/logs/upload_errors.log', '[' . date('c') . '] ' . $message . PHP_EOL, FILE_APPEND);
+    error_log('upload_photo_chunk.php: ' . $message);
     echo json_encode(['status' => 'error', 'message' => $message]);
     exit;
 }
 
 function infoLog(string $message): void
 {
-    @file_put_contents(__DIR__ . '/logs/upload_chunk.log', '[' . date('c') . '] ' . $message . PHP_EOL, FILE_APPEND);
+    error_log('upload_photo_chunk.php: ' . $message);
 }
 
 $sku = normalizeSku((string)($_POST['sku'] ?? ''));
