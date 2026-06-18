@@ -47,6 +47,11 @@ if (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') {
 
 const MAINTENANCE_MODE = false;
 const MAINTENANCE_MESSAGE = 'The intake system is temporarily offline for maintenance.';
+
+/* ── PNG-only image enforcement ──────────────────────────────── */
+const PNG_ONLY_MODE = true;        // Convert all uploaded images to PNG automatically
+const PNG_REJECT_NON_PNG = false;  // When true, reject non-PNG uploads instead of converting
+
 const MAX_QUERY_LENGTH = 50;
 const MAX_STATUS_LENGTH = 30;
 const SUGGESTION_LIMIT = 40;
@@ -252,4 +257,59 @@ function require_csrf(): void
         echo json_encode(['status' => 'error', 'message' => 'Invalid or missing CSRF token']);
         exit;
     }
+}
+
+/* ── Shared image conversion helper (GD-based PNG conversion) ─── */
+/**
+ * Convert an image file to PNG using GD.
+ *
+ * Reads the source image (JPG, PNG, WebP, or GIF), converts to PNG,
+ * and writes to $destDir with a random filename. The original file
+ * is NOT deleted by this function — the caller handles cleanup.
+ *
+ * @param  string $srcPath  Absolute path to source image
+ * @param  string $destDir  Absolute path to destination directory (must exist)
+ * @return string|null      The stored filename (e.g. "abc123.png") or null on failure
+ */
+function imageConvertToPng(string $srcPath, string $destDir): ?string
+{
+    if (!is_file($srcPath) || !is_dir($destDir)) {
+        error_log('imageConvertToPng: invalid src or dest');
+        return null;
+    }
+
+    $mime = detectUploadMimeType($srcPath, basename($srcPath));
+    $gd   = null;
+
+    switch ($mime) {
+        case 'image/jpeg': $gd = @imagecreatefromjpeg($srcPath); break;
+        case 'image/png':  $gd = @imagecreatefrompng($srcPath);  break;
+        case 'image/webp': $gd = @imagecreatefromwebp($srcPath); break;
+        case 'image/gif':  $gd = @imagecreatefromgif($srcPath);  break;
+        default:
+            error_log('imageConvertToPng: unsupported MIME ' . $mime);
+            return null;
+    }
+
+    if (!$gd) {
+        error_log('imageConvertToPng: GD failed to decode ' . $srcPath);
+        return null;
+    }
+
+    imagealphablending($gd, false);
+    imagesavealpha($gd, true);
+
+    $storedName = bin2hex(random_bytes(16)) . '.png';
+    $destPath   = $destDir . '/' . $storedName;
+
+    $ok = imagepng($gd, $destPath);
+    imagedestroy($gd);
+
+    if (!$ok) {
+        error_log('imageConvertToPng: imagepng() failed for ' . $destPath);
+        @unlink($destPath);
+        return null;
+    }
+
+    return $storedName;
 }

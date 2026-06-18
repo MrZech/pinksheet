@@ -78,9 +78,15 @@ if (!is_uploaded_file($tmp)) {
 }
 
 $mimeType = detectUploadMimeType($tmp, $originalDisplayName);
-$extension = ALLOWED_PHOTO_MIME_TYPES[$mimeType] ?? null;
-if ($extension === null) {
+if (!isset(ALLOWED_PHOTO_MIME_TYPES[$mimeType])) {
+    @unlink($tmp);
     errorResponse($originalDisplayName . ' is not JPG/PNG/WEBP/GIF.');
+}
+
+// PNG-only enforcement: reject non-PNG if configured
+if (PNG_REJECT_NON_PNG && $mimeType !== 'image/png') {
+    @unlink($tmp);
+    errorResponse('Only PNG images are accepted. Convert ' . $originalDisplayName . ' to PNG and try again.');
 }
 
 $pdo = new PDO('sqlite:' . DB_PATH, null, null, [
@@ -115,12 +121,32 @@ if (!is_dir($skuDir) && !mkdir($skuDir, 0777, true) && !is_dir($skuDir)) {
     errorResponse('Could not create photo folder.');
 }
 
-$storedName = bin2hex(random_bytes(16)) . '.' . $extension;
-$destination = $skuDir . '/' . $storedName;
-
-if (!move_uploaded_file($tmp, $destination)) {
-    errorResponse('Failed to save file to disk.');
+/* ── PNG conversion ──────────────────────────────────────────── */
+if (PNG_ONLY_MODE && $mimeType !== 'image/png') {
+    // Convert to PNG using the shared GD helper
+    $storedName = imageConvertToPng($tmp, $skuDir);
+    if ($storedName === null) {
+        @unlink($tmp);
+        errorResponse('Failed to convert ' . $originalDisplayName . ' to PNG.', 500);
+    }
+    $pngPath = $skuDir . '/' . $storedName;
+    $finalSize = (int)filesize($pngPath);
+    $dbMime = 'image/png';
+    $ext = 'png';
+} else {
+    // Already PNG or PNG-only mode is off — store as-is
+    $ext = ALLOWED_PHOTO_MIME_TYPES[$mimeType];
+    $storedName = bin2hex(random_bytes(16)) . '.' . $ext;
+    $destination = $skuDir . '/' . $storedName;
+    if (!move_uploaded_file($tmp, $destination)) {
+        errorResponse('Failed to save file to disk.');
+    }
+    $finalSize = $size;
+    $dbMime = $mimeType;
 }
+
+// Temp file is always cleaned up here
+@unlink($tmp);
 
 try {
     $maxSortStmt = $pdo->prepare('SELECT COALESCE(MAX(sort_order), 0) FROM sku_photos WHERE sku_normalized = :sku');
@@ -134,8 +160,8 @@ SQL);
         'sku_normalized' => $sku,
         'original_name' => sanitizeFilename($originalDisplayName),
         'stored_name' => $storedName,
-        'mime_type' => $mimeType,
-        'file_size' => $size,
+        'mime_type' => $dbMime,
+        'file_size' => $finalSize,
         'sort_order' => $nextSort,
     ]);
     $photoId = $pdo->lastInsertId();
@@ -148,5 +174,7 @@ echo json_encode([
     'status' => 'ok',
     'message' => 'Uploaded',
     'id' => $photoId,
+    'mime_type' => $dbMime,
+    'stored_name' => $storedName,
     'square_sync' => $squareSync['status'] ?? 'skipped',
 ]);
