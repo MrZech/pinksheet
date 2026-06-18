@@ -660,37 +660,41 @@ foreach ($items as $item) {
     // Instead of generating all QR codes on page load (which caused
     // performance degradation), each card shows a "Generate QR" button.
     // Clicking it renders the QR code in-place once.
-    board.addEventListener('click', function (e) {
-      var btn = e.target.closest('.card-qr-btn');
-      if (!btn) return;
-      var url = btn.getAttribute('data-url');
-      if (!url || typeof QRCode === 'undefined') return;
+    (function () {
+      var qrBoard = document.getElementById('kanban-board');
+      if (!qrBoard) return;
+      qrBoard.addEventListener('click', function (e) {
+        var btn = e.target.closest('.card-qr-btn');
+        if (!btn) return;
+        var url = btn.getAttribute('data-url');
+        if (!url || typeof QRCode === 'undefined') return;
 
-      // Replace button content with spinner
-      btn.innerHTML = '<span class="qr-spinner"></span>';
-      btn.classList.add('is-loading');
+        // Replace button content with spinner
+        btn.innerHTML = '<span class="qr-spinner"></span>';
+        btn.classList.add('is-loading');
 
-      // Defer to next animation frame so the spinner paints first
-      requestAnimationFrame(function () {
+        // Defer to next animation frame so the spinner paints first
         requestAnimationFrame(function () {
-          btn.innerHTML = '';
-          btn.classList.remove('card-qr-btn', 'is-loading');
-          try {
-            new QRCode(btn, {
-              text: url,
-              width: 36,
-              height: 36,
-              colorDark: '#0f172a',
-              colorLight: '#ffffff',
-              correctLevel: QRCode.CorrectLevel.H
-            });
-          } catch (e) {
-            btn.innerHTML = '<span style="font-size:9px;color:var(--danger)">ERR</span>';
-            btn.classList.add('card-qr-btn');
-          }
+          requestAnimationFrame(function () {
+            btn.innerHTML = '';
+            btn.classList.remove('card-qr-btn', 'is-loading');
+            try {
+              new QRCode(btn, {
+                text: url,
+                width: 36,
+                height: 36,
+                colorDark: '#0f172a',
+                colorLight: '#ffffff',
+                correctLevel: QRCode.CorrectLevel.H
+              });
+            } catch (e) {
+              btn.innerHTML = '<span style="font-size:9px;color:var(--danger)">ERR</span>';
+              btn.classList.add('card-qr-btn');
+            }
+          });
         });
       });
-    });
+    })();
 
     // ── Desktop QR Scanner (Html5QrcodeScanner) ────────────────
     var scannerOverlay = document.getElementById('scanner-overlay');
