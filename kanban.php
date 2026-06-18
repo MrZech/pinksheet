@@ -681,8 +681,8 @@ foreach ($items as $item) {
             try {
               new QRCode(btn, {
                 text: url,
-                width: 36,
-                height: 36,
+                width: 60,
+                height: 60,
                 colorDark: '#0f172a',
                 colorLight: '#ffffff',
                 correctLevel: QRCode.CorrectLevel.H

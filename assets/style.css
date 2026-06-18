@@ -3796,8 +3796,8 @@ body.dark-mode .card-delete-btn:hover {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
+  width: 60px;
+  height: 60px;
   flex-shrink: 0;
   border-radius: 4px;
   overflow: hidden;
@@ -3807,9 +3807,11 @@ body.dark-mode .card-delete-btn:hover {
 
 .card-qr-inline canvas,
 .card-qr-inline img {
-  width: 36px !important;
-  height: 36px !important;
+  width: 60px !important;
+  height: 60px !important;
   display: block;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
 }
 
 /* ── On-demand QR button (replaces auto-generated QR) ───────── */
@@ -3826,15 +3828,17 @@ body.dark-mode .card-delete-btn:hover {
 }
 .card-qr-btn .qr-icon {
   display: block;
+  width: 28px;
+  height: 28px;
 }
 .card-qr-btn.is-loading {
   cursor: default;
 }
 .qr-spinner {
   display: block;
-  width: 18px;
-  height: 18px;
-  border: 2px solid var(--line);
+  width: 28px;
+  height: 28px;
+  border: 3px solid var(--line);
   border-top-color: var(--accent-strong);
   border-radius: 50%;
   animation: qr-spin 600ms linear infinite;
