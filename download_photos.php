@@ -49,10 +49,44 @@ function buildStoreOnlyZip(array $files): string
         if ($data === false) {
             continue;
         }
+
+        /* ── In-memory PNG conversion for ZIP export ──────────── */
+        // If PNG_ONLY_MODE is active and the file has a legacy extension,
+        // convert the data in-memory using GD and update the ZIP entry name to .png
+        if (PNG_ONLY_MODE) {
+            $ext = strtolower(pathinfo($name, PATHINFO_EXTENSION));
+            if (in_array($ext, ['jpg', 'jpeg', 'webp', 'gif'], true)) {
+                $tmpPath = tempnam(sys_get_temp_dir(), 'png_conv_');
+                file_put_contents($tmpPath, $data);
+                $gd = null;
+                switch ($ext) {
+                    case 'jpg':
+                    case 'jpeg': $gd = @imagecreatefromjpeg($tmpPath); break;
+                    case 'webp':  $gd = @imagecreatefromwebp($tmpPath); break;
+                    case 'gif':   $gd = @imagecreatefromgif($tmpPath);  break;
+                }
+                @unlink($tmpPath); // clean up temp file immediately
+                if ($gd) {
+                    imagealphablending($gd, false);
+                    imagesavealpha($gd, true);
+                    ob_start();
+                    if (imagepng($gd)) {
+                        $pngData = ob_get_contents();
+                        ob_end_clean();
+                        $data = $pngData;
+                        $name = pathinfo($name, PATHINFO_FILENAME) . '.png';
+                    } else {
+                        ob_end_clean();
+                    }
+                    imagedestroy($gd);
+                }
+            }
+        }
+
         $added++;
         $crc = crc32($data);
         $size = strlen($data);
-        $time = dosTime(filemtime($path) ?: time());
+        $time = dosTime(time());
 
         $localHeader = pack(
             'VvvvVVVvv',
@@ -179,7 +213,41 @@ try {
             exit('Could not create zip file.');
         }
         foreach ($zipFiles as $file) {
-            $zip->addFile($file['path'], $file['name']);
+            $srcPath = $file['path'];
+            $zipName = $file['name'];
+
+            /* ── In-memory PNG conversion for ZipArchive path ── */
+            if (PNG_ONLY_MODE) {
+                $ext = strtolower(pathinfo($zipName, PATHINFO_EXTENSION));
+                if (in_array($ext, ['jpg', 'jpeg', 'webp', 'gif'], true)) {
+                    $gd = null;
+                    switch ($ext) {
+                        case 'jpg':
+                        case 'jpeg': $gd = @imagecreatefromjpeg($srcPath); break;
+                        case 'webp':  $gd = @imagecreatefromwebp($srcPath); break;
+                        case 'gif':   $gd = @imagecreatefromgif($srcPath);  break;
+                    }
+                    if ($gd) {
+                        imagealphablending($gd, false);
+                        imagesavealpha($gd, true);
+                        ob_start();
+                        if (imagepng($gd)) {
+                            $pngData = ob_get_contents();
+                            ob_end_clean();
+                            $zipName = pathinfo($zipName, PATHINFO_FILENAME) . '.png';
+                            $zip->addFromString($zipName, $pngData);
+                        } else {
+                            ob_end_clean();
+                            $zip->addFile($srcPath, $zipName);
+                        }
+                        imagedestroy($gd);
+                    } else {
+                        $zip->addFile($srcPath, $zipName);
+                    }
+                    continue;
+                }
+            }
+            $zip->addFile($srcPath, $zipName);
         }
         $zip->close();
         $size = (int)filesize($zipPath);

@@ -150,11 +150,11 @@ SQL);
         errorResponse('Could not create photo folder.');
     }
 
-    $storedName = bin2hex(random_bytes(16)) . '.' . $extension;
-    $destination = $skuDir . '/' . $storedName;
-    $out = fopen($destination, 'wb');
+    // Assemble to a temp file in the chunk folder first, then convert to PNG
+    $tempAssembled = $chunkFolder . '/assembled.tmp';
+    $out = fopen($tempAssembled, 'wb');
     if ($out === false) {
-        errorResponse('Failed to open destination file.');
+        errorResponse('Failed to open temp file.');
     }
     for ($i = 0; $i < $chunkTotal; $i++) {
         $partPath = $chunkFolder . '/' . str_pad((string)$i, 6, '0', STR_PAD_LEFT) . '.part';
@@ -168,11 +168,40 @@ SQL);
     }
     fclose($out);
 
-    $finalSize = filesize($destination) ?: 0;
+    $finalSize = (int)@filesize($tempAssembled);
     if ($finalSize !== $totalSize) {
-        @unlink($destination);
+        @unlink($tempAssembled);
         errorResponse('Assembled size mismatch.');
     }
+
+    /* ── PNG conversion ──────────────────────────────────────── */
+    if (PNG_ONLY_MODE && $mimeType !== 'image/png') {
+        $storedName = imageConvertToPng($tempAssembled, $skuDir);
+        if ($storedName === null) {
+            @unlink($tempAssembled);
+            errorResponse('Failed to convert assembled image to PNG.', 500);
+        }
+        $pngPath = $skuDir . '/' . $storedName;
+        $finalSize = (int)@filesize($pngPath);
+        $dbMime = 'image/png';
+    } else {
+        $storedName = bin2hex(random_bytes(16)) . '.' . $extension;
+        $destPath = $skuDir . '/' . $storedName;
+        if (!rename($tempAssembled, $destPath)) {
+            @unlink($tempAssembled);
+            errorResponse('Failed to move assembled file.', 500);
+        }
+        $finalSize = $finalSize;
+        $dbMime = $mimeType;
+    }
+
+    // Clean up: remove assembled temp and chunk parts
+    @unlink($tempAssembled);
+    $files = glob($chunkFolder . '/*.part') ?: [];
+    foreach ($files as $file) {
+        @unlink($file);
+    }
+    @rmdir($chunkFolder);
 
     try {
         $maxSortStmt = $pdo->prepare('SELECT COALESCE(MAX(sort_order), 0) FROM sku_photos WHERE sku_normalized = :sku');
@@ -186,24 +215,16 @@ SQL);
             'sku_normalized' => $sku,
             'original_name' => sanitizeFilename($originalName),
             'stored_name' => $storedName,
-            'mime_type' => $mimeType,
+            'mime_type' => $dbMime,
             'file_size' => $finalSize,
             'sort_order' => $nextSort,
         ]);
         $photoId = $pdo->lastInsertId();
     } catch (Throwable $e) {
-        @unlink($destination);
         errorResponse('Database error: ' . $e->getMessage(), 500);
     }
 
-    infoLog("assembled upload_id=$uploadId stored=$storedName size=$finalSize sku=$sku");
-
-    // cleanup chunks
-    $files = glob($chunkFolder . '/*.part') ?: [];
-    foreach ($files as $file) {
-        @unlink($file);
-    }
-    @rmdir($chunkFolder);
+    infoLog("assembled upload_id=$uploadId stored=$storedName size=$finalSize sku=$sku png=1");
     $assembled = true;
 }
 

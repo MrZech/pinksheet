@@ -65,13 +65,68 @@ try {
     }
 
     $mimeType = (string)($photo['mime_type'] ?? 'application/octet-stream');
-    $fileSize = filesize($path);
     $fileMtime = filemtime($path);
 
-    // Generate deterministic ETag from file inode + mtime + size (avoids hashing large files)
+    /* ── In-memory PNG conversion for legacy non-PNG files ────── */
+    // If PNG_ONLY_MODE is active and the file on disk isn't PNG, convert in-memory.
+    // This handles legacy files that weren't migrated or were uploaded before conversion.
+    $ext = strtolower(pathinfo($storedName, PATHINFO_EXTENSION));
+    $isLegacyFormat = in_array($ext, ['jpg', 'jpeg', 'webp', 'gif'], true);
+
+    if (PNG_ONLY_MODE && $isLegacyFormat) {
+        $gd = null;
+        switch ($ext) {
+            case 'jpg':
+            case 'jpeg': $gd = @imagecreatefromjpeg($path); break;
+            case 'webp':  $gd = @imagecreatefromwebp($path); break;
+            case 'gif':   $gd = @imagecreatefromgif($path);  break;
+        }
+        if ($gd) {
+            imagealphablending($gd, false);
+            imagesavealpha($gd, true);
+            $pngData = null;
+            $captured = false;
+            ob_start();
+            if (imagepng($gd)) {
+                $pngData = ob_get_contents();
+                $captured = true;
+            }
+            ob_end_clean();
+            imagedestroy($gd);
+
+            if ($captured && $pngData !== false && $pngData !== '') {
+                $fileSize = strlen($pngData);
+                // Use deterministic ETag based on photo ID + mtime (same as before, but size may differ)
+                $etag = sprintf('W/"%x-%x-%x"', $photoId, $fileMtime, $fileSize);
+
+                if (isset($_SERVER['HTTP_IF_NONE_MATCH']) && trim((string)$_SERVER['HTTP_IF_NONE_MATCH']) === $etag) {
+                    http_response_code(304);
+                    header('Cache-Control: public, max-age=' . PHOTO_CACHE_MAX_AGE);
+                    header('ETag: ' . $etag);
+                    exit;
+                }
+
+                $downloadName = preg_replace('/[^A-Za-z0-9._-]+/', '_', (string)($photo['original_name'] ?? 'photo'));
+                $downloadName = trim($downloadName, '._-') ?: 'photo';
+                $downloadName = pathinfo($downloadName, PATHINFO_FILENAME) . '.png';
+
+                header('Cache-Control: public, max-age=' . PHOTO_CACHE_MAX_AGE);
+                header('ETag: ' . $etag);
+                header('Content-Type: image/png');
+                header('Content-Length: ' . (string)$fileSize);
+                header('Content-Disposition: inline; filename="' . $downloadName . '"');
+                echo $pngData;
+                exit;
+            }
+            // Fall through to normal serving if conversion fails
+            error_log('photo.php: in-memory PNG conversion failed for id=' . $photoId . ', falling back to original');
+        }
+    }
+
+    // Normal serving path (PNG already or conversion skipped/not needed)
+    $fileSize = filesize($path);
     $etag = sprintf('W/"%x-%x-%x"', $photoId, $fileMtime, $fileSize);
 
-    // Check conditional request
     if (isset($_SERVER['HTTP_IF_NONE_MATCH']) && trim((string)$_SERVER['HTTP_IF_NONE_MATCH']) === $etag) {
         http_response_code(304);
         header('Cache-Control: public, max-age=' . PHOTO_CACHE_MAX_AGE);
