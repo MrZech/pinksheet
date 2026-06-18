@@ -2897,6 +2897,21 @@ body.dark-mode .warning {
 
 .sku-photo-item.is-preview {
   border-style: dashed;
+  min-height: auto;
+}
+
+/* ── Preview card: caption text wraps safely ──────────────────── */
+.sku-photo-item.is-preview > span {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: break-all;
+}
+
+/* ── Preview card: Remove button anchored at bottom ───────────── */
+.sku-photo-item.is-preview > button {
+  margin-top: auto;
 }
 
 .sku-photo-item span {
