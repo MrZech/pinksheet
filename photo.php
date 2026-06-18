@@ -66,6 +66,7 @@ try {
 
     $mimeType = (string)($photo['mime_type'] ?? 'application/octet-stream');
     $fileMtime = filemtime($path);
+    $forceDownload = (int)($_GET['download'] ?? 0) === 1;
 
     /* ── In-memory PNG conversion for legacy non-PNG files ────── */
     // If PNG_ONLY_MODE is active and the file on disk isn't PNG, convert in-memory.
@@ -114,7 +115,7 @@ try {
                 header('ETag: ' . $etag);
                 header('Content-Type: image/png');
                 header('Content-Length: ' . (string)$fileSize);
-                header('Content-Disposition: inline; filename="' . $downloadName . '"');
+                header('Content-Disposition: ' . ($forceDownload ? 'attachment' : 'inline') . '; filename="' . $downloadName . '"');
                 echo $pngData;
                 exit;
             }
@@ -144,7 +145,7 @@ try {
     header('ETag: ' . $etag);
     header('Content-Type: ' . $mimeType);
     header('Content-Length: ' . (string)$fileSize);
-    header('Content-Disposition: inline; filename="' . $downloadName . '"');
+    header('Content-Disposition: ' . ($forceDownload ? 'attachment' : 'inline') . '; filename="' . $downloadName . '"');
     readfile($path);
 } catch (Throwable $e) {
     http_response_code(500);

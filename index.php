@@ -1068,7 +1068,7 @@ function checked(string $name, string $value, array $formData): string
               <p class="hint">No photos saved for SKU <?php echo h($activeSkuNormalized); ?> yet.</p>
             <?php else: ?>
               <div class="inline-actions">
-                <a class="ghost button" href="download_photos.php?sku=<?php echo urlencode($activeSkuNormalized); ?>">Download all as ZIP</a>
+                <button type="button" class="ghost button" id="download-all-btn">Download all as PNG</button>
               </div>
               <div class="sku-photo-grid">
                 <?php foreach ($skuPhotos as $photo): ?>
@@ -2800,6 +2800,33 @@ function checked(string $name, string $value, array $formData): string
           })
           .catch(function () { alert('Set thumbnail failed.'); });
       });
+
+      /* ── Sequential individual photo downloads (replaces ZIP) ── */
+      var downloadAllBtn = document.getElementById('download-all-btn');
+      if (downloadAllBtn) {
+        downloadAllBtn.addEventListener('click', function () {
+          var items = document.querySelectorAll('.sku-photo-item[data-photo-id]');
+          var ids = [];
+          items.forEach(function (item) {
+            var id = item.getAttribute('data-photo-id');
+            if (id) ids.push(id);
+          });
+          if (!ids.length) return;
+          var delay = 150;
+          ids.forEach(function (id, index) {
+            setTimeout(function () {
+              var a = document.createElement('a');
+              a.href = 'photo.php?id=' + encodeURIComponent(id) + '&download=1';
+              a.download = '';
+              a.style.display = 'none';
+              document.body.appendChild(a);
+              a.click();
+              document.body.removeChild(a);
+            }, index * delay);
+          });
+        });
+      }
+
       window.addEventListener('beforeunload', clearPreview);
 
       var checkbox = document.getElementById('print-pink');
