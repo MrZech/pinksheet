@@ -38,7 +38,7 @@ if (!$item) {
 }
 
 // Look up photos
-$photoStmt = $pdo->prepare("SELECT id, original_name, mime_type, file_size, is_thumb FROM sku_photos WHERE sku_normalized = :sku ORDER BY is_thumb DESC, id DESC LIMIT 20");
+$photoStmt = $pdo->prepare("SELECT id, original_name, mime_type, file_size, is_thumb FROM sku_photos WHERE sku_normalized = :sku ORDER BY sort_order ASC, id ASC LIMIT 20");
 $photoStmt->execute(['sku' => $sku]);
 $photos = $photoStmt->fetchAll();
 

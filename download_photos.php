@@ -126,7 +126,7 @@ try {
 }
 
 try {
-    $stmt = $pdo->prepare('SELECT original_name, stored_name FROM sku_photos WHERE sku_normalized = :sku ORDER BY id ASC');
+    $stmt = $pdo->prepare('SELECT original_name, stored_name FROM sku_photos WHERE sku_normalized = :sku ORDER BY sort_order ASC, id ASC');
     $stmt->execute(['sku' => $sku]);
     $photos = $stmt->fetchAll(PDO::FETCH_ASSOC);
     if (!$photos) {

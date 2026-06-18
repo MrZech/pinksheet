@@ -99,6 +99,12 @@ CREATE TABLE IF NOT EXISTS sku_photos (
 SQL);
 $pdo->exec("CREATE INDEX IF NOT EXISTS idx_sku_photos_sku_normalized ON sku_photos (sku_normalized)");
 
+try {
+    $pdo->exec("ALTER TABLE sku_photos ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0");
+} catch (Throwable $e) {
+    // ignore if exists
+}
+
 $columns = $pdo->query("PRAGMA table_info(intake_items)")->fetchAll(PDO::FETCH_ASSOC);
 $columnNames = array_map(static fn(array $column): string => (string)$column['name'], $columns);
 if (!in_array('sku_normalized', $columnNames, true)) {
@@ -314,7 +320,7 @@ function loadSkuPhotos(PDO $pdo, string $skuNormalized): array
     if ($skuNormalized === '') {
         return [];
     }
-    $stmt = $pdo->prepare('SELECT id, original_name, mime_type, file_size, created_at FROM sku_photos WHERE sku_normalized = :sku_normalized ORDER BY id DESC');
+    $stmt = $pdo->prepare('SELECT id, original_name, mime_type, file_size, created_at FROM sku_photos WHERE sku_normalized = :sku_normalized ORDER BY sort_order ASC, id ASC');
     $stmt->execute(['sku_normalized' => $skuNormalized]);
     return $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
@@ -671,9 +677,12 @@ SQL);
                 if (!is_dir($skuPhotoDir) && !mkdir($skuPhotoDir, 0777, true) && !is_dir($skuPhotoDir)) {
                     $photoWarnings[] = 'Could not create the photo folder for this SKU; item saved without photos.';
                 } else {
+                    $maxSort = $pdo->prepare('SELECT COALESCE(MAX(sort_order), 0) FROM sku_photos WHERE sku_normalized = :sku');
+                    $maxSort->execute(['sku' => $data['sku_normalized']]);
+                    $nextSort = (int)$maxSort->fetchColumn() + 1;
                     $insertPhotoStmt = $pdo->prepare(<<<'SQL'
-INSERT INTO sku_photos (sku_normalized, original_name, stored_name, mime_type, file_size, created_at)
-VALUES (:sku_normalized, :original_name, :stored_name, :mime_type, :file_size, datetime('now'));
+INSERT INTO sku_photos (sku_normalized, original_name, stored_name, mime_type, file_size, created_at, sort_order)
+VALUES (:sku_normalized, :original_name, :stored_name, :mime_type, :file_size, datetime('now'), :sort_order);
 SQL);
                     foreach ($pendingPhotoUploads as $upload) {
                         $storedName = bin2hex(random_bytes(16)) . '.' . $upload['extension'];
@@ -688,6 +697,7 @@ SQL);
                             'stored_name' => $storedName,
                             'mime_type' => $upload['mime_type'],
                             'file_size' => $upload['file_size'],
+                            'sort_order' => $nextSort++,
                         ]);
                     }
                 }
@@ -1062,7 +1072,7 @@ function checked(string $name, string $value, array $formData): string
               </div>
               <div class="sku-photo-grid">
                 <?php foreach ($skuPhotos as $photo): ?>
-                  <div class="sku-photo-item">
+                  <div class="sku-photo-item" draggable="true" data-photo-id="<?php echo isset($photo['id']) ? (int)$photo['id'] : 0; ?>">
                     <a class="sku-photo-link" href="photo.php?id=<?php echo isset($photo['id']) ? (int)$photo['id'] : 0; ?>" target="_blank" rel="noopener" title="Open photo in new tab">
                       <span class="sku-photo-badge">SKU <?php echo h($activeSkuNormalized); ?></span>
                       <img src="photo.php?id=<?php echo isset($photo['id']) ? (int)$photo['id'] : 0; ?>"
@@ -2429,8 +2439,10 @@ function checked(string $name, string $value, array $formData): string
           var sku = (skuField && skuField.value || '').trim() || 'SKU';
           var item = document.createElement('div');
           item.className = 'sku-photo-item';
+          item.draggable = true;
+          item.setAttribute('data-photo-id', photoId);
           item.innerHTML = '<a class="sku-photo-link" href="photo.php?id=' + photoId + '" target="_blank" rel="noopener" title="Open photo in new tab"><span class="sku-photo-badge">SKU ' + escapeHtml(sku) + '</span><img src="photo.php?id=' + photoId + '" alt="Photo for SKU ' + escapeHtml(sku) + ' — ' + escapeHtml(fileName) + '"></a><div class="sku-photo-meta"><span class="sku-photo-name">' + escapeHtml(fileName) + '</span></div><div class="sku-photo-actions"><button type="button" class="ghost danger js-delete-photo" data-photo-id="' + photoId + '">Delete</button><button type="button" class="ghost js-set-thumb" data-photo-id="' + photoId + '" data-photo-sku="' + escapeHtml(sku) + '">Set thumbnail</button></div>';
-          grid.insertBefore(item, grid.firstChild);
+          grid.appendChild(item);
         };
 
         var idx = 0;
@@ -2492,6 +2504,9 @@ function checked(string $name, string $value, array $formData): string
           dz.addEventListener(evtName, function (evt) {
             evt.preventDefault();
             dz.classList.add('is-hover');
+            if (evt.dataTransfer) {
+              evt.dataTransfer.dropEffect = evt.dataTransfer.files && evt.dataTransfer.files.length > 0 ? 'copy' : 'move';
+            }
           });
         });
         ['dragleave', 'drop'].forEach(function (evtName) {
@@ -2501,7 +2516,16 @@ function checked(string $name, string $value, array $formData): string
           });
         });
         dz.addEventListener('drop', function (evt) {
-          addFilesToQueue(evt.dataTransfer ? evt.dataTransfer.files : []);
+          if (evt.dataTransfer && evt.dataTransfer.files && evt.dataTransfer.files.length > 0) {
+            addFilesToQueue(evt.dataTransfer.files);
+            return;
+          }
+          var photoId = evt.dataTransfer && evt.dataTransfer.getData('text/plain');
+          if (photoId && confirm('Delete this photo?')) {
+            if (deleteInput) deleteInput.value = photoId;
+            if (skuField && deleteSku) deleteSku.value = skuField.value;
+            if (deleteForm) deleteForm.submit();
+          }
         });
         dz.addEventListener('paste', function (evt) {
           if (!evt.clipboardData) return;
@@ -2509,6 +2533,133 @@ function checked(string $name, string $value, array $formData): string
           addFilesToQueue(items);
         });
       }
+      // Drag-and-drop reordering + drag-out-to-delete for saved photos
+      (function () {
+        var dragSrc = null;
+        var dragPhotoId = null;
+        var droppedInGrid = false;
+        var photosSection = document.getElementById('sku-photos');
+
+        document.addEventListener('dragstart', function (e) {
+          var item = e.target.closest('.sku-photo-item');
+          if (!item) return;
+          if (!item.closest('.sku-photos')) return;
+          if (item.classList.contains('is-preview')) return;
+          if (e.target.tagName === 'A' || e.target.tagName === 'IMG' || e.target.closest('button')) return;
+          dragSrc = item;
+          dragPhotoId = item.getAttribute('data-photo-id');
+          droppedInGrid = false;
+          e.dataTransfer.effectAllowed = 'move';
+          e.dataTransfer.setData('text/plain', dragPhotoId || '');
+          item.classList.add('is-dragging');
+        });
+
+        document.addEventListener('dragend', function (e) {
+          var item = e.target.closest('.sku-photo-item');
+          if (item) {
+            item.classList.remove('is-dragging');
+          }
+          if (dragSrc && !droppedInGrid && dragPhotoId) {
+            if (confirm('Delete this photo?')) {
+              if (deleteInput) deleteInput.value = dragPhotoId;
+              if (skuField && deleteSku) deleteSku.value = skuField.value;
+              if (deleteForm) deleteForm.submit();
+            }
+          }
+          dragSrc = null;
+          dragPhotoId = null;
+        });
+
+        function getGrid() {
+          return photosSection ? photosSection.querySelector('.sku-photo-grid') : null;
+        }
+
+        if (photosSection) {
+          photosSection.addEventListener('dragover', function (e) {
+            var grid = getGrid();
+            if (!grid) return;
+            var item = e.target.closest('.sku-photo-item');
+            if (item && grid.contains(item)) {
+              e.preventDefault();
+              e.dataTransfer.dropEffect = 'move';
+              droppedInGrid = true;
+              var rect = item.getBoundingClientRect();
+              var midY = rect.top + rect.height / 2;
+              var items = grid.querySelectorAll('.sku-photo-item');
+              Array.prototype.forEach.call(items, function (el) {
+                el.classList.remove('drop-before', 'drop-after');
+              });
+              if (e.clientY < midY) {
+                item.classList.add('drop-before');
+              } else {
+                item.classList.add('drop-after');
+              }
+            } else if (e.dataTransfer.types && Array.prototype.indexOf.call(e.dataTransfer.types, 'Files') !== -1) {
+              e.preventDefault();
+              e.dataTransfer.dropEffect = 'copy';
+              if (grid) grid.classList.add('is-drag-over');
+            }
+          });
+
+          photosSection.addEventListener('dragleave', function (e) {
+            var grid = getGrid();
+            if (!grid) return;
+            if (grid.contains(e.relatedTarget)) return;
+            var items = grid.querySelectorAll('.sku-photo-item.drop-before, .sku-photo-item.drop-after');
+            Array.prototype.forEach.call(items, function (el) {
+              el.classList.remove('drop-before', 'drop-after');
+            });
+            grid.classList.remove('is-drag-over');
+          });
+
+          photosSection.addEventListener('drop', function (e) {
+            var grid = getGrid();
+            if (!grid) return;
+            e.preventDefault();
+            grid.classList.remove('is-drag-over');
+            var items = grid.querySelectorAll('.sku-photo-item.drop-before, .sku-photo-item.drop-after');
+            Array.prototype.forEach.call(items, function (el) {
+              el.classList.remove('drop-before', 'drop-after');
+            });
+
+            var files = e.dataTransfer.files;
+            if (files && files.length > 0) {
+              addFilesToQueue(files);
+              return;
+            }
+
+            droppedInGrid = true;
+            var target = e.target.closest('.sku-photo-item');
+            if (target && grid.contains(target) && dragSrc && target !== dragSrc) {
+              var rect = target.getBoundingClientRect();
+              var midY = rect.top + rect.height / 2;
+              if (e.clientY < midY) {
+                target.parentNode.insertBefore(dragSrc, target);
+              } else {
+                target.parentNode.insertBefore(dragSrc, target.nextSibling);
+              }
+              savePhotoOrder();
+            }
+          });
+        }
+
+        function savePhotoOrder() {
+          var grid = getGrid();
+          if (!grid) return;
+          var ids = [];
+          var items = grid.querySelectorAll('.sku-photo-item');
+          Array.prototype.forEach.call(items, function (item) {
+            var pid = item.getAttribute('data-photo-id');
+            if (pid) ids.push(pid);
+          });
+          if (ids.length < 2) return;
+          fetch('reorder_photos.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: 'photo_ids=' + encodeURIComponent(ids.join(',')) + '&csrf_token=' + encodeURIComponent(window.CSRF_TOKEN)
+          });
+        }
+      })();
       var refreshRowTimestamp = function (el, serverTime) {
         if (serverTime) {
           var row = el && el.closest('tr');
