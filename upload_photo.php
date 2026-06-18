@@ -100,6 +100,12 @@ CREATE TABLE IF NOT EXISTS sku_photos (
 );
 SQL);
 
+try {
+    $pdo->exec("ALTER TABLE sku_photos ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0");
+} catch (Throwable $e) {
+    // ignore if exists
+}
+
 if (!is_dir(PHOTO_UPLOAD_DIR)) {
     mkdir(PHOTO_UPLOAD_DIR, 0777, true);
 }
@@ -117,9 +123,12 @@ if (!move_uploaded_file($tmp, $destination)) {
 }
 
 try {
+    $maxSortStmt = $pdo->prepare('SELECT COALESCE(MAX(sort_order), 0) FROM sku_photos WHERE sku_normalized = :sku');
+    $maxSortStmt->execute(['sku' => $sku]);
+    $nextSort = (int)$maxSortStmt->fetchColumn() + 1;
     $stmt = $pdo->prepare(<<<'SQL'
-INSERT INTO sku_photos (sku_normalized, original_name, stored_name, mime_type, file_size, created_at)
-VALUES (:sku_normalized, :original_name, :stored_name, :mime_type, :file_size, datetime('now'));
+INSERT INTO sku_photos (sku_normalized, original_name, stored_name, mime_type, file_size, created_at, sort_order)
+VALUES (:sku_normalized, :original_name, :stored_name, :mime_type, :file_size, datetime('now'), :sort_order);
 SQL);
     $stmt->execute([
         'sku_normalized' => $sku,
@@ -127,6 +136,7 @@ SQL);
         'stored_name' => $storedName,
         'mime_type' => $mimeType,
         'file_size' => $size,
+        'sort_order' => $nextSort,
     ]);
     $photoId = $pdo->lastInsertId();
 } catch (Throwable $e) {
