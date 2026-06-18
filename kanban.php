@@ -173,8 +173,7 @@ foreach ($items as $item) {
                     <div class="card-thumb card-thumb-empty"></div>
                   <?php endif; ?>
                   <div class="card-action-buttons">
-                    <button type="button" class="card-qr-inline card-qr-btn"
-                            data-sku="<?php echo htmlspecialchars($norm, ENT_QUOTES, 'UTF-8'); ?>"
+                    <button type="button" class="card-qr-toggle"
                             data-url="<?php
                                 $isHttps = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
                                     || (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https')
@@ -183,9 +182,9 @@ foreach ($items as $item) {
                                 $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
                                 $qrUrl = $protocol . '://' . $host . '/intake.php?sku=' . urlencode($norm);
                             ?><?php echo htmlspecialchars($qrUrl, ENT_QUOTES, 'UTF-8'); ?>"
-                            title="Generate QR for <?php echo htmlspecialchars($sku, ENT_QUOTES, 'UTF-8'); ?>"
-                            aria-label="Generate QR for <?php echo htmlspecialchars($sku, ENT_QUOTES, 'UTF-8'); ?>">
-                      <svg class="qr-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3zM18 14h3v3h-3zM14 19h3v2h-3zM19 17v2h2"/></svg>
+                            title="Show QR for <?php echo htmlspecialchars($sku, ENT_QUOTES, 'UTF-8'); ?>"
+                            aria-label="Show QR for <?php echo htmlspecialchars($sku, ENT_QUOTES, 'UTF-8'); ?>">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3zM18 14h3v3h-3zM14 19h3v2h-3zM19 17v2h2"/></svg>
                     </button>
                     <button type="button" class="card-print-btn"
                             data-sku="<?php echo htmlspecialchars($sku, ENT_QUOTES, 'UTF-8'); ?>"
@@ -235,9 +234,12 @@ foreach ($items as $item) {
                         <svg class="ck-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
                      <?php endif; ?>
                      <span class="label-text"><?= $cardLabel ?></span>
-                   </div>
-                </div>
-              </div>
+                    </div>
+                 </div>
+                 <div class="qr-drawer">
+                   <div class="qr-drawer-inner"></div>
+                 </div>
+               </div>
             <?php endforeach; ?>
             </div>
           </div>
@@ -656,43 +658,49 @@ foreach ($items as $item) {
       cleanupFns.push(function () { el.removeEventListener(event, fn); });
     };
 
-    // ── On-demand QR code generation ──────────────────────────
-    // Instead of generating all QR codes on page load (which caused
-    // performance degradation), each card shows a "Generate QR" button.
-    // Clicking it renders the QR code in-place once.
+    // ── Collapsible QR drawer toggle ──────────────────────────
+    // Each card has a hidden .qr-drawer. Clicking .card-qr-toggle
+    // slides it open (with a 150x150 QR generated on first open)
+    // or closed. The QR code is generated once and cached in the DOM.
     (function () {
       var qrBoard = document.getElementById('kanban-board');
       if (!qrBoard) return;
       qrBoard.addEventListener('click', function (e) {
-        var btn = e.target.closest('.card-qr-btn');
+        var btn = e.target.closest('.card-qr-toggle');
         if (!btn) return;
-        var url = btn.getAttribute('data-url');
-        if (!url || typeof QRCode === 'undefined') return;
+        var card = btn.closest('.kanban-card');
+        if (!card) return;
+        var drawer = card.querySelector('.qr-drawer');
+        var inner = card.querySelector('.qr-drawer-inner');
+        if (!drawer || !inner) return;
 
-        // Replace button content with spinner
-        btn.innerHTML = '<span class="qr-spinner"></span>';
-        btn.classList.add('is-loading');
+        // Toggle closed if already open
+        if (drawer.classList.contains('is-open')) {
+          drawer.classList.remove('is-open');
+          btn.classList.remove('is-active');
+          return;
+        }
 
-        // Defer to next animation frame so the spinner paints first
-        requestAnimationFrame(function () {
-          requestAnimationFrame(function () {
-            btn.innerHTML = '';
-            btn.classList.remove('card-qr-btn', 'is-loading');
-            try {
-              new QRCode(btn, {
-                text: url,
-                width: 60,
-                height: 60,
-                colorDark: '#0f172a',
-                colorLight: '#ffffff',
-                correctLevel: QRCode.CorrectLevel.H
-              });
-            } catch (e) {
-              btn.innerHTML = '<span style="font-size:9px;color:var(--danger)">ERR</span>';
-              btn.classList.add('card-qr-btn');
-            }
-          });
-        });
+        // Generate QR on first open
+        if (!inner.hasChildNodes() && typeof QRCode !== 'undefined') {
+          var url = btn.getAttribute('data-url');
+          if (!url) return;
+          try {
+            new QRCode(inner, {
+              text: url,
+              width: 150,
+              height: 150,
+              colorDark: '#0f172a',
+              colorLight: '#ffffff',
+              correctLevel: QRCode.CorrectLevel.H
+            });
+          } catch (e) {
+            inner.textContent = 'QR error';
+          }
+        }
+
+        drawer.classList.add('is-open');
+        btn.classList.add('is-active');
       });
     })();
 

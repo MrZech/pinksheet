@@ -3792,65 +3792,74 @@ body.dark-mode .card-delete-btn:hover {
 }
 
 /* ── QR Code Elements ────────────────────────────────────────── */
-.card-qr-inline {
+
+/* Toggle button in the card action bar — compact 36×36 icon button */
+.card-qr-toggle {
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 60px;
-  height: 60px;
-  flex-shrink: 0;
+  border: 1px solid var(--line);
   border-radius: 4px;
-  overflow: hidden;
-  background: #ffffff;
-  border: 1px solid #d5dce6;
+  background: transparent;
+  cursor: pointer;
+  color: var(--muted);
+  padding: 0;
+  font: inherit;
+  transition: background 120ms ease, color 120ms ease;
+}
+.card-qr-toggle:hover {
+  background: var(--accent-primary-soft);
+  color: var(--accent-strong);
+}
+.card-qr-toggle.is-active {
+  background: var(--accent-primary-soft);
+  color: var(--accent-strong);
+  border-color: var(--accent-strong);
+}
+.card-qr-toggle svg {
+  display: block;
 }
 
-.card-qr-inline canvas,
-.card-qr-inline img {
-  width: 60px !important;
-  height: 60px !important;
+/* Collapsible drawer that slides open below the card body */
+.qr-drawer {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.35s ease-out;
+}
+.qr-drawer.is-open {
+  max-height: 220px; /* tall enough for 150px QR + margins */
+}
+.qr-drawer-inner {
+  padding: 8px 0 4px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+.qr-drawer canvas,
+.qr-drawer img {
+  width: 150px !important;
+  height: 150px !important;
   display: block;
+  margin: 10px auto;
   image-rendering: pixelated;
   image-rendering: crisp-edges;
 }
 
-/* ── On-demand QR button (replaces auto-generated QR) ───────── */
-.card-qr-btn {
-  cursor: pointer;
-  padding: 0;
-  font: inherit;
-  color: var(--muted);
-  transition: background 120ms ease, color 120ms ease;
-}
-.card-qr-btn:hover {
-  background: var(--accent-primary-soft);
-  color: var(--accent-strong);
-}
-.card-qr-btn .qr-icon {
-  display: block;
-  width: 28px;
-  height: 28px;
-}
-.card-qr-btn.is-loading {
-  cursor: default;
-}
-.qr-spinner {
-  display: block;
-  width: 28px;
-  height: 28px;
-  border: 3px solid var(--line);
-  border-top-color: var(--accent-strong);
-  border-radius: 50%;
-  animation: qr-spin 600ms linear infinite;
-}
-@keyframes qr-spin {
-  to { transform: rotate(360deg); }
-}
-
-body[data-theme="dark"] .card-qr-inline,
-body.dark-mode .card-qr-inline {
-  background: #1e293b;
+body[data-theme="dark"] .card-qr-toggle,
+body.dark-mode .card-qr-toggle {
   border-color: #334155;
+  color: #94a3b8;
+}
+body[data-theme="dark"] .card-qr-toggle:hover,
+body.dark-mode .card-qr-toggle:hover,
+body[data-theme="dark"] .card-qr-toggle.is-active,
+body.dark-mode .card-qr-toggle.is-active {
+  background: #1e293b;
+  color: #e2e8f0;
+  border-color: #475569;
 }
 
 /* ── Desktop QR Scanner Modal ────────────────────────────────── */
