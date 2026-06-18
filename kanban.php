@@ -173,17 +173,20 @@ foreach ($items as $item) {
                     <div class="card-thumb card-thumb-empty"></div>
                   <?php endif; ?>
                   <div class="card-action-buttons">
-                    <div class="card-qr-inline"
-                         data-sku="<?php echo htmlspecialchars($norm, ENT_QUOTES, 'UTF-8'); ?>"
-                         data-url="<?php
-                             $isHttps = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
-                                 || (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https')
-                                 || (isset($_SERVER['HTTP_CF_VISITOR']) && str_contains($_SERVER['HTTP_CF_VISITOR'], '"scheme":"https"'));
-                             $protocol = $isHttps ? 'https' : 'http';
-                             $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
-                             $qrUrl = $protocol . '://' . $host . '/intake.php?sku=' . urlencode($norm);
-                         ?><?php echo htmlspecialchars($qrUrl, ENT_QUOTES, 'UTF-8'); ?>">
-                    </div>
+                    <button type="button" class="card-qr-inline card-qr-btn"
+                            data-sku="<?php echo htmlspecialchars($norm, ENT_QUOTES, 'UTF-8'); ?>"
+                            data-url="<?php
+                                $isHttps = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+                                    || (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https')
+                                    || (isset($_SERVER['HTTP_CF_VISITOR']) && str_contains($_SERVER['HTTP_CF_VISITOR'], '"scheme":"https"'));
+                                $protocol = $isHttps ? 'https' : 'http';
+                                $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+                                $qrUrl = $protocol . '://' . $host . '/intake.php?sku=' . urlencode($norm);
+                            ?><?php echo htmlspecialchars($qrUrl, ENT_QUOTES, 'UTF-8'); ?>"
+                            title="Generate QR for <?php echo htmlspecialchars($sku, ENT_QUOTES, 'UTF-8'); ?>"
+                            aria-label="Generate QR for <?php echo htmlspecialchars($sku, ENT_QUOTES, 'UTF-8'); ?>">
+                      <svg class="qr-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3zM18 14h3v3h-3zM14 19h3v2h-3zM19 17v2h2"/></svg>
+                    </button>
                     <button type="button" class="card-print-btn"
                             data-sku="<?php echo htmlspecialchars($sku, ENT_QUOTES, 'UTF-8'); ?>"
                             title="Print card for <?php echo htmlspecialchars($sku, ENT_QUOTES, 'UTF-8'); ?>"
@@ -653,23 +656,41 @@ foreach ($items as $item) {
       cleanupFns.push(function () { el.removeEventListener(event, fn); });
     };
 
-    // ── Generate QR codes on all inline QR containers ──────────
-    var els = document.querySelectorAll('.card-qr-inline');
-    for (var i = 0; i < els.length; i++) {
-      var url = els[i].getAttribute('data-url');
-      if (url && typeof QRCode !== 'undefined') {
-        try {
-          new QRCode(els[i], {
-            text: url,
-            width: 36,
-            height: 36,
-            colorDark: '#0f172a',
-            colorLight: '#ffffff',
-            correctLevel: QRCode.CorrectLevel.H
-          });
-        } catch (e) {}
-      }
-    }
+    // ── On-demand QR code generation ──────────────────────────
+    // Instead of generating all QR codes on page load (which caused
+    // performance degradation), each card shows a "Generate QR" button.
+    // Clicking it renders the QR code in-place once.
+    board.addEventListener('click', function (e) {
+      var btn = e.target.closest('.card-qr-btn');
+      if (!btn) return;
+      var url = btn.getAttribute('data-url');
+      if (!url || typeof QRCode === 'undefined') return;
+
+      // Replace button content with spinner
+      btn.innerHTML = '<span class="qr-spinner"></span>';
+      btn.classList.add('is-loading');
+
+      // Defer to next animation frame so the spinner paints first
+      requestAnimationFrame(function () {
+        requestAnimationFrame(function () {
+          btn.innerHTML = '';
+          btn.classList.remove('card-qr-btn', 'is-loading');
+          try {
+            new QRCode(btn, {
+              text: url,
+              width: 36,
+              height: 36,
+              colorDark: '#0f172a',
+              colorLight: '#ffffff',
+              correctLevel: QRCode.CorrectLevel.H
+            });
+          } catch (e) {
+            btn.innerHTML = '<span style="font-size:9px;color:var(--danger)">ERR</span>';
+            btn.classList.add('card-qr-btn');
+          }
+        });
+      });
+    });
 
     // ── Desktop QR Scanner (Html5QrcodeScanner) ────────────────
     var scannerOverlay = document.getElementById('scanner-overlay');
