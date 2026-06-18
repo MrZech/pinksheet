@@ -136,6 +136,7 @@ $initialItemJson = $currentItem ? json_encode($currentItem, JSON_HEX_TAG | JSON_
                 <button type="submit" id="generate-prompt-btn">Build ChatGPT prompt</button>
                 <button type="button" class="ghost" id="clear-prompt-btn">Clear SKU</button>
                 <a class="button-link subtle" href="<?php echo h($intakeLink); ?>">Open intake sheet</a>
+                <a class="button-link subtle" href="ebay_listing.php<?php echo $currentSkuNormalized !== '' ? '?sku=' . urlencode($currentSkuNormalized) : ''; ?>">Listing Images</a>
               </div>
             </form>
 

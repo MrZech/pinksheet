@@ -4868,5 +4868,11 @@ body.dark-mode .button-link:hover {
   }
 }
 
+/* ── eBay Listing Image Composer responsive overrides ─────────── */
+@media (max-width: 800px) {
+  .ebay-composer-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
 
 
