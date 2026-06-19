@@ -211,6 +211,7 @@ SQL);
 
 $squareSync = $assembled ? squareSyncItemBySku($pdo, $sku) : ['status' => 'skipped'];
 successResponse([
+    'status' => 'ok',
     'done' => $assembled,
     'id' => $photoId ?? null,
     'square_sync' => $squareSync['status'] ?? 'skipped',

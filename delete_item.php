@@ -98,21 +98,27 @@ try {
 
     $pdo->commit();
 
-    $response = ['status' => 'ok', 'deleted' => $count, 'archived' => (bool)$row];
     if ($isAjax || $acceptsJson) {
-        successResponse($response);
-    } else {
-        header('Location: index.php?deleted=' . (int)$count);
+        header('Content-Type: application/json; charset=utf-8');
+        echo json_encode([
+            'status' => 'ok',
+            'deleted' => $count,
+            'archived' => (bool)$row,
+        ]);
         exit;
     }
+    header('Location: index.php?deleted=' . (int)$count);
+    exit;
 } catch (Throwable $e) {
     if ($pdo && $pdo->inTransaction()) {
         $pdo->rollBack();
     }
     if ($isAjax || $acceptsJson) {
-        errorResponse('Server error', 500);
-    } else {
-        header('Location: index.php?deleted=0');
+        http_response_code(500);
+        header('Content-Type: application/json; charset=utf-8');
+        echo json_encode(['status' => 'error', 'message' => 'Server error']);
         exit;
     }
+    header('Location: index.php?deleted=0');
+    exit;
 }

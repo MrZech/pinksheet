@@ -15,7 +15,9 @@ try {
     $term = '';
 }
 if ($term === '') {
-    successResponse([]);
+    header('Content-Type: application/json; charset=utf-8');
+    echo json_encode([]);
+    exit;
 }
 if (function_exists('mb_strlen') && function_exists('mb_substr')) {
     if (mb_strlen($term) > MAX_QUERY_LENGTH) {
@@ -26,7 +28,9 @@ if (function_exists('mb_strlen') && function_exists('mb_substr')) {
 }
 
 if (!is_readable(DB_PATH)) {
-    successResponse([]);
+    header('Content-Type: application/json; charset=utf-8');
+    echo json_encode([]);
+    exit;
 }
 
 try {
@@ -66,7 +70,11 @@ try {
             'label' => implode(' — ', $labelParts),
         ];
     }
-    successResponse($suggestions);
+    header('Content-Type: application/json; charset=utf-8');
+    echo json_encode($suggestions);
+    exit;
 } catch (Throwable $error) {
-    successResponse([]);
+    header('Content-Type: application/json; charset=utf-8');
+    echo json_encode([]);
+    exit;
 }

@@ -91,19 +91,20 @@ function validate_csrf(?string $token, string $purpose = CSRF_TOKEN_PURPOSE): bo
         return false;
     }
     foreach ($tokens as $idx => $stored) {
-        if (!empty($stored['used'])) {
-            continue;
-        }
         if (hash_equals($stored['token'] ?? '', $token)) {
             if ((time() - (int)($stored['created_at'] ?? 0)) > CSRF_TOKEN_MAX_AGE) {
                 unset($tokens[$idx]);
                 return false;
             }
-            // Mark expended — strict one-time policy.
-            $tokens[$idx]['used'] = true;
+            // Token is valid — allow reuse within the age window.
+            // One-time-use was removed because pages generate a single
+            // window.CSRF_TOKEN used for multiple sequential AJAX calls
+            // (drag-and-drop, inline updates, autosave, etc.).
             return true;
         }
     }
+    // Token not found: generate a new one in case the session expired or
+    // was cleared, and let the caller retry.
     return false;
 }
 

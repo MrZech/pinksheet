@@ -55,28 +55,28 @@ function sanitizeFilename(string $name): string
  *
  * Failure automatically sets the HTTP status code (default 400).
  */
-function successResponse(mixed $data = null, string $message = 'OK'): void
+function successResponse(mixed $data = null): never
 {
     header('Content-Type: application/json; charset=utf-8');
-    echo json_encode([
-        'success' => true,
-        'data'    => $data,
-        'error'   => null,
-    ]);
+    $response = ['ok' => true];
+    if (is_array($data)) {
+        foreach ($data as $key => $value) {
+            $response[$key] = $value;
+        }
+    } elseif ($data !== null) {
+        $response['data'] = $data;
+    }
+    echo json_encode($response);
     exit;
 }
 
-function errorResponse(string $message, int $code = 400): void
+function errorResponse(string $message, int $code = 400): never
 {
     http_response_code($code);
     header('Content-Type: application/json; charset=utf-8');
     $prefix = str_replace(__DIR__, '', debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 1)[0]['file'] ?? '');
     error_log('errorResponse [' . $prefix . ']: ' . $message);
-    echo json_encode([
-        'success' => false,
-        'data'    => null,
-        'error'   => $message,
-    ]);
+    echo json_encode(['ok' => false, 'error' => $message]);
     exit;
 }
 
