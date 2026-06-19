@@ -48,7 +48,9 @@ try {
     $deleted = $pdo->query("SELECT * FROM intake_deleted ORDER BY deleted_at DESC, rowid DESC LIMIT 1")->fetch(PDO::FETCH_ASSOC);
     if (!$deleted) {
         $pdo->rollBack();
-        errorResponse('Nothing to undo');
+        header('Content-Type: application/json; charset=utf-8');
+        echo json_encode(['status' => 'error', 'message' => 'Nothing to undo']);
+        exit;
     }
 
     $originalId = (int)($deleted['id'] ?? 0);
@@ -70,16 +72,21 @@ try {
 
     $pdo->commit();
 
-    successResponse([
+    header('Content-Type: application/json; charset=utf-8');
+    echo json_encode([
         'status' => 'ok',
         'restored_sku' => $restoredSku,
         'new_id' => $newId,
         'original_id' => $originalId,
         'deleted_at' => $deletedAt,
     ]);
+    exit;
 } catch (Throwable $e) {
     if ($pdo && $pdo->inTransaction()) {
         $pdo->rollBack();
     }
-    errorResponse('Undo failed', 500);
+    http_response_code(500);
+    header('Content-Type: application/json; charset=utf-8');
+    echo json_encode(['status' => 'error', 'message' => 'Undo failed']);
+    exit;
 }

@@ -32,11 +32,15 @@ if (safeStringLength($status) > MAX_STATUS_LENGTH) {
     $status = safeStringSubstring($status, 0, MAX_STATUS_LENGTH);
 }
 if ($sku === '' && $status === '') {
-    successResponse([]);
+    header('Content-Type: application/json; charset=utf-8');
+    echo json_encode([]);
+    exit;
 }
 
 if (!is_readable(DB_PATH)) {
-    successResponse([]);
+    header('Content-Type: application/json; charset=utf-8');
+    echo json_encode([]);
+    exit;
 }
 
 try {
@@ -126,7 +130,12 @@ $sql = 'SELECT id, sku, status, what_is_it, updated_at, dispotech_price, ebay_pr
             'ebay_price' => $ePrice,
         ];
     }, $rows);
-    successResponse($results);
+    header('Content-Type: application/json; charset=utf-8');
+    echo json_encode($results);
+    exit;
 } catch (Throwable $error) {
-    errorResponse($error->getMessage(), 500);
+    http_response_code(500);
+    header('Content-Type: application/json; charset=utf-8');
+    echo json_encode([]);
+    exit;
 }

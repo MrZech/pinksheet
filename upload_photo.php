@@ -105,6 +105,7 @@ SQL);
 
 $squareSync = squareSyncItemBySku($pdo, $sku);
 successResponse([
+    'status' => 'ok',
     'id' => $photoId,
     'mime_type' => $dbMime,
     'stored_name' => $storedName,

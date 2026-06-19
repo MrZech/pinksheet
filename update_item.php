@@ -6,8 +6,19 @@ require_once __DIR__ . '/square_sync.php';
 checkMaintenance(true);
 ensureStorageWritable();
 
+/**
+ * Return a flat JSON error so JS callers can check `data.ok` directly.
+ */
+function updateError(string $message, int $code = 400): never
+{
+    http_response_code($code);
+    header('Content-Type: application/json; charset=utf-8');
+    echo json_encode(['ok' => false, 'error' => $message]);
+    exit;
+}
+
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    errorResponse('Method not allowed', 405);
+    updateError('Method not allowed', 405);
 }
 
 require_csrf();
@@ -17,19 +28,18 @@ $field = trim((string)($_POST['field'] ?? ''));
 $value = $_POST['value'] ?? null;
 
 if ($sku === '') {
-    errorResponse('SKU is required');
+    updateError('SKU is required');
 }
 
 $allowedFields = [
     'status' => true,
     'price' => true,
     'reviewed' => true,
-    // Back-compat: old clients/inputs may still send these.
     'dispotech_price' => true,
     'ebay_price' => true,
 ];
 if (!isset($allowedFields[$field])) {
-    errorResponse('Field not allowed');
+    updateError('Field not allowed');
 }
 
 try {
@@ -67,14 +77,29 @@ try {
         $existsStmt = $pdo->prepare('SELECT COUNT(*) FROM intake_items WHERE ' . $skuWhere);
         $existsStmt->execute([':sku' => $sku]);
         if ((int) $existsStmt->fetchColumn() === 0) {
-            errorResponse('SKU not found', 404);
+            updateError('SKU not found', 404);
         }
     }
     $updatedStmt = $pdo->prepare('SELECT updated_at FROM intake_items WHERE ' . $skuWhere);
     $updatedStmt->execute([':sku' => $sku]);
     $updatedAt = (string)($updatedStmt->fetchColumn() ?? '');
     $squareSync = squareSyncItemBySku($pdo, $sku);
-    successResponse(['ok' => true, 'updated_at' => $updatedAt, 'square_sync' => $squareSync['status'] ?? 'skipped']);
+    $syncStatus = $squareSync['status'] ?? 'skipped';
+
+    // Return flat JSON so JS callers can check `data.ok` directly.
+    header('Content-Type: application/json; charset=utf-8');
+    echo json_encode([
+        'ok'          => true,
+        'updated_at'  => $updatedAt,
+        'square_sync' => $syncStatus,
+    ]);
+    exit;
 } catch (Throwable $e) {
-    errorResponse('DB error', 500);
+    http_response_code(500);
+    header('Content-Type: application/json; charset=utf-8');
+    echo json_encode([
+        'ok'    => false,
+        'error' => 'DB error',
+    ]);
+    exit;
 }
