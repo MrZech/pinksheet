@@ -84,11 +84,7 @@ if ($itemName === '' || $description === '' || $date === '') {
     try {
         $dbPath = __DIR__ . '/data/intake.sqlite';
         if (is_file($dbPath) && is_readable($dbPath)) {
-            $pdo = new PDO('sqlite:' . $dbPath, null, null, [
-                PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
-                PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-                PDO::ATTR_EMULATE_PREPARES   => false,
-            ]);
+            $pdo = pdoConnect($dbPath);
             $stmt = $pdo->prepare('SELECT sku, what_is_it, date_received, notes, brand_model FROM intake_items WHERE sku_normalized = ? ORDER BY id DESC LIMIT 1');
             $stmt->execute([strtoupper($sku)]);
             $dbItem = $stmt->fetch();

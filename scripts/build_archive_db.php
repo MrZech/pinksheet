@@ -15,12 +15,8 @@ if (!is_file($sourceDb)) {
     exit(2);
 }
 
-$source = new PDO('sqlite:' . $sourceDb, null, null, [
-    PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-]);
-$archive = new PDO('sqlite:' . $archiveDb, null, null, [
-    PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-]);
+$source = pdoConnect($sourceDb);
+$archive = pdoConnect($archiveDb);
 
 $archive->exec(<<<'SQL'
 CREATE TABLE IF NOT EXISTS archive_items (

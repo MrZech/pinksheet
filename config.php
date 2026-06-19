@@ -17,12 +17,107 @@ if ($env === 'development') {
 @ini_set('post_max_size', '64M');
 @ini_set('max_file_uploads', '50');
 
-/* ── Session & CSRF token ────────────────────────────────────── */
+/* ── Session ─────────────────────────────────────────────────── */
 if (session_status() === PHP_SESSION_NONE && php_sapi_name() !== 'cli') {
     session_start();
 }
-if (empty($_SESSION['csrf_token'])) {
-    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+
+/* ── CSRF token lifetime (seconds) ──────────────────────────── */
+const CSRF_TOKEN_MAX_AGE = 14400; // 4 hours
+const CSRF_TOKEN_PURPOSE = 'global';
+
+/**
+ * Initialise the structured CSRF token store and purge expired tokens.
+ */
+function initCsrfTokens(): void
+{
+    if (!isset($_SESSION['csrf_tokens']) || !is_array($_SESSION['csrf_tokens'])) {
+        $_SESSION['csrf_tokens'] = [];
+    }
+    $now = time();
+    foreach ($_SESSION['csrf_tokens'] as $purpose => &$tokens) {
+        if (!is_array($tokens)) {
+            $tokens = [];
+            continue;
+        }
+        $tokens = array_values(array_filter($tokens, static fn(array $t): bool =>
+            ($t['created_at'] ?? 0) > ($now - CSRF_TOKEN_MAX_AGE)
+        ));
+    }
+    unset($tokens);
+}
+
+/**
+ * Return (and generate) a fresh CSRF token for the given purpose.
+ * Each call produces a new token so that every form / AJAX action
+ * receives a unique, one-time credential.
+ */
+function csrf_token(string $purpose = CSRF_TOKEN_PURPOSE): string
+{
+    initCsrfTokens();
+    $token = bin2hex(random_bytes(32));
+    $_SESSION['csrf_tokens'][$purpose][] = [
+        'token'      => $token,
+        'created_at' => time(),
+        'used'       => false,
+    ];
+    return $token;
+}
+
+function csrf_meta(string $purpose = CSRF_TOKEN_PURPOSE): string
+{
+    return '<meta name="csrf-token" content="' . htmlspecialchars(csrf_token($purpose), ENT_QUOTES, 'UTF-8') . '">';
+}
+
+function csrf_field(string $purpose = CSRF_TOKEN_PURPOSE): string
+{
+    return '<input type="hidden" name="csrf_token" value="' . htmlspecialchars(csrf_token($purpose), ENT_QUOTES, 'UTF-8') . '">';
+}
+
+/**
+ * Validate a CSRF token, enforcing:
+ *   - Existence in the session store
+ *   - Maximum age (4-hour sliding window)
+ *   - One-time use (marked expended after first validation)
+ */
+function validate_csrf(?string $token, string $purpose = CSRF_TOKEN_PURPOSE): bool
+{
+    if ($token === null || $token === '') {
+        return false;
+    }
+    initCsrfTokens();
+    $tokens = &$_SESSION['csrf_tokens'][$purpose];
+    if (!is_array($tokens)) {
+        return false;
+    }
+    foreach ($tokens as $idx => $stored) {
+        if (!empty($stored['used'])) {
+            continue;
+        }
+        if (hash_equals($stored['token'] ?? '', $token)) {
+            if ((time() - (int)($stored['created_at'] ?? 0)) > CSRF_TOKEN_MAX_AGE) {
+                unset($tokens[$idx]);
+                return false;
+            }
+            // Mark expended — strict one-time policy.
+            $tokens[$idx]['used'] = true;
+            return true;
+        }
+    }
+    return false;
+}
+
+function require_csrf(string $purpose = CSRF_TOKEN_PURPOSE): void
+{
+    $token = $_POST['csrf_token']
+        ?? $_SERVER['HTTP_X_CSRF_TOKEN']
+        ?? '';
+    if (!validate_csrf($token, $purpose)) {
+        http_response_code(403);
+        header('Content-Type: application/json; charset=utf-8');
+        echo json_encode(['status' => 'error', 'message' => 'Invalid or missing CSRF token']);
+        exit;
+    }
 }
 
 /* ── Security headers ────────────────────────────────────────── */
@@ -223,40 +318,35 @@ function normalizeSku(string $sku): string
     return strtoupper(trim($sku));
 }
 
-function csrf_token(): string
+/* ── Centralised PDO connection factory ──────────────────────── */
+/**
+ * Create a PDO connection with a hardened, consistent configuration.
+ *
+ * Applies on every connection:
+ *   - PDO::ERRMODE_EXCEPTION        — fail fast on query errors
+ *   - PDO::ATTR_EMULATE_PREPARES    — native prepares (true SQLite safety)
+ *   - PDO::ATTR_DEFAULT_FETCH_MODE  — FETCH_ASSOC by default
+ *   - PRAGMA journal_mode = WAL     — concurrent-read friendly
+ *   - PRAGMA busy_timeout = 5000    — 5 s retry before giving up
+ *
+ * Schema-modification PRAGMAs are wrapped in try/catch so that
+ * read-only replicas or restricted environments do not fatally
+ * crash the request.
+ */
+function pdoConnect(string $path): PDO
 {
-    return $_SESSION['csrf_token'] ?? '';
-}
-
-function csrf_meta(): string
-{
-    return '<meta name="csrf-token" content="' . htmlspecialchars(csrf_token(), ENT_QUOTES, 'UTF-8') . '">';
-}
-
-function csrf_field(): string
-{
-    return '<input type="hidden" name="csrf_token" value="' . htmlspecialchars(csrf_token(), ENT_QUOTES, 'UTF-8') . '">';
-}
-
-function validate_csrf(?string $token): bool
-{
-    if ($token === null || $token === '') {
-        return false;
+    $pdo = new PDO('sqlite:' . $path, null, null, [
+        PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
+        PDO::ATTR_EMULATE_PREPARES   => false,
+        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+    ]);
+    try {
+        $pdo->exec('PRAGMA journal_mode = WAL');
+        $pdo->exec('PRAGMA busy_timeout = 5000');
+    } catch (Throwable $e) {
+        error_log('pdoConnect: PRAGMA setup failed for ' . $path . ': ' . $e->getMessage());
     }
-    return hash_equals($_SESSION['csrf_token'] ?? '', $token);
-}
-
-function require_csrf(): void
-{
-    $token = $_POST['csrf_token']
-        ?? $_SERVER['HTTP_X_CSRF_TOKEN']
-        ?? '';
-    if (!validate_csrf($token)) {
-        http_response_code(403);
-        header('Content-Type: application/json; charset=utf-8');
-        echo json_encode(['status' => 'error', 'message' => 'Invalid or missing CSRF token']);
-        exit;
-    }
+    return $pdo;
 }
 
 /* ── Load consolidated shared utilities ───────────────────── */

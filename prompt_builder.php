@@ -21,10 +21,7 @@ $intakeLink = $currentSkuNormalized !== '' ? 'intake.php?sku=' . urlencode($curr
 
 if (is_readable(PROMPT_DB_PATH)) {
     try {
-        $pdo = new PDO('sqlite:' . PROMPT_DB_PATH, null, null, [
-            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-        ]);
+        $pdo = pdoConnect(PROMPT_DB_PATH);
         $recentStmt = $pdo->query("
             SELECT sku
             FROM intake_items

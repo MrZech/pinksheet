@@ -33,18 +33,14 @@ if ($photoId <= 0 || $sku === '') {
 }
 
 try {
-    $pdo = new PDO('sqlite:' . __DIR__ . '/data/intake.sqlite', null, null, [
-        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-    ]);
+    $pdo = pdoConnect(__DIR__ . '/data/intake.sqlite');
     $pdo->exec("ALTER TABLE sku_photos ADD COLUMN is_thumb INTEGER NOT NULL DEFAULT 0");
 } catch (Throwable $e) {
     // ignore if exists
 }
 
 try {
-    $pdo = new PDO('sqlite:' . __DIR__ . '/data/intake.sqlite', null, null, [
-        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-    ]);
+    $pdo = pdoConnect(__DIR__ . '/data/intake.sqlite');
     squareSyncEnsureSchema($pdo);
     $pdo->beginTransaction();
     $clear = $pdo->prepare('UPDATE sku_photos SET is_thumb = 0 WHERE sku_normalized = :sku');

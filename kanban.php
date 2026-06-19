@@ -7,10 +7,7 @@ ensureStorageWritable();
 $currentPage = 'kanban';
 
 try {
-    $pdo = new PDO('sqlite:' . __DIR__ . '/data/intake.sqlite', null, null, [
-        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-    ]);
+    $pdo = pdoConnect(__DIR__ . '/data/intake.sqlite');
     $pdo->exec('PRAGMA cache_size = -8000'); // 8MB query cache
 } catch (Throwable $e) {
     http_response_code(500);

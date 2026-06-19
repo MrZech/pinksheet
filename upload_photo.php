@@ -63,9 +63,7 @@ $storedName = $result['stored_name'];
 $dbMime     = $result['mime_type'];
 $finalSize  = $result['file_size'];
 
-$pdo = new PDO('sqlite:' . DB_PATH, null, null, [
-    PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-]);
+$pdo = pdoConnect(DB_PATH);
 squareSyncEnsureSchema($pdo);
 $pdo->exec(<<<'SQL'
 CREATE TABLE IF NOT EXISTS sku_photos (

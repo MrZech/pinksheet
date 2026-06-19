@@ -41,9 +41,7 @@ if (!isset($allowedFields[$field])) {
 }
 
 try {
-    $pdo = new PDO('sqlite:' . __DIR__ . '/data/intake.sqlite', null, null, [
-        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-    ]);
+    $pdo = pdoConnect(__DIR__ . '/data/intake.sqlite');
     $pdo->exec('PRAGMA foreign_keys = ON');
     squareSyncEnsureSchema($pdo);
 

@@ -127,9 +127,7 @@ if (!is_file($csvPath) || !is_readable($csvPath)) {
 
 ensureStorageWritable();
 
-$pdo = new PDO('sqlite:' . __DIR__ . '/../data/intake.sqlite', null, null, [
-    PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-]);
+$pdo = pdoConnect(__DIR__ . '/../data/intake.sqlite');
 ensureArchiveItemsTable($pdo);
 
 $fh = fopen($csvPath, 'rb');
@@ -145,6 +143,7 @@ if ($headerRow === false) {
 }
 
 $headers = array_map(static fn ($header): string => normalizeHeader((string)$header), $headerRow);
+$expectedColumnCount = count($headers);
 $inserted = 0;
 $skipped = 0;
 $processed = 0;
@@ -192,17 +191,36 @@ INSERT OR IGNORE INTO archive_items (
 SQL;
 $insert = $pdo->prepare($insertSql);
 
+$columnMismatches = 0;
+$cellTruncations = 0;
+
 while (($data = fgetcsv($fh, 0, ',', '"', '')) !== false) {
     if ($data === [null] || $data === []) {
         continue;
     }
     $processed++;
+
+    // Column count parity check
+    $fieldCount = count($data);
+    if ($fieldCount !== $expectedColumnCount) {
+        fwrite(STDERR, "WARNING: row $processed has $fieldCount columns, expected $expectedColumnCount; skipping.\n");
+        $columnMismatches++;
+        $skipped++;
+        continue;
+    }
+
     $row = [];
     foreach ($headers as $idx => $header) {
         if ($header === '') {
             continue;
         }
-        $row[$header] = $data[$idx] ?? '';
+        $value = $data[$idx] ?? '';
+        // Cell field size limits
+        if (mb_strlen($value) > 4096) {
+            $value = mb_substr($value, 0, 4093) . '...';
+            $cellTruncations++;
+        }
+        $row[$header] = $value;
     }
 
     $sku = firstValue($row, ['sku', 'itemsku', 'productsku', 'stockcode', 'inventorysku']);
@@ -225,46 +243,44 @@ while (($data = fgetcsv($fh, 0, ',', '"', '')) !== false) {
     if ($createdAt === '') {
         $createdAt = gmdate('Y-m-d H:i:s');
     }
-    if ($updatedAt === '') {
-        $updatedAt = $createdAt;
-    }
-    $legacyPayload = json_encode($row, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
-    if ($legacyPayload === false) {
-        $legacyPayload = '{}';
-    }
+    $legacySource = firstValue($row, ['legacysource', 'legacy_source']);
+    $legacyTable = firstValue($row, ['legacytable', 'legacy_table']);
+    $legacyPayload = firstValue($row, ['legacypayload', 'legacy_payload']);
+    $normalizedSku = normalizeSku($sku);
 
-    $params = [
-        ':created_at' => $createdAt,
-        ':updated_at' => $updatedAt,
-        ':sku' => $sku,
-        ':sku_normalized' => normalizeSku($sku),
-        ':title' => $title,
-        ':status' => $status,
-        ':sold_at' => $soldAt,
-        ':sold_price' => $soldPrice,
-        ':purchase_price' => $purchasePrice,
-        ':source' => $source,
-        ':buyer' => $buyer,
-        ':notes' => $notes,
-        ':legacy_source' => $legacySource,
-        ':legacy_table' => $legacyTable,
-        ':legacy_id' => $legacyId,
-        ':legacy_location_id' => $legacyLocationId,
-        ':legacy_category_id' => $legacyCategoryId,
-        ':legacy_payload' => $legacyPayload,
-    ];
-
-    if (!$dryRun) {
-        $insert->execute($params);
-        if ($insert->rowCount() > 0) {
-            $inserted++;
-        } else {
-            $skipped++;
-        }
+    try {
+        $insert->execute([
+            'created_at' => $createdAt,
+            'updated_at' => $updatedAt,
+            'sku' => $sku,
+            'sku_normalized' => $normalizedSku,
+            'title' => mb_substr($title, 0, 1024),
+            'status' => mb_substr($status, 0, 255),
+            'sold_at' => $soldAt,
+            'sold_price' => $soldPrice,
+            'purchase_price' => $purchasePrice,
+            'source' => mb_substr($source, 0, 255),
+            'buyer' => mb_substr($buyer, 0, 255),
+            'notes' => mb_substr($notes, 0, 4096),
+            'legacy_source' => mb_substr((string)$legacySource, 0, 255),
+            'legacy_table' => mb_substr((string)$legacyTable, 0, 255),
+            'legacy_id' => (string)$legacyId,
+            'legacy_location_id' => (string)$legacyLocationId,
+            'legacy_category_id' => (string)$legacyCategoryId,
+            'legacy_payload' => mb_substr((string)$legacyPayload, 0, 4096),
+        ]);
+        $inserted++;
+    } catch (Throwable $e) {
+        fwrite(STDERR, "ERROR inserting row $processed: " . $e->getMessage() . "\n");
+        $skipped++;
     }
 }
 
 fclose($fh);
+
+if ($columnMismatches > 0 || $cellTruncations > 0) {
+    fwrite(STDERR, "SUMMARY: $columnMismatches row(s) skipped due to column count mismatch, $cellTruncations cell(s) truncated to 4096 chars.\n");
+}
 
 if ($dryRun) {
     echo "Dry run complete. Rows seen: {$processed}\n";

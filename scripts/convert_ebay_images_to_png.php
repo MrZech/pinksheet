@@ -126,9 +126,7 @@ if ($convertSkuPhotos) {
         echo "\nScanning: $skuDir\n";
         $pdo = null;
         try {
-            $pdo = new PDO('sqlite:' . __DIR__ . '/../data/intake.sqlite', null, null, [
-                PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-            ]);
+            $pdo = pdoConnect(__DIR__ . '/../data/intake.sqlite');
         } catch (Throwable $e) {
             echo "  WARNING: Could not open database. Skipping DB updates.\n";
         }
