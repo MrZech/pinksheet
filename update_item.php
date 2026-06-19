@@ -6,12 +6,8 @@ require_once __DIR__ . '/square_sync.php';
 checkMaintenance(true);
 ensureStorageWritable();
 
-header('Content-Type: application/json; charset=utf-8');
-
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    http_response_code(405);
-    echo json_encode(['ok' => false, 'error' => 'Method not allowed']);
-    exit;
+    errorResponse('Method not allowed', 405);
 }
 
 require_csrf();
@@ -21,9 +17,7 @@ $field = trim((string)($_POST['field'] ?? ''));
 $value = $_POST['value'] ?? null;
 
 if ($sku === '') {
-    http_response_code(400);
-    echo json_encode(['ok' => false, 'error' => 'SKU is required']);
-    exit;
+    errorResponse('SKU is required');
 }
 
 $allowedFields = [
@@ -35,9 +29,7 @@ $allowedFields = [
     'ebay_price' => true,
 ];
 if (!isset($allowedFields[$field])) {
-    http_response_code(400);
-    echo json_encode(['ok' => false, 'error' => 'Field not allowed']);
-    exit;
+    errorResponse('Field not allowed');
 }
 
 try {
@@ -75,17 +67,14 @@ try {
         $existsStmt = $pdo->prepare('SELECT COUNT(*) FROM intake_items WHERE ' . $skuWhere);
         $existsStmt->execute([':sku' => $sku]);
         if ((int) $existsStmt->fetchColumn() === 0) {
-            http_response_code(404);
-            echo json_encode(['ok' => false, 'error' => 'SKU not found']);
-            exit;
+            errorResponse('SKU not found', 404);
         }
     }
     $updatedStmt = $pdo->prepare('SELECT updated_at FROM intake_items WHERE ' . $skuWhere);
     $updatedStmt->execute([':sku' => $sku]);
     $updatedAt = (string)($updatedStmt->fetchColumn() ?? '');
     $squareSync = squareSyncItemBySku($pdo, $sku);
-    echo json_encode(['ok' => true, 'updated_at' => $updatedAt, 'square_sync' => $squareSync['status'] ?? 'skipped']);
+    successResponse(['ok' => true, 'updated_at' => $updatedAt, 'square_sync' => $squareSync['status'] ?? 'skipped']);
 } catch (Throwable $e) {
-    http_response_code(500);
-    echo json_encode(['ok' => false, 'error' => 'DB error']);
+    errorResponse('DB error', 500);
 }

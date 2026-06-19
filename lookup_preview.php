@@ -7,7 +7,7 @@ ensureStorageWritable();
 
 const DB_PATH = __DIR__ . '/data/intake.sqlite';
 
-header('Content-Type: application/json; charset=utf-8');
+
 
 function safeStringLength(string $value): int
 {
@@ -32,13 +32,11 @@ if (safeStringLength($status) > MAX_STATUS_LENGTH) {
     $status = safeStringSubstring($status, 0, MAX_STATUS_LENGTH);
 }
 if ($sku === '' && $status === '') {
-    echo '[]';
-    exit;
+    successResponse([]);
 }
 
 if (!is_readable(DB_PATH)) {
-    echo '[]';
-    exit;
+    successResponse([]);
 }
 
 try {
@@ -128,7 +126,7 @@ $sql = 'SELECT id, sku, status, what_is_it, updated_at, dispotech_price, ebay_pr
             'ebay_price' => $ePrice,
         ];
     }, $rows);
-    echo json_encode($results, JSON_THROW_ON_ERROR);
+    successResponse($results);
 } catch (Throwable $error) {
-    echo '[]';
+    errorResponse($error->getMessage(), 500);
 }

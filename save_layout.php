@@ -19,37 +19,28 @@ require_once __DIR__ . '/config.php';
 checkMaintenance(true);
 ensureStorageWritable();
 
-header('Content-Type: application/json; charset=utf-8');
 require_csrf();
 
 const LAYOUT_DIR = __DIR__ . '/data/layouts';
 
 $sku = normalizeSku((string)($_POST['sku'] ?? ''));
 if ($sku === '') {
-    http_response_code(400);
-    echo json_encode(['ok' => false, 'message' => 'SKU is required.']);
-    exit;
+    errorResponse('SKU is required.');
 }
 
 $raw = (string)($_POST['positions'] ?? '');
 if ($raw === '') {
-    http_response_code(400);
-    echo json_encode(['ok' => false, 'message' => 'positions JSON is required.']);
-    exit;
+    errorResponse('positions JSON is required.');
 }
 
 $positions = json_decode($raw, true);
 if (!is_array($positions)) {
-    http_response_code(400);
-    echo json_encode(['ok' => false, 'message' => 'Invalid positions JSON.']);
-    exit;
+    errorResponse('Invalid positions JSON.');
 }
 
 if (!is_dir(LAYOUT_DIR) && !mkdir(LAYOUT_DIR, 0777, true) && !is_dir(LAYOUT_DIR)) {
     error_log('save_layout.php: failed to create ' . LAYOUT_DIR);
-    http_response_code(500);
-    echo json_encode(['ok' => false, 'message' => 'Server error.']);
-    exit;
+    errorResponse('Server error.', 500);
 }
 
 $file = LAYOUT_DIR . '/' . $sku . '.json';
@@ -57,9 +48,7 @@ $written = @file_put_contents($file, json_encode($positions, JSON_PRETTY_PRINT |
 
 if ($written === false) {
     error_log('save_layout.php: failed to write ' . $file);
-    http_response_code(500);
-    echo json_encode(['ok' => false, 'message' => 'Write failed.']);
-    exit;
+    errorResponse('Write failed.', 500);
 }
 
-echo json_encode(['ok' => true, 'count' => count($positions)]);
+successResponse(['count' => count($positions)]);

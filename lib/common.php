@@ -45,13 +45,38 @@ function sanitizeFilename(string $name): string
     return trim($clean, '._-') ?: 'photo';
 }
 
-/* ── JSON error response helper (for AJAX endpoints) ─────── */
+/* ── Unified JSON response envelope ─────────────────────────
+ *
+ * All AJAX endpoints MUST use these helpers so that every
+ * response follows the same contract:
+ *
+ *   Success: { "success": true,  "data": { ... }, "error": null }
+ *   Failure: { "success": false, "data": null,   "error": "..." }
+ *
+ * Failure automatically sets the HTTP status code (default 400).
+ */
+function successResponse(mixed $data = null, string $message = 'OK'): void
+{
+    header('Content-Type: application/json; charset=utf-8');
+    echo json_encode([
+        'success' => true,
+        'data'    => $data,
+        'error'   => null,
+    ]);
+    exit;
+}
+
 function errorResponse(string $message, int $code = 400): void
 {
     http_response_code($code);
+    header('Content-Type: application/json; charset=utf-8');
     $prefix = str_replace(__DIR__, '', debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 1)[0]['file'] ?? '');
     error_log('errorResponse [' . $prefix . ']: ' . $message);
-    echo json_encode(['status' => 'error', 'message' => $message]);
+    echo json_encode([
+        'success' => false,
+        'data'    => null,
+        'error'   => $message,
+    ]);
     exit;
 }
 
@@ -207,7 +232,9 @@ function imageConvertToPng(string $srcPath, string $destDir): ?string
  *   3. Format conversion / pass-through according to
  *      PNG_ONLY_MODE and PNG_REJECT_NON_PNG constants
  *   4. Temp-file cleanup
- *   5. Final storage write
+ *   5. Content-hash computation (SHA-256 for dedup)
+ *   6. Temp-file cleanup
+ *   7. Final storage write
  *
  * @param  array       $file     Single-entry file descriptor with keys:
  *                                name, tmp_name, size, error
@@ -216,7 +243,7 @@ function imageConvertToPng(string $srcPath, string $destDir): ?string
  *                               Defaults to PHOTO_UPLOAD_DIR constant.
  * @return array                 ['ok' => bool, 'stored_name' => ?string,
  *                                'mime_type' => ?string, 'file_size' => ?int,
- *                                'message' => ?string]
+ *                                'content_hash' => ?string, 'message' => ?string]
  */
 function processUploadedPhoto(array $file, string $sku, ?string $baseDir = null): array
 {
@@ -255,6 +282,12 @@ function processUploadedPhoto(array $file, string $sku, ?string $baseDir = null)
     }
     imagedestroy($gdCheck);
     unset($raw);
+
+    /* ── Content-hash (SHA-256) for deduplication ──────────── */
+    $contentHash = @hash_file('sha256', $tmp);
+    if ($contentHash === false) {
+        $contentHash = null;
+    }
 
     /* ── Ensure storage directory ─────────────────────────── */
     $photoDir  = $baseDir
@@ -305,10 +338,11 @@ function processUploadedPhoto(array $file, string $sku, ?string $baseDir = null)
     @ini_set('memory_limit', (string)$oldLimit);
 
     return [
-        'ok'          => true,
-        'stored_name' => $storedName,
-        'mime_type'   => $dbMime,
-        'file_size'   => $finalSize,
-        'message'     => 'Uploaded',
+        'ok'           => true,
+        'stored_name'  => $storedName,
+        'mime_type'    => $dbMime,
+        'file_size'    => $finalSize,
+        'content_hash' => $contentHash,
+        'message'      => 'Uploaded',
     ];
 }

@@ -409,3 +409,118 @@ body.print-pink .section { background: rgba(255,255,255,0.55) !important; }
 body.print-pink .print-summary-label,
 body.print-pink .print-summary-value { color: #111; }
 
+/* ─── QR CODE IN PRINT ─────────────────────────────────────────────── */
+.intake-qr-wrap {
+  display: flex !important;
+  align-items: center;
+  gap: 4pt;
+  float: right;
+  margin: 0 0 6pt 10pt;
+}
+.intake-qr-render img,
+.intake-qr-render canvas {
+  width: 60pt !important;
+  height: 60pt !important;
+}
+.intake-qr-label {
+  font-size: 5pt;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+/* ─── FIELD VALUES: ensure all values are visible ──────────────────── */
+input[type="text"],
+input[type="date"],
+input[type="number"],
+select,
+textarea {
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+input[readonly],
+textarea[readonly] {
+  border: none;
+  border-bottom: 0.5pt solid #999;
+  background: transparent !important;
+}
+select[readonly] {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  border: none;
+  border-bottom: 0.5pt solid #999;
+  padding: 2pt 3pt;
+}
+input[type="checkbox"][readonly],
+input[type="radio"][readonly] {
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+input[type="checkbox"][readonly]:checked::before,
+input[type="radio"][readonly]:checked::before {
+  display: block;
+}
+
+/* ─── COMPAT OS PRINT VALUE ─────────────────────────────────────────── */
+.compat-os-print-value {
+  font-size: 8pt;
+  font-weight: 600;
+  color: #111;
+  padding: 1pt 0;
+}
+
+/* ─── PHOTO GALLERY IN PRINT ────────────────────────────────────────── */
+.print-photo-section {
+  grid-column: span 1 !important;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+.print-photo-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 4pt;
+}
+.print-photo-item {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1pt;
+}
+.print-photo-item img {
+  width: 100%;
+  height: var(--print-photo-size, 0.9in);
+  object-fit: cover;
+  border: 0.5pt solid #ccc;
+  border-radius: 2pt;
+}
+.print-photo-label {
+  font-size: 5.5pt;
+  color: #666;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ─── PRINT SIDE ROW (D1 + gallery side by side) ────────────────────── */
+.print-side-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 5pt;
+  margin-bottom: 3pt;
+}
+.print-side-row .section {
+  margin: 0;
+}
+
+/* ─── PRINT NOTES VALUE ──────────────────────────────────────────────── */
+.print-notes-value {
+  flex: 1;
+  font-size: 8pt;
+  line-height: 1.35;
+  color: #111;
+  white-space: pre-wrap;
+  padding: 2pt 0;
+  min-height: 1.5em;
+}
+

@@ -21,7 +21,6 @@ require_once __DIR__ . '/config.php';
 checkMaintenance(true);
 ensureStorageWritable();
 
-header('Content-Type: application/json; charset=utf-8');
 require_csrf();
 
 const UPLOAD_DIR  = __DIR__ . '/data/ebay_images';
@@ -30,15 +29,11 @@ const MAX_BYTES   = 16 * 1024 * 1024;
 /* ── Validate input ──────────────────────────────────────────── */
 $sku = normalizeSku((string)($_POST['sku'] ?? ''));
 if ($sku === '') {
-    http_response_code(400);
-    echo json_encode(['ok' => false, 'message' => 'SKU is required.']);
-    exit;
+    errorResponse('SKU is required.');
 }
 
 if (!isset($_FILES['photo'])) {
-    http_response_code(400);
-    echo json_encode(['ok' => false, 'message' => 'No file uploaded.']);
-    exit;
+    errorResponse('No file uploaded.');
 }
 
 $f    = $_FILES['photo'];
@@ -46,41 +41,29 @@ $name = (string)($f['name'] ?? 'photo');
 $err  = $f['error'] ?? UPLOAD_ERR_NO_FILE;
 
 if ($err === UPLOAD_ERR_NO_FILE) {
-    http_response_code(400);
-    echo json_encode(['ok' => false, 'message' => 'No file selected.']);
-    exit;
+    errorResponse('No file selected.');
 }
 if ($err === UPLOAD_ERR_INI_SIZE || $err === UPLOAD_ERR_FORM_SIZE) {
-    http_response_code(400);
-    echo json_encode(['ok' => false, 'message' => $name . ' exceeds size limit.']);
-    exit;
+    errorResponse($name . ' exceeds size limit.');
 }
 if ($err !== UPLOAD_ERR_OK) {
-    http_response_code(400);
-    echo json_encode(['ok' => false, 'message' => $name . ' upload error (code ' . $err . ').']);
-    exit;
+    errorResponse($name . ' upload error (code ' . $err . ').');
 }
 
 $size = (int)($f['size'] ?? 0);
 if ($size <= 0 || $size > MAX_BYTES) {
-    http_response_code(400);
-    echo json_encode(['ok' => false, 'message' => $name . ' is too large (' . $size . ' bytes).']);
-    exit;
+    errorResponse($name . ' is too large (' . $size . ' bytes).');
 }
 
 $tmp = (string)($f['tmp_name'] ?? '');
 if (!is_uploaded_file($tmp)) {
-    http_response_code(400);
-    echo json_encode(['ok' => false, 'message' => $name . ' validation failed.']);
-    exit;
+    errorResponse($name . ' validation failed.');
 }
 
 /* ── Delegate to centralised pipeline (MIME check, GD polyglot defence, conversion) ──── */
 $result = processUploadedPhoto($f, $sku, UPLOAD_DIR);
 if (!$result['ok']) {
-    http_response_code(400);
-    echo json_encode(['ok' => false, 'message' => $result['message'] ?? 'Upload failed.']);
-    exit;
+    errorResponse($result['message'] ?? 'Upload failed.');
 }
 
 $stored    = $result['stored_name'];
@@ -89,8 +72,7 @@ $finalSize = $result['file_size'];
 $urlSku    = urlencode($sku);
 $urlFile   = urlencode($stored);
 
-echo json_encode([
-    'ok'   => true,
+successResponse([
     'id'   => $stored,
     'url'  => "ebay_serve.php?sku={$urlSku}&file={$urlFile}",
     'name' => pathinfo($name, PATHINFO_FILENAME) . '.png',

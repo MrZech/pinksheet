@@ -7,8 +7,6 @@ ensureStorageWritable();
 
 const DB_PATH = __DIR__ . '/data/intake.sqlite';
 
-header('Content-Type: application/json; charset=utf-8');
-
 require_csrf();
 
 /**
@@ -50,8 +48,7 @@ try {
     $deleted = $pdo->query("SELECT * FROM intake_deleted ORDER BY deleted_at DESC, rowid DESC LIMIT 1")->fetch(PDO::FETCH_ASSOC);
     if (!$deleted) {
         $pdo->rollBack();
-        echo json_encode(['status' => 'empty', 'message' => 'Nothing to undo']);
-        exit;
+        errorResponse('Nothing to undo');
     }
 
     $originalId = (int)($deleted['id'] ?? 0);
@@ -73,7 +70,7 @@ try {
 
     $pdo->commit();
 
-    echo json_encode([
+    successResponse([
         'status' => 'ok',
         'restored_sku' => $restoredSku,
         'new_id' => $newId,
@@ -84,6 +81,5 @@ try {
     if ($pdo && $pdo->inTransaction()) {
         $pdo->rollBack();
     }
-    http_response_code(500);
-    echo json_encode(['status' => 'error', 'message' => 'Undo failed']);
+    errorResponse('Undo failed', 500);
 }

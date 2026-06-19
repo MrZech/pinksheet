@@ -4,7 +4,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/config.php';
 checkMaintenance(true);
 
-header('Content-Type: application/json; charset=utf-8');
+
 
 require_csrf();
 
@@ -25,9 +25,7 @@ if (!$isPrivate && $remote === '') {
         || str_starts_with($host, '[::1]:');
 }
 if (!$isPrivate) {
-    http_response_code(403);
-    echo json_encode(['ok' => false, 'error' => 'Forbidden']);
-    exit;
+    errorResponse('Forbidden', 403);
 }
 
 $script = __DIR__ . '/scripts/backup.ps1';
@@ -187,25 +185,23 @@ if ($psPath !== null && is_readable($script)) {
         // PowerShell command not found at runtime; fall back to PHP.
         $fallback = runPhpBackup();
         http_response_code($fallback['ok'] ? 200 : 500);
-        echo json_encode(array_merge($fallback, [
+        successResponse(array_merge($fallback, [
             'ps_used' => $psPath,
             'ps_exit' => $exit,
             'command' => $cmd,
         ]));
-        exit;
     }
 } else {
     $fallback = runPhpBackup();
     http_response_code($fallback['ok'] ? 200 : 500);
-    echo json_encode(array_merge($fallback, [
+    successResponse(array_merge($fallback, [
         'ps_used' => null,
         'command' => $cmd,
         'ps_candidates' => $psCandidates,
     ]));
-    exit;
 }
 
-echo json_encode([
+successResponse([
     'ok' => $exit === 0,
     'exit' => $exit,
     'command' => $cmd,

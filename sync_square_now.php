@@ -8,7 +8,7 @@ ensureStorageWritable();
 @set_time_limit(0);
 @ignore_user_abort(true);
 
-header('Content-Type: application/json; charset=utf-8');
+
 
 $remote = $_SERVER['REMOTE_ADDR'] ?? '';
 $host = strtolower(trim((string)($_SERVER['HTTP_HOST'] ?? $_SERVER['SERVER_NAME'] ?? '')));
@@ -25,24 +25,18 @@ if (!$isPrivate && $remote === '') {
         || str_starts_with($host, '[::1]:');
 }
 if (!$isPrivate) {
-    http_response_code(403);
-    echo json_encode(['ok' => false, 'error' => 'Forbidden']);
-    exit;
+    errorResponse('Forbidden', 403);
 }
 
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') {
-    http_response_code(405);
-    echo json_encode(['ok' => false, 'error' => 'Method not allowed']);
-    exit;
+    errorResponse('Method not allowed', 405);
 }
 
 require_csrf();
 
 $config = squareSyncConfig();
 if (!$config['enabled']) {
-    http_response_code(400);
-    echo json_encode(['ok' => false, 'error' => 'Square sync is not configured']);
-    exit;
+    errorResponse('Square sync is not configured', 400);
 }
 
 try {
@@ -87,8 +81,7 @@ try {
 
     $allOk = $summary['error'] === 0;
     $partial = $summary['ok'] > 0 && $summary['error'] > 0;
-    http_response_code(200);
-    echo json_encode([
+    successResponse([
         'ok' => true,
         'all_ok' => $allOk,
         'partial' => $partial,
@@ -97,9 +90,5 @@ try {
         'message' => $allOk ? 'Square sync completed' : ($partial ? 'Square sync partially completed' : 'Square sync completed with errors'),
     ]);
 } catch (Throwable $e) {
-    http_response_code(500);
-    echo json_encode([
-        'ok' => false,
-        'error' => $e->getMessage(),
-    ]);
+    errorResponse($e->getMessage(), 500);
 }

@@ -59,10 +59,7 @@ if ($method === 'POST') {
 /* ── Validation ──────────────────────────────────────────────── */
 $sku = trim((string)($input['sku'] ?? ''));
 if ($sku === '') {
-    http_response_code(400);
-    header('Content-Type: application/json; charset=utf-8');
-    echo json_encode(['status' => 'error', 'message' => 'SKU is required.']);
-    exit;
+    errorResponse('SKU is required.', 400);
 }
 
 $preset   = in_array($input['preset'] ?? '', LABEL_PRESET_OPTIONS, true) ? $input['preset'] : 'compact';
@@ -113,9 +110,8 @@ $item = [
 $zpl = generateLabelZpl($item);
 
 /* ── Response ────────────────────────────────────────────────── */
-header('Content-Type: application/json; charset=utf-8');
 header('Cache-Control: no-store');
-echo json_encode([
+successResponse([
     'status'     => 'ok',
     'zpl'        => $zpl,
     'sku'        => $item['sku'],

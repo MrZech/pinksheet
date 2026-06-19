@@ -25,7 +25,7 @@ if (!is_dir(DB_DIR)) {
 try {
     $pdo = pdoConnect(DB_PATH);
 } catch (Throwable $e) {
-    jsonResponse(['status' => 'error', 'message' => 'Database connection failed'], 500);
+    errorResponse('Database connection failed', 500);
 }
 
 try {
@@ -39,16 +39,7 @@ CREATE TABLE IF NOT EXISTS intake_drafts (
 SQL);
     $pdo->exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_intake_drafts_sku ON intake_drafts (sku_normalized)");
 } catch (Throwable $e) {
-    jsonResponse(['status' => 'error', 'message' => 'Schema initialization failed'], 500);
-}
-
-/** Send a JSON response and exit. */
-function jsonResponse(array $data, int $status = 200): void
-{
-    http_response_code($status);
-    header('Content-Type: application/json');
-    echo function_exists('json_encode') ? json_encode($data) : '{"error":"json extension not available"}';
-    exit;
+    errorResponse('Schema initialization failed', 500);
 }
 
 /** Validate and sanitize incoming payload against expected field types. */
@@ -88,20 +79,19 @@ try {
     if ($method === 'GET') {
         $sku = normalizeSku((string)($_GET['sku'] ?? ''));
         if ($sku === '') {
-            jsonResponse(['status' => 'ok', 'has_draft' => false]);
+            successResponse(['has_draft' => false]);
         }
         $stmt = $pdo->prepare('SELECT payload, updated_at FROM intake_drafts WHERE sku_normalized = :sku LIMIT 1');
         $stmt->execute(['sku' => $sku]);
         $row = $stmt->fetch(PDO::FETCH_ASSOC);
         if (!$row) {
-            jsonResponse(['status' => 'ok', 'has_draft' => false]);
+            successResponse(['has_draft' => false]);
         }
         $payload = json_decode((string)$row['payload'], true);
         if (!is_array($payload)) {
-            jsonResponse(['status' => 'ok', 'has_draft' => false]);
+            successResponse(['has_draft' => false]);
         }
-        jsonResponse([
-            'status'     => 'ok',
+        successResponse([
             'has_draft'  => true,
             'updated_at' => (string)$row['updated_at'],
             'data'       => $payload,
@@ -114,17 +104,17 @@ try {
     $input = json_decode($raw ?: '{}', true);
 
     if (!is_array($input)) {
-        jsonResponse(['status' => 'error', 'message' => 'Invalid JSON payload'], 400);
+        errorResponse('Invalid JSON payload');
     }
 
     $sku     = normalizeSku((string)($input['sku'] ?? ''));
     $payload = $input['data'] ?? null;
 
     if ($sku === '') {
-        jsonResponse(['status' => 'error', 'message' => 'SKU is required'], 400);
+        errorResponse('SKU is required');
     }
     if (!is_array($payload)) {
-        jsonResponse(['status' => 'error', 'message' => 'Missing or invalid data payload'], 400);
+        errorResponse('Missing or invalid data payload');
     }
 
     /* Sanitise the incoming field data */
@@ -133,10 +123,10 @@ try {
 
     $payloadJson = json_encode($sanitised);
     if ($payloadJson === false) {
-        jsonResponse(['status' => 'error', 'message' => 'Could not encode payload'], 400);
+        errorResponse('Could not encode payload');
     }
     if (strlen($payloadJson) > 65536) {
-        jsonResponse(['status' => 'error', 'message' => 'Payload too large'], 400);
+        errorResponse('Payload too large');
     }
 
     $now = (new DateTime('now'))->format('c');
@@ -161,7 +151,7 @@ try {
         'updated_at2' => $now,
     ]);
 
-    jsonResponse(['status' => 'ok', 'saved_at' => $now]);
+    successResponse(['saved_at' => $now]);
 } catch (Throwable $e) {
-    jsonResponse(['status' => 'error', 'message' => 'Internal server error'], 500);
+    errorResponse('Internal server error', 500);
 }
