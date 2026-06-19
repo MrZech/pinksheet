@@ -2090,7 +2090,16 @@ function checked(string $name, string $value, array $formData): string
       var deleteSku = document.getElementById('delete-photo-sku');
       var skuField = document.querySelector('input[name="sku"]');
       var isUploading = false;
+      var intakeForm = document.getElementById('intake-form');
       var submitButton = document.querySelector('button[type="submit"]');
+      if (intakeForm) {
+        intakeForm.addEventListener('submit', function (e) {
+          if (isUploading) {
+            e.preventDefault();
+            pushUploadMessage('Please wait for photo uploads to complete before saving.', 'error');
+          }
+        });
+      }
       var uploadMessages = document.getElementById('photo-upload-messages');
       var pushUploadMessage = function (text, type) {
         if (!uploadMessages) return;
