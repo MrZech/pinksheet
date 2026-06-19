@@ -38,8 +38,6 @@ function ensureArchiveTable(PDO $pdo): void
     }
 }
 
-header('Content-Type: application/json; charset=utf-8');
-
 require_csrf();
 
 $id = isset($_POST['id']) ? (int)$_POST['id'] : 0;
@@ -47,15 +45,11 @@ $sku = strtoupper(trim((string)($_POST['sku'] ?? '')));
 $confirm = strtoupper(trim((string)($_POST['confirm'] ?? '')));
 
 if ($id <= 0) {
-    http_response_code(400);
-    echo json_encode(['status' => 'error', 'message' => 'Missing id']);
-    exit;
+    errorResponse('Missing id');
 }
 
 if ($confirm !== 'DELETE') {
-    http_response_code(400);
-    echo json_encode(['status' => 'error', 'message' => 'Confirm with DELETE']);
-    exit;
+    errorResponse('Confirm with DELETE');
 }
 
 // Detect AJAX via header; default to redirect for form posts.
@@ -74,12 +68,11 @@ try {
     if (!$row) {
         $pdo->rollBack();
         if ($isAjax || $acceptsJson) {
-            http_response_code(404);
-            echo json_encode(['status' => 'error', 'message' => 'Record not found']);
+            errorResponse('Record not found', 404);
         } else {
             header('Location: index.php?deleted=0');
+            exit;
         }
-        exit;
     }
 
     // Preserve the requested SKU in the response flow, but do not let a casing or
@@ -107,8 +100,7 @@ try {
 
     $response = ['status' => 'ok', 'deleted' => $count, 'archived' => (bool)$row];
     if ($isAjax || $acceptsJson) {
-        echo json_encode($response);
-        exit;
+        successResponse($response);
     } else {
         header('Location: index.php?deleted=' . (int)$count);
         exit;
@@ -117,10 +109,8 @@ try {
     if ($pdo && $pdo->inTransaction()) {
         $pdo->rollBack();
     }
-    http_response_code(500);
     if ($isAjax || $acceptsJson) {
-        echo json_encode(['status' => 'error', 'message' => 'Server error']);
-        exit;
+        errorResponse('Server error', 500);
     } else {
         header('Location: index.php?deleted=0');
         exit;

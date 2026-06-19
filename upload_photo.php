@@ -17,8 +17,6 @@ const ALLOWED_PHOTO_MIME_TYPES = [
     'image/gif' => 'gif',
 ];
 
-header('Content-Type: application/json; charset=utf-8');
-
 require_csrf();
 
 $sku = normalizeSku((string)($_POST['sku'] ?? ''));
@@ -106,9 +104,7 @@ SQL);
 }
 
 $squareSync = squareSyncItemBySku($pdo, $sku);
-echo json_encode([
-    'status' => 'ok',
-    'message' => 'Uploaded',
+successResponse([
     'id' => $photoId,
     'mime_type' => $dbMime,
     'stored_name' => $storedName,

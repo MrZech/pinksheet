@@ -754,6 +754,106 @@ function checked(string $name, string $value, array $formData): string
   <script>window.CSRF_TOKEN = <?= json_encode(csrf_token()) ?>;</script>
   <script src="assets/theme.js?v=<?= filemtime('assets/theme.js') ?>" defer></script>
   <script src="assets/app.js?v=<?= filemtime('assets/app.js') ?>"></script>
+  <style>
+    :root {
+      --mobile-tap: 44px;
+      --gap-mobile: 12px;
+      --gap-tablet: 16px;
+    }
+    /* Mobile-first: single column, stacked layout */
+    .sheet.intake .form-columns {
+      grid-template-columns: 1fr !important;
+    }
+    .form-col-left,
+    .form-col-right {
+      grid-column: 1 / -1 !important;
+    }
+    .row {
+      grid-template-columns: 1fr !important;
+    }
+    .sheet-header {
+      flex-direction: column;
+      gap: var(--gap-mobile);
+    }
+    .sheet-header-right {
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    input,
+    select,
+    textarea,
+    button,
+    .button-link {
+      min-height: var(--mobile-tap);
+      box-sizing: border-box;
+    }
+    input[type="checkbox"],
+    input[type="radio"] {
+      min-height: auto;
+    }
+    input[type="text"],
+    input[type="date"],
+    input[type="number"],
+    select,
+    textarea {
+      width: 100%;
+    }
+    .conjoined {
+      grid-template-columns: 1fr;
+    }
+    .conjoined .segment {
+      border-right: none;
+      border-bottom: 1px solid var(--border-color, #d5dce6);
+    }
+    .conjoined .segment:last-child {
+      border-bottom: none;
+    }
+    .actions {
+      justify-content: stretch;
+    }
+    .actions button,
+    .actions .button-link {
+      flex: 1;
+      text-align: center;
+    }
+    /* Tablet breakpoint */
+    @media (min-width: 640px) {
+      .row {
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)) !important;
+      }
+      .sheet-header {
+        flex-direction: row;
+        align-items: flex-start;
+      }
+      .conjoined {
+        grid-template-columns: repeat(2, 1fr);
+      }
+      .conjoined .segment {
+        border-right: 1px solid var(--border-color, #d5dce6);
+        border-bottom: none;
+      }
+      .conjoined .segment:last-child {
+        border-right: none;
+      }
+    }
+    /* Desktop breakpoint */
+    @media (min-width: 1024px) {
+      .sheet.intake .form-columns {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+      }
+      .form-col-left {
+        grid-column: 1 !important;
+      }
+      .form-col-right {
+        grid-column: 2 !important;
+      }
+      .page {
+        max-width: 1400px;
+        margin-left: auto;
+        margin-right: auto;
+      }
+    }
+  </style>
 </head>
 <body>
   <div class="layout-wrapper">

@@ -17,8 +17,6 @@ const ALLOWED_PHOTO_MIME_TYPES = [
     'image/gif' => 'gif',
 ];
 
-header('Content-Type: application/json; charset=utf-8');
-
 require_csrf();
 
 function logContext(string $message): void
@@ -212,9 +210,7 @@ SQL);
 }
 
 $squareSync = $assembled ? squareSyncItemBySku($pdo, $sku) : ['status' => 'skipped'];
-echo json_encode([
-    'status' => 'ok',
-    'message' => $assembled ? 'Uploaded' : 'Chunk stored',
+successResponse([
     'done' => $assembled,
     'id' => $photoId ?? null,
     'square_sync' => $squareSync['status'] ?? 'skipped',

@@ -113,10 +113,7 @@ function require_csrf(string $purpose = CSRF_TOKEN_PURPOSE): void
         ?? $_SERVER['HTTP_X_CSRF_TOKEN']
         ?? '';
     if (!validate_csrf($token, $purpose)) {
-        http_response_code(403);
-        header('Content-Type: application/json; charset=utf-8');
-        echo json_encode(['status' => 'error', 'message' => 'Invalid or missing CSRF token']);
-        exit;
+        errorResponse('Invalid or missing CSRF token', 403);
     }
 }
 

@@ -9,16 +9,13 @@ const DB_PATH = __DIR__ . '/data/intake.sqlite';
 
 // Provide a lightweight JSON API that surfaces recent SKU/description matches for lookup autocomplete.
 
-header('Content-Type: application/json; charset=utf-8');
-
 try {
     $term = trim((string)($_GET['q'] ?? ''));
 } catch (Throwable $error) {
     $term = '';
 }
 if ($term === '') {
-    echo '[]';
-    exit;
+    successResponse([]);
 }
 if (function_exists('mb_strlen') && function_exists('mb_substr')) {
     if (mb_strlen($term) > MAX_QUERY_LENGTH) {
@@ -29,8 +26,7 @@ if (function_exists('mb_strlen') && function_exists('mb_substr')) {
 }
 
 if (!is_readable(DB_PATH)) {
-    echo '[]';
-    exit;
+    successResponse([]);
 }
 
 try {
@@ -70,7 +66,7 @@ try {
             'label' => implode(' — ', $labelParts),
         ];
     }
-    echo json_encode($suggestions, JSON_THROW_ON_ERROR);
+    successResponse($suggestions);
 } catch (Throwable $error) {
-    echo '[]';
+    successResponse([]);
 }

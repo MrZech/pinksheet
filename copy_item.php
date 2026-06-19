@@ -7,13 +7,9 @@ ensureStorageWritable();
 
 const DB_PATH = __DIR__ . '/data/intake.sqlite';
 
-header('Content-Type: application/json; charset=utf-8');
-
 $sku = normalizeSku((string)($_GET['sku'] ?? ''));
 if ($sku === '') {
-    http_response_code(400);
-    echo json_encode(['status' => 'error', 'message' => 'SKU is required']);
-    exit;
+    errorResponse('SKU is required');
 }
 
 try {
@@ -22,17 +18,14 @@ try {
     $stmt->execute(['sku' => $sku]);
     $row = $stmt->fetch();
     if (!$row) {
-        http_response_code(404);
-        echo json_encode(['status' => 'not_found', 'message' => 'No record for that SKU']);
-        exit;
+        errorResponse('No record for that SKU', 404);
     }
     // Strip fields we should not copy directly.
     unset($row['id'], $row['sku'], $row['sku_normalized'], $row['created_at'], $row['updated_at']);
-    echo json_encode([
+    successResponse([
         'status' => 'ok',
         'data' => $row,
-    ], JSON_THROW_ON_ERROR);
+    ]);
 } catch (Throwable $e) {
-    http_response_code(500);
-    echo json_encode(['status' => 'error', 'message' => 'Server error']);
+    errorResponse('Server error', 500);
 }
