@@ -21,30 +21,6 @@ header('Content-Type: application/json; charset=utf-8');
 
 require_csrf();
 
-function normalizedSkuDirectory(string $skuNormalized): string
-{
-    $dir = preg_replace('/[^A-Z0-9_-]+/', '_', $skuNormalized);
-    return trim((string)$dir, '_') ?: 'UNASSIGNED';
-}
-
-function sanitizeFilename(string $name): string
-{
-    $name = trim($name);
-    if ($name === '') {
-        return 'photo';
-    }
-    $clean = preg_replace('/[^A-Za-z0-9._-]+/', '_', $name);
-    return trim((string)$clean, '._-') ?: 'photo';
-}
-
-function errorResponse(string $message, int $code = 400): void
-{
-    http_response_code($code);
-    error_log('upload_photo.php: ' . $message);
-    echo json_encode(['status' => 'error', 'message' => $message]);
-    exit;
-}
-
 $sku = normalizeSku((string)($_POST['sku'] ?? ''));
 if ($sku === '') {
     errorResponse('SKU is required to upload photos.');
@@ -77,17 +53,15 @@ if (!is_uploaded_file($tmp)) {
     errorResponse($originalDisplayName . ' failed validation.');
 }
 
-$mimeType = detectUploadMimeType($tmp, $originalDisplayName);
-if (!isset(ALLOWED_PHOTO_MIME_TYPES[$mimeType])) {
-    @unlink($tmp);
-    errorResponse($originalDisplayName . ' is not JPG/PNG/WEBP/GIF.');
+/* ── Delegate to centralized pipeline (MIME check, GD polyglot defence, conversion) ──── */
+$result = processUploadedPhoto($upload, $sku);
+if (!$result['ok']) {
+    errorResponse($result['message'] ?? 'Upload failed.', 400);
 }
 
-// PNG-only enforcement: reject non-PNG if configured
-if (PNG_REJECT_NON_PNG && $mimeType !== 'image/png') {
-    @unlink($tmp);
-    errorResponse('Only PNG images are accepted. Convert ' . $originalDisplayName . ' to PNG and try again.');
-}
+$storedName = $result['stored_name'];
+$dbMime     = $result['mime_type'];
+$finalSize  = $result['file_size'];
 
 $pdo = new PDO('sqlite:' . DB_PATH, null, null, [
     PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
@@ -111,42 +85,6 @@ try {
 } catch (Throwable $e) {
     // ignore if exists
 }
-
-if (!is_dir(PHOTO_UPLOAD_DIR)) {
-    mkdir(PHOTO_UPLOAD_DIR, 0777, true);
-}
-
-$skuDir = PHOTO_UPLOAD_DIR . '/' . normalizedSkuDirectory($sku);
-if (!is_dir($skuDir) && !mkdir($skuDir, 0777, true) && !is_dir($skuDir)) {
-    errorResponse('Could not create photo folder.');
-}
-
-/* ── PNG conversion ──────────────────────────────────────────── */
-if (PNG_ONLY_MODE && $mimeType !== 'image/png') {
-    // Convert to PNG using the shared GD helper
-    $storedName = imageConvertToPng($tmp, $skuDir);
-    if ($storedName === null) {
-        @unlink($tmp);
-        errorResponse('Failed to convert ' . $originalDisplayName . ' to PNG.', 500);
-    }
-    $pngPath = $skuDir . '/' . $storedName;
-    $finalSize = (int)filesize($pngPath);
-    $dbMime = 'image/png';
-    $ext = 'png';
-} else {
-    // Already PNG or PNG-only mode is off — store as-is
-    $ext = ALLOWED_PHOTO_MIME_TYPES[$mimeType];
-    $storedName = bin2hex(random_bytes(16)) . '.' . $ext;
-    $destination = $skuDir . '/' . $storedName;
-    if (!move_uploaded_file($tmp, $destination)) {
-        errorResponse('Failed to save file to disk.');
-    }
-    $finalSize = $size;
-    $dbMime = $mimeType;
-}
-
-// Temp file is always cleaned up here
-@unlink($tmp);
 
 try {
     $maxSortStmt = $pdo->prepare('SELECT COALESCE(MAX(sort_order), 0) FROM sku_photos WHERE sku_normalized = :sku');

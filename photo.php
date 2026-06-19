@@ -9,12 +9,6 @@ const DB_PATH = __DIR__ . '/data/intake.sqlite';
 const PHOTO_UPLOAD_DIR = __DIR__ . '/data/sku_photos';
 const PHOTO_CACHE_MAX_AGE = 31536000; // 1 year
 
-function normalizedSkuDirectory(string $skuNormalized): string
-{
-    $dir = preg_replace('/[^A-Z0-9_-]+/', '_', strtoupper(trim($skuNormalized)));
-    return trim((string)$dir, '_') ?: 'UNASSIGNED';
-}
-
 $photoId = isset($_GET['id']) ? (int)$_GET['id'] : 0;
 if ($photoId <= 0) {
     http_response_code(404);

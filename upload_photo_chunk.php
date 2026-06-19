@@ -21,35 +21,12 @@ header('Content-Type: application/json; charset=utf-8');
 
 require_csrf();
 
-function normalizedSkuDirectory(string $skuNormalized): string
-{
-    $dir = preg_replace('/[^A-Z0-9_-]+/', '_', $skuNormalized);
-    return trim((string)$dir, '_') ?: 'UNASSIGNED';
-}
-
-function sanitizeFilename(string $name): string
-{
-    $name = trim($name);
-    if ($name === '') {
-        return 'photo';
-    }
-    $clean = preg_replace('/[^A-Za-z0-9._-]+/', '_', $name);
-    return trim((string)$clean, '._-') ?: 'photo';
-}
-
-function errorResponse(string $message, int $code = 400): void
-{
-    http_response_code($code);
-    error_log('upload_photo_chunk.php: ' . $message);
-    echo json_encode(['status' => 'error', 'message' => $message]);
-    exit;
-}
-
-function infoLog(string $message): void
+function logContext(string $message): void
 {
     error_log('upload_photo_chunk.php: ' . $message);
 }
 
+/* ── Collect & validate metadata ──────────────────────────── */
 $sku = normalizeSku((string)($_POST['sku'] ?? ''));
 if ($sku === '') {
     errorResponse('SKU is required to attach photos.');
@@ -62,16 +39,12 @@ $totalSize = (int)($_POST['total_size'] ?? 0);
 $originalName = (string)($_POST['original_name'] ?? 'photo');
 $mimeType = (string)($_POST['mime_type'] ?? '');
 
-infoLog("recv chunk upload_id=$uploadId idx=$chunkIndex/$chunkTotal size=" . ($chunk['size'] ?? 0) . " total=$totalSize sku=$sku");
-
 if ($uploadId === '' || $chunkIndex < 0 || $chunkTotal <= 0 || $chunkIndex >= $chunkTotal) {
     errorResponse('Invalid chunk metadata.');
 }
-
 if ($totalSize <= 0 || $totalSize > MAX_SKU_PHOTO_BYTES) {
     errorResponse('File is outside the size limit (' . MAX_SKU_PHOTO_BYTES . ' bytes).');
 }
-
 if (!isset($_FILES['chunk'])) {
     errorResponse('Chunk missing.');
 }
@@ -85,6 +58,8 @@ $tmp = (string)($chunk['tmp_name'] ?? '');
 if (!is_uploaded_file($tmp)) {
     errorResponse('Chunk failed validation.');
 }
+
+logContext("recv chunk upload_id=$uploadId idx=$chunkIndex/$chunkTotal size=" . ($chunk['size'] ?? 0) . " total=$totalSize sku=$sku");
 
 // Validate MIME from first chunk only
 $extension = null;
@@ -116,7 +91,7 @@ if (!move_uploaded_file($tmp, $chunkPath)) {
     errorResponse('Failed to store chunk on disk.');
 }
 
-// If last chunk, assemble
+// ── If last chunk, assemble ＋ finalise ─────────────────────
 $assembled = false;
 if ($chunkIndex === $chunkTotal - 1) {
 $pdo = new PDO('sqlite:' . DB_PATH, null, null, [
@@ -150,58 +125,68 @@ SQL);
         errorResponse('Could not create photo folder.');
     }
 
-    // Assemble to a temp file in the chunk folder first, then convert to PNG
     $tempAssembled = $chunkFolder . '/assembled.tmp';
-    $out = fopen($tempAssembled, 'wb');
-    if ($out === false) {
-        errorResponse('Failed to open temp file.');
-    }
-    for ($i = 0; $i < $chunkTotal; $i++) {
-        $partPath = $chunkFolder . '/' . str_pad((string)$i, 6, '0', STR_PAD_LEFT) . '.part';
-        if (!is_file($partPath)) {
-            fclose($out);
-            errorResponse('Missing chunk ' . $i);
+    try {
+        $out = fopen($tempAssembled, 'wb');
+        if ($out === false) {
+            errorResponse('Failed to open temp file.');
         }
-        $in = fopen($partPath, 'rb');
-        stream_copy_to_stream($in, $out);
-        fclose($in);
-    }
-    fclose($out);
+        for ($i = 0; $i < $chunkTotal; $i++) {
+            $partPath = $chunkFolder . '/' . str_pad((string)$i, 6, '0', STR_PAD_LEFT) . '.part';
+            if (!is_file($partPath)) {
+                fclose($out);
+                errorResponse('Missing chunk ' . $i);
+            }
+            $in = fopen($partPath, 'rb');
+            stream_copy_to_stream($in, $out);
+            fclose($in);
+        }
+        fclose($out);
 
-    $finalSize = (int)@filesize($tempAssembled);
-    if ($finalSize !== $totalSize) {
+        $finalSize = (int)@filesize($tempAssembled);
+        if ($finalSize !== $totalSize) {
+            errorResponse('Assembled size mismatch.');
+        }
+
+        /* ── POLYGLOT PROTECTION: validate via GD decode ──── */
+        $raw = @file_get_contents($tempAssembled);
+        if ($raw === false || $raw === '') {
+            errorResponse('Failed to read assembled file.');
+        }
+        $gdCheck = @imagecreatefromstring($raw);
+        if (!$gdCheck) {
+            errorResponse('Assembled file is not a valid image and was rejected.');
+        }
+        imagedestroy($gdCheck);
+        unset($raw);
+
+        /* ── Convert or store as-is ───────────────────────── */
+        if (PNG_ONLY_MODE && $mimeType !== 'image/png') {
+            $storedName = imageConvertToPng($tempAssembled, $skuDir);
+            if ($storedName === null) {
+                errorResponse('Failed to convert assembled image to PNG.', 500);
+            }
+            $pngPath = $skuDir . '/' . $storedName;
+            $finalSize = (int)@filesize($pngPath);
+            $dbMime = 'image/png';
+        } else {
+            $storedName = bin2hex(random_bytes(16)) . '.' . $extension;
+            $destPath = $skuDir . '/' . $storedName;
+            if (!rename($tempAssembled, $destPath)) {
+                errorResponse('Failed to move assembled file.', 500);
+            }
+            $finalSize = $finalSize;
+            $dbMime = $mimeType;
+        }
+    } finally {
+        /* ── Always clean up temp files ───────────────────── */
         @unlink($tempAssembled);
-        errorResponse('Assembled size mismatch.');
-    }
-
-    /* ── PNG conversion ──────────────────────────────────────── */
-    if (PNG_ONLY_MODE && $mimeType !== 'image/png') {
-        $storedName = imageConvertToPng($tempAssembled, $skuDir);
-        if ($storedName === null) {
-            @unlink($tempAssembled);
-            errorResponse('Failed to convert assembled image to PNG.', 500);
+        $partFiles = glob($chunkFolder . '/*.part') ?: [];
+        foreach ($partFiles as $pf) {
+            @unlink($pf);
         }
-        $pngPath = $skuDir . '/' . $storedName;
-        $finalSize = (int)@filesize($pngPath);
-        $dbMime = 'image/png';
-    } else {
-        $storedName = bin2hex(random_bytes(16)) . '.' . $extension;
-        $destPath = $skuDir . '/' . $storedName;
-        if (!rename($tempAssembled, $destPath)) {
-            @unlink($tempAssembled);
-            errorResponse('Failed to move assembled file.', 500);
-        }
-        $finalSize = $finalSize;
-        $dbMime = $mimeType;
+        @rmdir($chunkFolder);
     }
-
-    // Clean up: remove assembled temp and chunk parts
-    @unlink($tempAssembled);
-    $files = glob($chunkFolder . '/*.part') ?: [];
-    foreach ($files as $file) {
-        @unlink($file);
-    }
-    @rmdir($chunkFolder);
 
     try {
         $maxSortStmt = $pdo->prepare('SELECT COALESCE(MAX(sort_order), 0) FROM sku_photos WHERE sku_normalized = :sku');
@@ -224,7 +209,7 @@ SQL);
         errorResponse('Database error: ' . $e->getMessage(), 500);
     }
 
-    infoLog("assembled upload_id=$uploadId stored=$storedName size=$finalSize sku=$sku png=1");
+    logContext("assembled upload_id=$uploadId stored=$storedName size=$finalSize sku=$sku");
     $assembled = true;
 }
 

@@ -9,11 +9,6 @@ const ARCHIVE_PAGE_SIZE = 50;
 
 $currentPage = 'archive';
 
-function h(string $value): string
-{
-    return htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
-}
-
 function resolveArchiveDbPath(): string
 {
     $preferred = __DIR__ . '/data/archive.sqlite';

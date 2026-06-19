@@ -8,12 +8,6 @@ ensureStorageWritable();
 const DB_PATH = __DIR__ . '/data/intake.sqlite';
 const PHOTO_UPLOAD_DIR = __DIR__ . '/data/sku_photos';
 
-function normalizedSkuDirectory(string $skuNormalized): string
-{
-    $dir = preg_replace('/[^A-Z0-9_-]+/', '_', $skuNormalized);
-    return trim((string)$dir, '_') ?: 'UNASSIGNED';
-}
-
 $sku = normalizeSku((string)($_GET['sku'] ?? ''));
 if ($sku === '') {
     http_response_code(400);

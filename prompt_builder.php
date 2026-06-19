@@ -5,11 +5,6 @@ ensureStorageWritable();
 
 const PROMPT_DB_PATH = __DIR__ . '/data/intake.sqlite';
 
-function h(?string $value): string
-{
-    return htmlspecialchars((string)$value, ENT_QUOTES, 'UTF-8');
-}
-
 function formatLabel(string $key): string
 {
     return ucwords(str_replace('_', ' ', $key));
