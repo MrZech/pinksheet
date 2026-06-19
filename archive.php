@@ -52,9 +52,7 @@ if (!is_dir(__DIR__ . '/data')) {
 }
 
 $archiveDbPath = resolveArchiveDbPath();
-$pdo = new PDO('sqlite:' . $archiveDbPath, null, null, [
-    PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-]);
+$pdo = pdoConnect($archiveDbPath);
 ensureArchiveItemsTable($pdo);
 
 $q = trim((string)($_GET['q'] ?? ''));

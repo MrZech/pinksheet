@@ -18,10 +18,7 @@ foreach ([IMG_DIR, LAYOUT_DIR] as $d) {
 }
 
 try {
-    $pdo = new PDO('sqlite:' . EBAI_DB, null, null, [
-        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-    ]);
+    $pdo = pdoConnect(EBAI_DB);
     $recentStmt = $pdo->query("SELECT sku FROM intake_items WHERE sku IS NOT NULL AND TRIM(sku) <> '' ORDER BY updated_at DESC, id DESC LIMIT 60");
     $recentSkus = array_values(array_filter(array_unique(array_map('trim', $recentStmt->fetchAll(PDO::FETCH_COLUMN))), static fn($s) => $s !== ''));
 } catch (Throwable $e) {

@@ -63,10 +63,7 @@ $isAjax = isset($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower((string)$_SERVE
 $acceptsJson = isset($_SERVER['HTTP_ACCEPT']) && stripos((string)$_SERVER['HTTP_ACCEPT'], 'application/json') !== false;
 
 try {
-    $pdo = new PDO('sqlite:' . DB_PATH, null, null, [
-        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-    ]);
+    $pdo = pdoConnect(DB_PATH);
     $pdo->beginTransaction();
     ensureArchiveTable($pdo);
 

@@ -17,10 +17,7 @@ if ($sku === '') {
 }
 
 try {
-    $pdo = new PDO('sqlite:' . DB_PATH, null, null, [
-        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-    ]);
+    $pdo = pdoConnect(DB_PATH);
 } catch (Throwable $e) {
     http_response_code(500);
     exit('Database error');

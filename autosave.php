@@ -23,9 +23,7 @@ if (!is_dir(DB_DIR)) {
 }
 
 try {
-    $pdo = new PDO('sqlite:' . DB_PATH, null, null, [
-        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-    ]);
+    $pdo = pdoConnect(DB_PATH);
 } catch (Throwable $e) {
     jsonResponse(['status' => 'error', 'message' => 'Database connection failed'], 500);
 }

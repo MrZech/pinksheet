@@ -28,9 +28,7 @@ $backupSummary = 'No backup yet';
 // Provision a short list of the most recently updated SKUs so the home lookup can show instant suggestions.
 if (is_readable(HOME_DB_PATH)) {
     try {
-        $pdo = new PDO('sqlite:' . HOME_DB_PATH, null, null, [
-            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-        ]);
+        $pdo = pdoConnect(HOME_DB_PATH);
         $stmt = $pdo->query("
             SELECT sku
             FROM intake_items

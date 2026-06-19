@@ -1,6 +1,8 @@
 <?php
 declare(strict_types=1);
 
+require_once __DIR__ . '/../config.php';
+
 // Simple idempotent migration/repair helper for pinksheet.
 // Run with: php scripts/migrate.php
 
@@ -21,9 +23,7 @@ ensureDir(PHOTO_DIR);
 ensureDir(CHUNK_DIR);
 ensureDir(LOG_DIR);
 
-$pdo = new PDO('sqlite:' . DB_PATH, null, null, [
-    PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-]);
+$pdo = pdoConnect(DB_PATH);
 
 $pdo->exec("PRAGMA journal_mode=WAL");
 $pdo->exec("PRAGMA synchronous=NORMAL");

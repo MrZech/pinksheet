@@ -37,9 +37,7 @@ if (count($ids) < 2) {
 }
 
 try {
-    $pdo = new PDO('sqlite:' . __DIR__ . '/data/intake.sqlite', null, null, [
-        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-    ]);
+    $pdo = pdoConnect(__DIR__ . '/data/intake.sqlite');
     try {
         $pdo->exec("ALTER TABLE sku_photos ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0");
     } catch (Throwable $e) {

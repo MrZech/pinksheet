@@ -38,9 +38,7 @@ if (!is_dir(PHOTO_UPLOAD_DIR)) {
 }
 
 try {
-    $pdo = new PDO('sqlite:' . DB_PATH, null, null, [
-        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-    ]);
+    $pdo = pdoConnect(DB_PATH);
 } catch (Throwable $e) {
     http_response_code(500);
     header('Content-Type: text/plain; charset=utf-8');
@@ -2217,8 +2215,19 @@ function checked(string $name, string $value, array $formData): string
         });
         previewContainer.hidden = previewList.children.length === 0;
       };
+      var clearFileInput = function () {
+        if (!photoInput) return;
+        // Clear the file input so that photos uploaded via AJAX
+        // do NOT also get re-submitted with the main form.
+        if (window.DataTransfer) {
+          photoInput.files = (new DataTransfer()).files;
+        }
+        // Fallback for environments without full DataTransfer support.
+        try { photoInput.value = ''; } catch (_) {}
+      };
       var syncInputFromQueue = function () {
         if (!photoInput || !window.DataTransfer) {
+          clearFileInput();
           return;
         }
         var dt = new DataTransfer();
@@ -2375,6 +2384,7 @@ function checked(string $name, string $value, array $formData): string
             }
             photoQueue.length = 0;
             syncInputFromQueue();
+            clearFileInput();
             renderPreview();
             return;
           }
