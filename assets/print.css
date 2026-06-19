@@ -1,526 +1,549 @@
 /* ═══════════════════════════════════════════════════════════════════
-   DISPO.TECH — INTAKE SHEET PRINT STYLES  (single page, full fill)
+   PINKSHEET — PRINT STYLESHEET  (single-page portrait, four-row grid)
    ═══════════════════════════════════════════════════════════════════ */
 
 @page {
-  size: letter portrait;
-  margin: 0.3in 0.3in 0.28in 0.3in;
+    size: letter portrait;
+    margin: 0.4in;
 }
 
+@media print {
+
+/* ── GLOBAL RESET ───────────────────────────────────────────────── */
 * {
-  box-shadow: none !important;
-  text-shadow: none !important;
-  -webkit-print-color-adjust: exact;
-  print-color-adjust: exact;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
 }
 
-:root {
-  --ink: #111;
-  --muted: #555;
-  --line: #999;
-  --line-strong: #111;
-  --accent: #111;
-  --accent-strong: #111;
-  --border-color: #999;
-  --border-strong: #111;
-  --border-light: #ccc;
-}
-
-/* ─── BASE ─────────────────────────────────────────────────────────── */
 html, body {
-  width: 100%;
-  height: 100%;
-  background: #fff !important;
-  color: #111 !important;
-  font-family: "Inter", "Segoe UI", Arial, sans-serif;
-  font-size: 7.5pt;
-  line-height: 1.25;
+    width: 100%;
+    height: 100%;
+    background: #fff !important;
+    color: #111 !important;
+    font-family: "Inter", "Segoe UI", Arial, sans-serif;
+    font-size: 8pt;
+    line-height: 1.25;
+    margin: 0;
+    padding: 0;
 }
 
 a { color: #111; text-decoration: none; }
 
-/* ─── HIDE ALL UI CHROME ───────────────────────────────────────────── */
-.app-menu, .menu-panel, .menu-toggle, .toast, .breadcrumbs,
-.draft-restore-wrap, .status-bar, .success, .warning,
-.client-error, .error-box, .print-toggle, .print-button,
-.theme-toggle, .new-intake-cta, .quick-actions, .quick-links,
-.badge, .sheet-header-right, .actions, .recent-items,
-.copy-sku, .copy-actions, .what-menu-toggle, .what-menu-list,
-.what-counter, .sku-photo-dropzone, .sku-photo-preview,
-.upload-messages, .sku-photo-actions, .sku-photo-meta,
-.inline-actions, .photo-upload-messages, #photo-upload-messages,
-#restore-draft-button, #restore-hint, form#photo-delete-form,
-.status .status-chip, .section.sku-photos, .compat-os-btn,
-.compat-os-buttons, .hint, p.hint, .what-menu,
-.what-field .what-menu, .autosave-status {
-  display: none !important;
+/* ── HIDE ALL SCREEN-CHROME UI ──────────────────────────────────── */
+.app-menu,
+.menu-panel,
+.menu-toggle,
+.toast,
+.breadcrumbs,
+.draft-restore-wrap,
+.status-bar,
+.client-error,
+.error-box,
+.print-toggle,
+.print-button,
+.theme-toggle,
+.new-intake-cta,
+.quick-actions,
+.quick-links,
+.badge,
+.sheet-header-right,
+.actions,
+.recent-items,
+form#photo-delete-form,
+#restore-draft-button,
+#restore-hint,
+.autosave-status,
+.success,
+.warning,
+.warning-box,
+.copy-sku,
+.copy-actions,
+.what-menu-toggle,
+.what-menu-list,
+.what-counter,
+.sku-photo-dropzone,
+.sku-photo-preview,
+.upload-messages,
+.sku-photo-actions,
+.sku-photo-meta,
+.inline-actions,
+#photo-upload-messages,
+.status .status-chip,
+.section.sku-photos,
+.compat-os-btn,
+.compat-os-buttons,
+.hint,
+p.hint,
+.what-menu,
+.what-field .what-menu,
+.intake-qr-wrap,
+input[type="file"],
+.ghost.danger,
+button.ghost,
+.modal,
+.modal-backdrop,
+#find-sku-modal,
+#undo-delete-form,
+#bulk-form,
+#intake-undo-toast,
+#print-sticker-btn,
+.visually-hidden,
+.sheet-header .status,
+.print-summary,
+.print-thumb-wrap {
+    display: none !important;
 }
 
-/* ─── PAGE / SHEET — stretch to fill full page ─────────────────────── */
+/* ── HIDE EXISTING SCREEN FORM — PRINT GRID REPLACES IT ─────────── */
+.form-grid,
+.form-columns,
+.form-col-left,
+.form-col-right,
+.sheet-header,
+.sheet h1,
+.section.notes,
+.section.sku-photos,
+#intake-form {
+    display: none !important;
+}
+
+/* ── PRINT GRID — FOUR RIGID ROWS, SINGLE PAGE ──────────────── */
 .page {
-  margin: 0 !important;
-  padding: 0 !important;
-  width: 100% !important;
-  max-width: 100% !important;
-  height: 100%;
-  display: flex;
-  flex-direction: column;
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    height: auto !important;
+    display: block !important;
 }
 
 .sheet,
 .sheet.intake,
 .sheet-scale,
-.sheet-content,
-.form-grid,
-.form-columns,
-.form-col-left,
-.form-col-right,
-.section,
-.row {
-  max-width: 100% !important;
-  width: 100% !important;
-  box-sizing: border-box !important;
-}
-
-.sheet {
-  flex: 1;
-  display: flex !important;
-  flex-direction: column !important;
-  height: 100% !important;
-  min-height: 0 !important;
-  padding: 0 !important;
-  border: none !important;
-  border-radius: 0 !important;
-  background: #fff !important;
-  overflow: visible !important;
-  backdrop-filter: none !important;
-}
-
-.sheet.intake, .sheet-scale, .sheet-content {
-  flex: 1;
-  display: flex !important;
-  flex-direction: column !important;
-  height: 100% !important;
-  min-height: 0 !important;
-  overflow: visible !important;
-}
-
-/* ─── HEADER ───────────────────────────────────────────────────────── */
-.sheet-header {
-  display: flex !important;
-  justify-content: space-between;
-  align-items: flex-start;
-  padding-bottom: 5pt;
-  margin-bottom: 6pt;
-  border: none !important;
-  border-bottom: 1.5pt solid #111 !important;
-  flex-shrink: 0;
-}
-
-.sheet-header .status { display: none !important; }
-
-.sheet h1 {
-  font-size: 13pt !important;
-  font-weight: 800 !important;
-  color: #111 !important;
-  margin: 0 0 1pt !important;
-  line-height: 1;
-}
-
-.sheet-header .updated {
-  font-size: 6.5pt;
-  color: #666;
-  margin-top: 1pt;
-}
-
-.sheet-header .print-summary {
-  display: flex !important;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 2pt;
-  text-align: right;
-}
-
-.print-summary-label {
-  font-size: 6pt;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: #888;
-  margin-bottom: -1pt;
-}
-
-.print-summary-value {
-  font-size: 10pt;
-  font-weight: 800;
-  color: #111;
-  line-height: 1;
-}
-
-/* ─── THUMBNAIL ────────────────────────────────────────────────────── */
-.print-thumb-wrap { display: none; }
-
-@media print {
-  .print-thumb-wrap {
+.sheet-content {
     display: block !important;
-    float: right;
-    margin: 0 0 6pt 10pt;
+    width: 100% !important;
+    max-width: 100% !important;
+    height: auto !important;
+    min-height: 0 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    border: none !important;
+    background: #fff !important;
+    overflow: visible !important;
+}
+
+.print-grid {
+    display: grid !important;
+    grid-template-rows: auto auto auto auto;
+    gap: 0;
+    width: 100%;
+    max-width: 100%;
+    page-break-inside: avoid;
+    break-inside: avoid;
+}
+
+/* ── ROW 1: ACCENT HEADER BLOCK ─────────────────────────────── */
+.print-header-row {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: start;
+    gap: 8pt;
+    padding-bottom: 5pt;
+    margin-bottom: 6pt;
+    border-bottom: 1.5pt solid #111;
+    page-break-inside: avoid;
+    break-inside: avoid;
+}
+
+.print-header-left {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 8pt;
+}
+
+.print-thumb-cell {
+    flex-shrink: 0;
+}
+
+.print-thumb-cell img {
+    display: block;
     width: 1.1in;
     height: 1.1in;
+    object-fit: cover;
     border: 0.75pt solid #ccc;
     border-radius: 3pt;
+}
+
+.print-sku-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 1pt;
+}
+
+.print-row-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+}
+
+.print-label {
+    font-size: 6pt;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #888;
+    line-height: 1;
+}
+
+.print-value {
+    font-size: 10pt;
+    font-weight: 800;
+    color: #111;
+    line-height: 1.2;
+}
+
+.print-header-right {
+    justify-self: end;
+    align-self: start;
+}
+
+.print-qr-cell {
+    width: 120px;
+    height: 120px;
+}
+
+.print-qr-cell canvas,
+.print-qr-cell img {
+    width: 120px !important;
+    height: 120px !important;
+    display: block;
+}
+
+/* ── ROW 2: D1 / D2 SPLIT PANELS ────────────────────────────── */
+.print-fields-row {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr;
+    gap: 5pt;
+    margin-bottom: 6pt;
+    page-break-inside: avoid;
+    break-inside: avoid;
+}
+
+.print-d1-panel,
+.print-d2-panel {
+    border: 0.5pt solid #ccc;
+    border-top: 1.5pt solid #111;
+    padding: 4pt 5pt 5pt;
+    background: #fff !important;
+    break-inside: avoid;
+    page-break-inside: avoid;
+}
+
+.print-d1-panel h2,
+.print-d2-panel h2 {
+    font-size: 6pt;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: #555;
+    margin: 0 0 4pt;
+    padding: 0;
+    border: none;
+}
+
+.print-d1-panel .row,
+.print-d2-panel .row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 3pt 5pt;
+    margin-bottom: 3pt;
+    break-inside: avoid;
+    page-break-inside: avoid;
+}
+
+.print-d1-panel .row:last-child,
+.print-d2-panel .row:last-child {
+    margin-bottom: 0;
+}
+
+.print-d1-panel label,
+.print-d2-panel label {
+    display: flex;
+    flex-direction: column;
+    gap: 1pt;
+    font-size: 6.5pt;
+    font-weight: 700;
+    color: #555;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    min-width: 70pt;
+}
+
+.print-d1-panel label.inline,
+.print-d2-panel label.inline,
+.print-d1-panel label.small-checkbox,
+.print-d2-panel label.small-checkbox {
+    flex-direction: row;
+    align-items: center;
+    gap: 4pt;
+    font-size: 7.5pt;
+    font-weight: 700;
+    text-transform: none;
+    letter-spacing: 0;
+    color: #111;
+    min-height: 0;
+}
+
+.print-d1-panel label.small-checkbox input[type="checkbox"],
+.print-d2-panel label.small-checkbox input[type="checkbox"] {
+    width: 9pt !important;
+    height: 9pt !important;
+    flex-shrink: 0;
+}
+
+.print-d1-panel fieldset,
+.print-d2-panel fieldset {
+    padding: 2pt 3pt 3pt;
+    min-height: 0;
+    border: 0.5pt solid #ccc;
+    background: transparent !important;
+    break-inside: avoid;
+    page-break-inside: avoid;
+    min-width: 90pt;
+}
+
+.print-d1-panel fieldset label,
+.print-d2-panel fieldset label {
+    flex-direction: row;
+    align-items: center;
+    gap: 3pt;
+    font-size: 7pt;
+    font-weight: 500;
+    color: #111;
+    text-transform: none;
+    letter-spacing: 0;
+}
+
+.print-d1-panel legend,
+.print-d2-panel legend {
+    font-size: 6pt;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #666;
+    padding: 0 2pt;
+}
+
+.print-d1-panel input[type="text"],
+.print-d1-panel input[type="date"],
+.print-d1-panel input[type="number"],
+.print-d1-panel select,
+.print-d2-panel input[type="text"],
+.print-d2-panel input[type="date"],
+.print-d2-panel input[type="number"],
+.print-d2-panel select {
+    padding: 2pt 3pt;
+    border-radius: 0;
+    border: none;
+    border-bottom: 0.5pt solid #999;
+    font-size: 8pt;
+    font-weight: 500;
+    color: #111;
+    background: transparent !important;
+    width: 100%;
+    font-family: inherit;
+    box-sizing: border-box;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+}
+
+.print-d1-panel textarea,
+.print-d2-panel textarea {
+    border: 0.5pt solid #999;
+    overflow: visible !important;
+    white-space: pre-wrap;
+    resize: none;
+    padding: 2pt 3pt;
+    border-radius: 0;
+    font-size: 8pt;
+    font-weight: 500;
+    color: #111;
+    background: transparent !important;
+    width: 100%;
+    font-family: inherit;
+    box-sizing: border-box;
+}
+
+.print-d1-panel input[type="checkbox"],
+.print-d1-panel input[type="radio"],
+.print-d2-panel input[type="checkbox"],
+.print-d2-panel input[type="radio"] {
+    width: 9pt;
+    height: 9pt;
+    flex-shrink: 0;
+}
+
+.print-d1-panel input[readonly],
+.print-d2-panel input[readonly],
+.print-d1-panel textarea[readonly],
+.print-d2-panel textarea[readonly] {
+    border: none;
+    border-bottom: 0.5pt solid #999;
+    background: transparent !important;
+}
+
+.print-d1-panel select[readonly],
+.print-d2-panel select[readonly] {
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    border: none;
+    border-bottom: 0.5pt solid #999;
+    padding: 2pt 3pt;
+}
+
+.print-d1-panel input[type="checkbox"][readonly],
+.print-d1-panel input[type="radio"][readonly],
+.print-d2-panel input[type="checkbox"][readonly],
+.print-d2-panel input[type="radio"][readonly] {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+}
+
+.print-d1-panel .conjoined,
+.print-d2-panel .conjoined {
+    display: flex;
+    border: 0.5pt solid #ccc;
+    background: transparent !important;
+    break-inside: avoid;
+    page-break-inside: avoid;
+}
+
+.print-d1-panel .conjoined .segment,
+.print-d2-panel .conjoined .segment {
+    flex: 1;
+    padding: 2pt 4pt;
+    border-right: 0.5pt solid #ccc;
+    border-bottom: none;
+}
+
+.print-d1-panel .conjoined .segment:last-child,
+.print-d2-panel .conjoined .segment:last-child {
+    border-right: none;
+}
+
+.print-d1-panel .compat-os-group,
+.print-d2-panel .compat-os-group {
+    display: flex;
+    align-items: center;
+    gap: 4pt;
+}
+
+.print-d1-panel .compat-os-label,
+.print-d2-panel .compat-os-label {
+    font-size: 6.5pt;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #555;
+}
+
+.print-d1-panel .compat-os-print-value,
+.print-d2-panel .compat-os-print-value {
+    font-size: 8pt;
+    font-weight: 600;
+    color: #111;
+    padding: 1pt 0;
+}
+
+/* ── ROW 3: NOTES PANEL ────────────────────────────────────── */
+.print-notes-row {
+    border: 0.5pt solid #ccc;
+    border-top: 1.5pt solid #111;
+    padding: 4pt 5pt 5pt;
+    background: #fff !important;
+    margin-bottom: 6pt;
+    page-break-inside: avoid;
+    break-inside: avoid;
+    min-height: 48pt;
+}
+
+.print-notes-row h2 {
+    font-size: 6pt;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: #555;
+    margin: 0 0 4pt;
+    padding: 0;
+    border: none;
+}
+
+.print-notes-content {
+    font-size: 10pt;
+    line-height: 1.35;
+    color: #111;
+    white-space: pre-wrap;
+    min-height: 2em;
+}
+
+/* ── ROW 4: ASSET SNAPSHOT GALLERY ─────────────────────────── */
+.print-gallery-row {
+    display: grid !important;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 4pt;
+    page-break-inside: avoid;
+    break-inside: avoid;
+}
+
+.print-gallery-item {
+    height: 100px;
     overflow: hidden;
-  }
-  .print-thumb-wrap img {
-    width: 100%; height: 100%;
-    object-fit: cover; display: block;
-  }
+    margin: 0;
+    break-inside: avoid;
+    page-break-inside: avoid;
 }
 
-/* ─── FORM GRID — flex column, notes grows to fill ─────────────────── */
-.form-grid {
-  flex: 1;
-  display: flex !important;
-  flex-direction: column !important;
-  gap: 0;
-  min-height: 0;
-  width: 100% !important;
-  max-width: 100% !important;
+.print-gallery-item img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border: 0.5pt solid #ccc;
+    border-radius: 2pt;
+    display: block;
 }
 
-.form-col-left,
-.form-col-right {
-  display: contents !important;
+/* ── PRINT PINK OVERLAY ──────────────────────────────────────── */
+body.print-pink .print-grid {
+    background: #f4a4bb !important;
 }
 
-.form-columns {
-  flex: 1;
-  display: grid !important;
-  grid-template-columns: repeat(3, 1fr) !important;
-  grid-template-rows: auto auto 1fr !important;
-  gap: 5pt !important;
-  align-items: start;
-  min-height: 0;
-  width: 100% !important;
-  max-width: 100% !important;
+body.print-pink .print-d1-panel,
+body.print-pink .print-d2-panel,
+body.print-pink .print-notes-row {
+    background: rgba(255, 255, 255, 0.55) !important;
 }
 
-/* Override any inherited width constraints from style.css */
-.home .page,
-.sheet.intake,
-.home-sheet,
-.lookup-shell,
-.archive-sheet {
-  width: 100% !important;
-  max-width: 100% !important;
-  min-width: 0 !important;
+body.print-pink .print-label,
+body.print-pink .print-value {
+    color: #111;
 }
 
-/* Top rows span all columns */
-.form-columns > .row,
-.form-col-left > .row {
-  grid-column: 1 / -1;
+/* ── FOOTER ────────────────────────────────────────────────────── */
+.print-grid::after {
+    content: "Dispo.Tech Intake Sheet — Confidential";
+    display: block;
+    margin-top: 4pt;
+    padding-top: 3pt;
+    border-top: 0.5pt solid #ddd;
+    font-size: 6pt;
+    color: #bbb;
+    text-align: center;
+    letter-spacing: 0.06em;
 }
 
-/* D1 and D2 each take one column */
-.form-col-right > .section,
-.form-columns > .section {
-  grid-column: span 1;
-}
-
-/* Notes spans full width AND fills remaining vertical space */
-.section.notes {
-  grid-column: 1 / -1 !important;
-  grid-row: 3 !important;
-  display: flex !important;
-  flex-direction: column !important;
-  flex: 1 !important;
-  min-height: 0;
-}
-
-.section.notes textarea {
-  flex: 1 !important;
-  min-height: 0 !important;
-  height: 100% !important;
-  overflow: visible !important;
-  resize: none;
-}
-
-/* ─── SECTIONS ─────────────────────────────────────────────────────── */
-.section {
-  padding: 4pt 5pt 5pt;
-  margin-top: 0;
-  border: 0.5pt solid #ccc;
-  border-top: 1.5pt solid #111;
-  background: #fff !important;
-  break-inside: avoid;
-  page-break-inside: avoid;
-}
-
-.section h2 {
-  font-size: 6pt;
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  color: #555;
-  margin: 0 0 4pt;
-  padding: 0;
-  border: none;
-}
-
-/* ─── ROWS AND LABELS ──────────────────────────────────────────────── */
-.row {
-  display: grid;
-  gap: 4pt;
-  grid-template-columns: repeat(auto-fit, minmax(70pt, 1fr));
-  break-inside: avoid;
-  margin-bottom: 3pt;
-}
-
-.row:last-child { margin-bottom: 0; }
-
-label {
-  display: flex;
-  flex-direction: column;
-  gap: 1pt;
-  font-size: 6.5pt;
-  font-weight: 700;
-  color: #555;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-}
-
-label.inline,
-label.small-checkbox {
-  flex-direction: row;
-  align-items: center;
-  gap: 4pt;
-  font-size: 7.5pt;
-  font-weight: 700;
-  text-transform: none;
-  letter-spacing: 0;
-  color: #111;
-  min-height: 0;
-}
-
-label.small-checkbox input[type="checkbox"] {
-  width: 9pt !important;
-  height: 9pt !important;
-  flex-shrink: 0;
-}
-
-/* ─── INPUTS ───────────────────────────────────────────────────────── */
-input[type="text"],
-input[type="date"],
-input[type="number"],
-select,
-textarea {
-  padding: 2pt 3pt;
-  border-radius: 0;
-  border: none;
-  border-bottom: 0.5pt solid #999;
-  font-size: 8pt;
-  font-weight: 500;
-  color: #111;
-  background: transparent !important;
-  width: 100%;
-  font-family: inherit;
-}
-
-textarea {
-  border: 0.5pt solid #999;
-  overflow: visible !important;
-  white-space: pre-wrap;
-  resize: none;
-}
-
-/* ─── FIELDSETS ────────────────────────────────────────────────────── */
-fieldset {
-  padding: 2pt 3pt 3pt;
-  min-height: 0;
-  border: 0.5pt solid #ccc;
-  background: transparent !important;
-  break-inside: avoid;
-}
-
-fieldset label {
-  flex-direction: row;
-  align-items: center;
-  gap: 3pt;
-  font-size: 7pt;
-  font-weight: 500;
-  color: #111;
-  text-transform: none;
-  letter-spacing: 0;
-}
-
-legend {
-  font-size: 6pt;
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: #666;
-  padding: 0 2pt;
-}
-
-.conjoined {
-  border: 0.5pt solid #ccc;
-  background: transparent !important;
-  break-inside: avoid;
-}
-
-.conjoined .segment {
-  padding: 2pt 4pt;
-  border-color: #ccc;
-}
-
-/* ─── COMPAT OS ────────────────────────────────────────────────────── */
-.compat-os-group {
-  display: flex;
-  align-items: center;
-  gap: 4pt;
-}
-
-.compat-os-label {
-  font-size: 6.5pt;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: #555;
-}
-
-/* ─── FOOTER ───────────────────────────────────────────────────────── */
-.sheet-content::after {
-  content: "Dispo.Tech Intake Sheet — Confidential";
-  display: block;
-  margin-top: 6pt;
-  padding-top: 4pt;
-  border-top: 0.5pt solid #ddd;
-  font-size: 6pt;
-  color: #bbb;
-  text-align: center;
-  letter-spacing: 0.06em;
-  flex-shrink: 0;
-}
-
-/* ─── PRINT PINK ───────────────────────────────────────────────────── */
-body.print-pink .sheet { background: #f4a4bb !important; }
-body.print-pink .section { background: rgba(255,255,255,0.55) !important; }
-body.print-pink .print-summary-label,
-body.print-pink .print-summary-value { color: #111; }
-
-/* ─── QR CODE IN PRINT ─────────────────────────────────────────────── */
-.intake-qr-wrap {
-  display: flex !important;
-  align-items: center;
-  gap: 4pt;
-  float: right;
-  margin: 0 0 6pt 10pt;
-}
-.intake-qr-render img,
-.intake-qr-render canvas {
-  width: 60pt !important;
-  height: 60pt !important;
-}
-.intake-qr-label {
-  font-size: 5pt;
-  color: #888;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-}
-
-/* ─── FIELD VALUES: ensure all values are visible ──────────────────── */
-input[type="text"],
-input[type="date"],
-input[type="number"],
-select,
-textarea {
-  -webkit-print-color-adjust: exact;
-  print-color-adjust: exact;
-}
-input[readonly],
-textarea[readonly] {
-  border: none;
-  border-bottom: 0.5pt solid #999;
-  background: transparent !important;
-}
-select[readonly] {
-  -webkit-appearance: none;
-  -moz-appearance: none;
-  appearance: none;
-  border: none;
-  border-bottom: 0.5pt solid #999;
-  padding: 2pt 3pt;
-}
-input[type="checkbox"][readonly],
-input[type="radio"][readonly] {
-  -webkit-print-color-adjust: exact;
-  print-color-adjust: exact;
-}
-input[type="checkbox"][readonly]:checked::before,
-input[type="radio"][readonly]:checked::before {
-  display: block;
-}
-
-/* ─── COMPAT OS PRINT VALUE ─────────────────────────────────────────── */
-.compat-os-print-value {
-  font-size: 8pt;
-  font-weight: 600;
-  color: #111;
-  padding: 1pt 0;
-}
-
-/* ─── PHOTO GALLERY IN PRINT ────────────────────────────────────────── */
-.print-photo-section {
-  grid-column: span 1 !important;
-  break-inside: avoid;
-  page-break-inside: avoid;
-}
-.print-photo-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 4pt;
-}
-.print-photo-item {
-  margin: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 1pt;
-}
-.print-photo-item img {
-  width: 100%;
-  height: var(--print-photo-size, 0.9in);
-  object-fit: cover;
-  border: 0.5pt solid #ccc;
-  border-radius: 2pt;
-}
-.print-photo-label {
-  font-size: 5.5pt;
-  color: #666;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-/* ─── PRINT SIDE ROW (D1 + gallery side by side) ────────────────────── */
-.print-side-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 5pt;
-  margin-bottom: 3pt;
-}
-.print-side-row .section {
-  margin: 0;
-}
-
-/* ─── PRINT NOTES VALUE ──────────────────────────────────────────────── */
-.print-notes-value {
-  flex: 1;
-  font-size: 8pt;
-  line-height: 1.35;
-  color: #111;
-  white-space: pre-wrap;
-  padding: 2pt 0;
-  min-height: 1.5em;
-}
-
+} /* end @media print */

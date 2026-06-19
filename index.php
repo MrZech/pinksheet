@@ -1263,6 +1263,54 @@ function checked(string $name, string $value, array $formData): string
           </div><!-- end .form-columns -->
         </form>
 
+      <!-- PRINT LAYOUT: four rigid horizontal rows (visible only in @media print) -->
+      <div class="print-grid" aria-hidden="true">
+
+        <!-- Row 1: Accent Header Block -->
+        <div class="print-row print-header-row">
+          <div class="print-header-left">
+            <div class="print-thumb-cell">
+              <?php if ($printThumbId): ?>
+                <img src="photo.php?id=<?php echo $printThumbId; ?>" alt="">
+              <?php endif; ?>
+            </div>
+            <div class="print-sku-stack">
+              <div class="print-row-item">
+                <span class="print-label">SKU</span>
+                <span class="print-value"><?php echo h($printSku !== '' ? $printSku : '—'); ?></span>
+              </div>
+              <div class="print-row-item">
+                <span class="print-label">Price</span>
+                <span class="print-value"><?php echo $printPrice !== null ? '$' . number_format((float)$printPrice, 2) : '—'; ?></span>
+              </div>
+              <div class="print-row-item">
+                <span class="print-label">Status</span>
+                <span class="print-value"><?php echo h($printStatus !== '' ? $printStatus : 'Select'); ?></span>
+              </div>
+            </div>
+          </div>
+          <div class="print-header-right">
+            <div class="print-qr-cell" data-sku="<?php echo h($activeSkuNormalized); ?>"></div>
+          </div>
+        </div>
+
+        <!-- Row 2: D1 / D2 Split Panels (populated by JS at print time) -->
+        <div class="print-row print-fields-row">
+          <div class="print-d1-panel" id="print-d1-panel"></div>
+          <div class="print-d2-panel" id="print-d2-panel"></div>
+        </div>
+
+        <!-- Row 3: Notes Panel (populated by JS at print time) -->
+        <div class="print-row print-notes-row">
+          <h2>Notes</h2>
+          <div class="print-notes-content" id="print-notes-content"></div>
+        </div>
+
+        <!-- Row 4: Asset Snapshot Gallery (populated by JS at print time) -->
+        <div class="print-row print-gallery-row" id="print-gallery-row"></div>
+
+      </div>
+
       <section class="section recent-items">
         <h2><?php echo $lookupStatus !== '' ? 'Status Results' : 'Recent SKUs'; ?></h2>
         <form class="form-grid" method="get" action="intake.php">
@@ -1418,149 +1466,9 @@ function checked(string $name, string $value, array $formData): string
   </main>
   <script>
     (function () {
-      var PRINT_MARGIN_IN = 0.18;
-      var PRINT_PAGE_WIDTH_IN = 8.5;
-      var PRINT_PAGE_HEIGHT_IN = 11;
-      var PRINT_DPI = 96;
-      var MIN_PRINT_SCALE = 0.98;
-      var resizeTextareas = function (root) {
-        (root || document).querySelectorAll('textarea').forEach(function (ta) {
-          ta.style.height = 'auto';
-          ta.style.minHeight = '0';
-          ta.style.overflow = 'visible';
-          ta.style.height = (ta.scrollHeight + 8) + 'px';
-        });
-      };
-      var copyFormValues = function (srcRoot, destRoot) {
-        var sourceFieldsByName = {};
-        srcRoot.querySelectorAll('input[name], textarea[name], select[name]').forEach(function (field) {
-          var name = field.getAttribute('name');
-          if (!name) return;
-          if (!sourceFieldsByName[name]) {
-            sourceFieldsByName[name] = [];
-          }
-          sourceFieldsByName[name].push(field);
-        });
-
-        destRoot.querySelectorAll('input[name], textarea[name], select[name]').forEach(function (dest) {
-          var name = dest.getAttribute('name');
-          if (!name || !sourceFieldsByName[name] || !sourceFieldsByName[name].length) return;
-
-          var sources = sourceFieldsByName[name];
-          if (dest.tagName === 'INPUT') {
-            if (dest.type === 'checkbox') {
-              dest.checked = sources.some(function (src) {
-                return src.checked;
-              });
-              return;
-            }
-
-            if (dest.type === 'radio') {
-              dest.checked = sources.some(function (src) {
-                return src.checked && src.value === dest.value;
-              });
-              return;
-            }
-
-            dest.value = sources[0].value;
-            return;
-          }
-
-          if (dest.tagName === 'TEXTAREA') {
-            dest.value = sources[0].value;
-            return;
-          }
-
-          if (dest.tagName === 'SELECT') {
-            dest.value = sources[0].value;
-          }
-        });
-      };
-      var removePrintableNodes = function (root, selectors) {
-        selectors.forEach(function (selector) {
-          root.querySelectorAll(selector).forEach(function (node) {
-            node.parentNode.removeChild(node);
-          });
-        });
-      };
       var extractPhotoIdFromSrc = function (src) {
         var match = String(src || '').match(/[?&]id=(\d+)/);
         return match ? match[1] : '';
-      };
-      var buildPrintNotesBlock = function (doc, sourceForm, formClone) {
-        var notesSource = sourceForm.querySelector('textarea[name="notes"]');
-        var notesClone = formClone.querySelector('textarea[name="notes"]');
-        if (!notesClone) return;
-
-        var notesSection = notesClone.closest('.section.notes');
-        if (!notesSection) return;
-
-        var notesValue = notesSource ? notesSource.value : notesClone.value;
-        var notesBlock = doc.createElement('div');
-        notesBlock.className = 'print-notes-value';
-        notesBlock.textContent = notesValue && notesValue.trim() ? notesValue : ' ';
-
-        notesSection.insertBefore(notesBlock, notesClone);
-        notesClone.parentNode.removeChild(notesClone);
-      };
-      var buildPrintPhotoGallery = function (doc, sourceSheet, thumbId) {
-        var photoNodes = sourceSheet.querySelectorAll('.section.sku-photos .sku-photo-item');
-        var photos = [];
-
-        photoNodes.forEach(function (node) {
-          if (node.classList.contains('is-preview')) return;
-
-          var linkImg = node.querySelector('.sku-photo-link img');
-          if (!linkImg) return;
-
-          var src = linkImg.getAttribute('src') || '';
-          if (!src) return;
-
-          var photoId = extractPhotoIdFromSrc(src);
-          if (thumbId && photoId && String(photoId) === String(thumbId)) return;
-
-          photos.push({
-            src: src,
-            alt: linkImg.getAttribute('alt') || 'Additional photo',
-            label: (node.querySelector('.sku-photo-name') || {}).textContent || ''
-          });
-        });
-
-        photos = photos.slice(0, 4);
-        if (!photos.length) return null;
-
-        var section = doc.createElement('section');
-        section.className = 'section print-photo-section';
-        section.style.setProperty('--print-photo-size', '0.9in');
-
-        var heading = doc.createElement('h2');
-        heading.textContent = photos.length === 1 ? 'Additional Photo' : 'Additional Photos (first 4)';
-        section.appendChild(heading);
-
-        var grid = doc.createElement('div');
-        grid.className = 'print-photo-grid';
-
-        photos.forEach(function (photo) {
-          var figure = doc.createElement('figure');
-          figure.className = 'print-photo-item';
-
-          var img = doc.createElement('img');
-          img.src = photo.src;
-          img.alt = photo.alt;
-          figure.appendChild(img);
-
-          if (photo.label && photo.label.trim()) {
-            var caption = doc.createElement('figcaption');
-            caption.className = 'print-photo-label';
-            caption.textContent = photo.label.trim();
-            figure.appendChild(caption);
-          }
-
-          grid.appendChild(figure);
-        });
-
-        section.appendChild(grid);
-        return section;
       };
       var waitForImages = function (root, callback) {
         var images = Array.prototype.slice.call(root.querySelectorAll('img'));
@@ -1594,17 +1502,10 @@ function checked(string $name, string $value, array $formData): string
 
         setTimeout(finish, 1800);
       };
-      var fitPrintToSinglePage = function (doc, root) {
-        // Layout is handled entirely by print.css — no JS zoom needed.
-        // Removing zoom prevents the half-page shrink issue.
-        if (root) { root.style.zoom = ''; }
-        if (doc && doc.body) { doc.body.style.zoom = ''; }
-        if (doc && doc.documentElement) { doc.documentElement.style.zoom = ''; }
-        return 1;
-      };
       var buildPrintIframe = function () {
-        var sheet = document.querySelector('.sheet.intake');
-        if (!sheet) return null;
+        var sourceGrid = document.querySelector('.print-grid');
+        if (!sourceGrid) return null;
+
         var iframe = document.createElement('iframe');
         iframe.id = 'print-frame';
         iframe.style.position = 'fixed';
@@ -1616,142 +1517,137 @@ function checked(string $name, string $value, array $formData): string
         iframe.style.background = '#ffffff';
         iframe.setAttribute('aria-hidden', 'true');
         document.body.appendChild(iframe);
+
         var doc = iframe.contentDocument || iframe.contentWindow.document;
         doc.open();
         doc.write(
           '<!doctype html><html><head><title>Print</title>' +
           '<base href="' + window.location.origin + window.location.pathname.replace(/[^/]*$/, '') + '">' +
           '<link rel="stylesheet" href="assets/style.css">' +
-          '<link rel="stylesheet" href="assets/print.css">' +
-          '</head><body' + (document.body.classList.contains('print-pink') ? ' class=\"print-pink\"' : '') + '>' +
-          '<div class="page"><section class="sheet intake" id="print-root"></section></div>' +
+          '<link rel="stylesheet" media="print" href="assets/print.css">' +
+          '<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" integrity="sha512-CNgIRecGo7nphbeZ04Sc13ka07paqdeTu0WR1IM4kNcpmBAUSHSQX0FslNhTDadL4O5SAGapGt4FodqL8My0mA==" crossorigin="anonymous" referrerpolicy="no-referrer"><\/script>' +
+          '</head><body' + (document.body.classList.contains('print-pink') ? ' class="print-pink"' : '') + '>' +
+          '<div class="page"><div class="print-grid" id="print-root"></div></div>' +
           '</body></html>'
         );
         doc.close();
 
-        // Build a clean print document from only the pieces we need:
-        // 1. The sheet header (title, date, status/price, thumbnail)
-        // 2. The intake form fields only (not recent-items, not search)
-        var printRoot = null;
         var attachAndPrint = function () {
-          printRoot = doc.getElementById('print-root');
+          var printRoot = doc.getElementById('print-root');
           if (!printRoot) return;
 
-          // Clone the sheet-header
-          var header = sheet.querySelector('.sheet-content .sheet-header') ||
-                       sheet.querySelector('.sheet-header');
-          if (header) {
-            var headerClone = header.cloneNode(true);
-            // Remove the header-right buttons (print, theme, new intake)
-            var headerRight = headerClone.querySelector('.sheet-header-right');
-            if (headerRight) headerRight.parentNode.removeChild(headerRight);
-            var headerStatus = headerClone.querySelector('.status');
-            if (headerStatus) headerStatus.parentNode.removeChild(headerStatus);
-            printRoot.appendChild(headerClone);
-          }
+          var clone = sourceGrid.cloneNode(true);
 
-          // Clone the h1 title
-          var h1 = sheet.querySelector('h1');
-          if (h1) {
-            printRoot.appendChild(h1.cloneNode(true));
-          }
-
-          // Clone the print thumbnail reference from the header.
-          var thumb = sheet.querySelector('.print-thumb-wrap');
-          var thumbImg = thumb ? thumb.querySelector('img') : null;
-          var thumbId = thumbImg ? extractPhotoIdFromSrc(thumbImg.getAttribute('src')) : '';
-
-          // Clone only the intake form — not the recent-items section
-          var intakeForm = sheet.querySelector('#intake-form');
-          if (intakeForm) {
-            var formClone = intakeForm.cloneNode(true);
-
-            // Remove interactive and non-essential UI from the print clone.
-            removePrintableNodes(formClone, [
-              '.draft-restore-wrap',
-              '.copy-sku',
-              '.copy-actions',
-              '.what-menu',
-              '.what-counter',
-              '.sku-photo-dropzone',
-              '.sku-photo-preview',
-              '.upload-messages',
-              '.section.sku-photos',
-              '.inline-actions',
-              '.sku-photo-actions',
-              '.actions',
-              '.recent-items',
-              'input[type="file"]',
-              'input[type="hidden"]#clear-draft',
-              'input[type="hidden"]#draft-dismiss',
-              'input[type="hidden"]#has-server-record',
-              'input[type="hidden"]#has-lookup-sku'
-            ]);
-
-            // Convert the printable clone into a read-only snapshot while
-            // preserving the actual field values from the live form.
-            copyFormValues(intakeForm, formClone);
-            buildPrintNotesBlock(doc, intakeForm, formClone);
-            var compatGroup = formClone.querySelector('.compat-os-group');
-            if (compatGroup) {
-              var compatValue = formClone.querySelector('#compatible-os-input');
-              var compatButtons = compatGroup.querySelector('.compat-os-buttons');
-              if (compatButtons) compatButtons.parentNode.removeChild(compatButtons);
-              if (compatValue && compatValue.value) {
-                var compatText = doc.createElement('div');
-                compatText.className = 'compat-os-print-value';
-                compatText.textContent = compatValue.value;
-                compatGroup.appendChild(compatText);
-              }
-            }
-
-            var leftCol = formClone.querySelector('.form-col-left');
-            var rightCol = formClone.querySelector('.form-col-right');
-            var notesSection = formClone.querySelector('.section.notes');
-            var rightSections = rightCol ? Array.prototype.slice.call(rightCol.querySelectorAll('.section')) : [];
-            var d1Section = rightSections.length ? rightSections[0] : null;
-            var d2Section = rightSections.length > 1 ? rightSections[1] : null;
-
-            formClone.querySelectorAll('input, textarea, select').forEach(function (field) {
-              field.setAttribute('readonly', 'readonly');
-              if (field.tagName === 'INPUT' && field.type !== 'checkbox' && field.type !== 'radio') {
-                field.setAttribute('tabindex', '-1');
+          // Populate D1 panel from live form
+          var d1Panel = clone.querySelector('#print-d1-panel');
+          var liveD1 = document.querySelector('.form-col-right .section:first-child');
+          if (d1Panel && liveD1) {
+            var d1Clone = liveD1.cloneNode(true);
+            d1Clone.querySelectorAll('input, textarea, select').forEach(function (f) {
+              f.setAttribute('readonly', 'readonly');
+              if (f.tagName === 'INPUT' && f.type !== 'checkbox' && f.type !== 'radio') {
+                f.setAttribute('tabindex', '-1');
               }
             });
-
-            var gallery = buildPrintPhotoGallery(doc, sheet, thumbId);
-            if (leftCol) {
-              var printSideRow = doc.createElement('div');
-              printSideRow.className = 'print-side-row';
-
-              if (d1Section) {
-                printSideRow.appendChild(d1Section);
-              }
-              if (gallery) {
-                printSideRow.appendChild(gallery);
-              }
-              if (printSideRow.childNodes.length) {
-                leftCol.appendChild(printSideRow);
-              }
-
-              if (d2Section) {
-                leftCol.appendChild(d2Section);
-              }
-
-              if (notesSection) {
-                leftCol.appendChild(notesSection);
-              }
-            } else if (gallery) {
-              formClone.appendChild(gallery);
-            }
-
-            printRoot.appendChild(formClone);
+            var compatButtons = d1Clone.querySelector('.compat-os-buttons');
+            if (compatButtons) compatButtons.parentNode.removeChild(compatButtons);
+            d1Panel.innerHTML = '';
+            d1Panel.appendChild(d1Clone);
           }
 
-          resizeTextareas(doc);
+          // Populate D2 panel from live form
+          var d2Panel = clone.querySelector('#print-d2-panel');
+          var liveD2 = document.querySelector('.form-col-right .section:nth-child(2)');
+          if (d2Panel && liveD2) {
+            var d2Clone = liveD2.cloneNode(true);
+            d2Clone.querySelectorAll('input, textarea, select').forEach(function (f) {
+              f.setAttribute('readonly', 'readonly');
+              if (f.tagName === 'INPUT' && f.type !== 'checkbox' && f.type !== 'radio') {
+                f.setAttribute('tabindex', '-1');
+              }
+            });
+            d2Panel.innerHTML = '';
+            d2Panel.appendChild(d2Clone);
+          }
+
+          // Populate notes
+          var notesContent = clone.querySelector('#print-notes-content');
+          var liveNotes = document.querySelector('textarea[name="notes"]');
+          if (notesContent && liveNotes) {
+            notesContent.textContent = liveNotes.value && liveNotes.value.trim() ? liveNotes.value : ' ';
+          }
+
+          // Copy field values from live form into cloned panels
+          var liveForm = document.getElementById('intake-form');
+          if (liveForm) {
+            clone.querySelectorAll('input[name], textarea[name], select[name]').forEach(function (dest) {
+              var name = dest.getAttribute('name');
+              if (!name) return;
+              var src = liveForm.querySelector('[name="' + name + '"]');
+              if (!src) return;
+              if (dest.tagName === 'INPUT') {
+                if (dest.type === 'checkbox') {
+                  dest.checked = src.checked;
+                } else if (dest.type === 'radio') {
+                  dest.checked = src.checked && dest.value === src.value;
+                } else {
+                  dest.value = src.value;
+                }
+              } else {
+                dest.value = src.value;
+              }
+            });
+          }
+
+          // Build gallery from first 4 supplementary photos (skip thumbnail)
+          var galleryRow = clone.querySelector('#print-gallery-row');
+          var thumbImgEl = document.querySelector('.print-thumb-cell img');
+          var thumbId = thumbImgEl ? extractPhotoIdFromSrc(thumbImgEl.getAttribute('src')) : '';
+          var photoItems = document.querySelectorAll('.section.sku-photos .sku-photo-item');
+          var count = 0;
+          photoItems.forEach(function (item) {
+            if (count >= 4) return;
+            if (item.classList.contains('is-preview')) return;
+            var img = item.querySelector('.sku-photo-link img');
+            if (!img) return;
+            var src = img.getAttribute('src') || '';
+            if (!src) return;
+            var photoId = extractPhotoIdFromSrc(src);
+            if (thumbId && photoId && String(photoId) === String(thumbId)) return;
+            var figure = doc.createElement('figure');
+            figure.className = 'print-gallery-item';
+            var gi = doc.createElement('img');
+            gi.src = src;
+            gi.alt = '';
+            figure.appendChild(gi);
+            galleryRow.appendChild(figure);
+            count++;
+          });
+
+          // Generate QR code in the iframe
+          var qrCell = clone.querySelector('.print-qr-cell');
+          if (qrCell) {
+            var sku = qrCell.getAttribute('data-sku') || '';
+            if (sku) {
+              var protocol = window.location.protocol === 'https:' ? 'https' : 'http';
+              var host = window.location.host;
+              var url = protocol + '://' + host + '/intake.php?sku=' + encodeURIComponent(sku);
+              try {
+                new QRCode(qrCell, {
+                  text: url,
+                  width: 120,
+                  height: 120,
+                  colorDark: '#0f172a',
+                  colorLight: '#ffffff',
+                  correctLevel: QRCode.CorrectLevel.H
+                });
+              } catch (e) {}
+            }
+          }
+
+          printRoot.appendChild(clone);
+
           waitForImages(doc, function () {
-            resizeTextareas(doc);
-            fitPrintToSinglePage(doc, printRoot);
             setTimeout(function () {
               try { iframe.contentWindow.focus(); } catch (e) {}
               iframe.contentWindow.print();
