@@ -249,72 +249,6 @@ function ensureArchiveTable(PDO $pdo): void
     }
 }
 
-function iniBytes(string $value): int
-{
-    $value = trim($value);
-    if ($value === '') {
-        return 0;
-    }
-    $last = strtolower(substr($value, -1));
-    $num = (float)$value;
-    switch ($last) {
-        case 'g':
-            $num *= 1024;
-            // no break
-        case 'm':
-            $num *= 1024;
-            // no break
-        case 'k':
-            $num *= 1024;
-    }
-    return (int)$num;
-}
-
-function humanBytes(int $bytes): string
-{
-    if ($bytes >= 1024 * 1024) {
-        return round($bytes / (1024 * 1024), 1) . ' MB';
-    }
-    if ($bytes >= 1024) {
-        return round($bytes / 1024, 1) . ' KB';
-    }
-    return $bytes . ' B';
-}
-
-function normalizeUploadedFiles(array $uploaded): array
-{
-    if (!isset($uploaded['name']) || !is_array($uploaded['name'])) {
-        return [];
-    }
-    $files = [];
-    foreach ($uploaded['name'] as $index => $name) {
-        $files[] = [
-            'name' => (string)$name,
-            'type' => (string)($uploaded['type'][$index] ?? ''),
-            'tmp_name' => (string)($uploaded['tmp_name'][$index] ?? ''),
-            'error' => (int)($uploaded['error'][$index] ?? UPLOAD_ERR_NO_FILE),
-            'size' => (int)($uploaded['size'][$index] ?? 0),
-        ];
-    }
-    return $files;
-}
-
-function sanitizeFilename(string $name): string
-{
-    $name = trim($name);
-    if ($name === '') {
-        return 'photo';
-    }
-    $clean = preg_replace('/[^A-Za-z0-9._-]+/', '_', $name);
-    return trim((string)$clean, '._-') ?: 'photo';
-}
-
-function normalizedSkuDirectory(string $skuNormalized): string
-{
-    $dir = preg_replace('/[^A-Z0-9_-]+/', '_', $skuNormalized);
-    return trim((string)$dir, '_') ?: 'UNASSIGNED';
-}
-
 function loadSkuPhotos(PDO $pdo, string $skuNormalized): array
 {
     if ($skuNormalized === '') {
@@ -581,18 +515,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $photoWarnings[] = $originalDisplayName . ' looked invalid and was skipped.';
                     continue;
                 }
-                $mimeType = detectUploadMimeType((string)$upload['tmp_name'], $originalDisplayName);
-                $extension = ALLOWED_PHOTO_MIME_TYPES[$mimeType] ?? null;
-                if ($extension === null) {
-                    $photoWarnings[] = $originalDisplayName . ' is not JPG/PNG/WEBP/GIF and was skipped.';
-                    continue;
-                }
                 $pendingPhotoUploads[] = [
+                    'name'     => sanitizeFilename($originalDisplayName),
                     'tmp_name' => (string)$upload['tmp_name'],
-                    'mime_type' => $mimeType,
-                    'extension' => $extension,
-                    'original_name' => sanitizeFilename($originalDisplayName),
-                    'file_size' => (int)$upload['size'],
+                    'size'     => (int)$upload['size'],
+                    'error'    => UPLOAD_ERR_OK,
                 ];
             }
         }
@@ -673,33 +600,30 @@ SQL);
             }
 
             if ($pendingPhotoUploads) {
-                $skuPhotoDir = PHOTO_UPLOAD_DIR . '/' . normalizedSkuDirectory($data['sku_normalized']);
-                if (!is_dir($skuPhotoDir) && !mkdir($skuPhotoDir, 0777, true) && !is_dir($skuPhotoDir)) {
-                    $photoWarnings[] = 'Could not create the photo folder for this SKU; item saved without photos.';
-                } else {
-                    $maxSort = $pdo->prepare('SELECT COALESCE(MAX(sort_order), 0) FROM sku_photos WHERE sku_normalized = :sku');
-                    $maxSort->execute(['sku' => $data['sku_normalized']]);
-                    $nextSort = (int)$maxSort->fetchColumn() + 1;
-                    $insertPhotoStmt = $pdo->prepare(<<<'SQL'
+                $maxSort = $pdo->prepare('SELECT COALESCE(MAX(sort_order), 0) FROM sku_photos WHERE sku_normalized = :sku');
+                $maxSort->execute(['sku' => $data['sku_normalized']]);
+                $nextSort = (int)$maxSort->fetchColumn() + 1;
+                $insertPhotoStmt = $pdo->prepare(<<<'SQL'
 INSERT INTO sku_photos (sku_normalized, original_name, stored_name, mime_type, file_size, created_at, sort_order)
 VALUES (:sku_normalized, :original_name, :stored_name, :mime_type, :file_size, datetime('now'), :sort_order);
 SQL);
-                    foreach ($pendingPhotoUploads as $upload) {
-                        $storedName = bin2hex(random_bytes(16)) . '.' . $upload['extension'];
-                        $destination = $skuPhotoDir . '/' . $storedName;
-                        if (!move_uploaded_file($upload['tmp_name'], $destination)) {
-                            $photoWarnings[] = 'A photo could not be saved and was skipped; the item was saved.';
-                            continue;
-                        }
-                        $insertPhotoStmt->execute([
-                            'sku_normalized' => $data['sku_normalized'],
-                            'original_name' => $upload['original_name'],
-                            'stored_name' => $storedName,
-                            'mime_type' => $upload['mime_type'],
-                            'file_size' => $upload['file_size'],
-                            'sort_order' => $nextSort++,
-                        ]);
+                foreach ($pendingPhotoUploads as $upload) {
+                    $result = processUploadedPhoto(
+                        $upload,
+                        $data['sku_normalized']
+                    );
+                    if (!$result['ok']) {
+                        $photoWarnings[] = ($result['message'] ?? 'A photo could not be processed') . '; item was saved.';
+                        continue;
                     }
+                    $insertPhotoStmt->execute([
+                        'sku_normalized' => $data['sku_normalized'],
+                        'original_name' => $upload['name'],
+                        'stored_name' => $result['stored_name'],
+                        'mime_type' => $result['mime_type'],
+                        'file_size' => $result['file_size'],
+                        'sort_order' => $nextSort++,
+                    ]);
                 }
             }
 
@@ -810,11 +734,6 @@ if ($saved) {
 }
 if (isset($_GET['photo_notice']) && trim((string)$_GET['photo_notice']) !== '') {
     $photoWarnings[] = trim((string)$_GET['photo_notice']);
-}
-
-function h(?string $value): string
-{
-    return htmlspecialchars($value ?? '', ENT_QUOTES, 'UTF-8');
 }
 
 function checked(string $name, string $value, array $formData): string

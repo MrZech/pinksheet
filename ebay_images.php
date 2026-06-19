@@ -7,8 +7,6 @@ const EBAI_DB = __DIR__ . '/data/intake.sqlite';
 const IMG_DIR = __DIR__ . '/data/ebay_images';
 const LAYOUT_DIR = __DIR__ . '/data/layouts';
 
-function h(?string $v): string { return htmlspecialchars((string)$v, ENT_QUOTES, 'UTF-8'); }
-
 $currentPage = 'ebay_images';
 $currentSku = normalizeSku((string)($_GET['sku'] ?? ''));
 $recentSkus = [];
