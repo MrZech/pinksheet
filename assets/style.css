@@ -652,6 +652,12 @@ body.dark-mode .form-grid {
   display: none;
 }
 
+/* The full print layout is cloned into the print iframe when printing.
+   Keep it out of the screen layout so it doesn't appear under the actions. */
+.print-grid {
+  display: none;
+}
+
 .new-intake-cta {
   background: var(--palette-teal) !important;
   border-color: var(--palette-teal-hover) !important;
