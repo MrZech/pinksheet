@@ -22,9 +22,9 @@ $thumbs = [];
 $items = $pdo->query("
     SELECT id, sku, sku_normalized, status, what_is_it, notes, updated_at, dispotech_price, reviewed
     FROM intake_items
-    WHERE sku IS NOT NULL AND TRIM(sku) <> ''
+    WHERE sku IS NOT NULL AND sku != ''
     ORDER BY updated_at DESC, id DESC
-    LIMIT 2000
+    LIMIT 500
 ")->fetchAll();
 
 $rowMentionsRefurb = static function (array $row): bool {

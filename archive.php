@@ -70,8 +70,10 @@ $params = [];
 
 if ($q !== '') {
     $prefix = str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], strtolower($q)) . '%';
+    $skuPrefix = str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], strtoupper($q)) . '%';
     $any = '%' . str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], strtolower($q)) . '%';
-    $where[] = '(lower(COALESCE(sku, \'\')) LIKE :q_prefix OR lower(COALESCE(sku_normalized, \'\')) LIKE :q_prefix OR lower(COALESCE(title, \'\')) LIKE :q_prefix OR lower(COALESCE(status, \'\')) LIKE :q_prefix OR lower(COALESCE(source, \'\')) LIKE :q_prefix OR lower(COALESCE(buyer, \'\')) LIKE :q_prefix OR lower(COALESCE(legacy_source, \'\')) LIKE :q_prefix OR lower(COALESCE(legacy_table, \'\')) LIKE :q_prefix OR lower(COALESCE(legacy_id, \'\')) LIKE :q_prefix OR lower(COALESCE(notes, \'\')) LIKE :q_any)';
+    $where[] = '(sku_normalized LIKE :sku_prefix OR lower(COALESCE(sku, \'\')) LIKE :q_prefix OR lower(COALESCE(title, \'\')) LIKE :q_prefix OR lower(COALESCE(status, \'\')) LIKE :q_prefix OR lower(COALESCE(source, \'\')) LIKE :q_prefix OR lower(COALESCE(buyer, \'\')) LIKE :q_prefix OR lower(COALESCE(legacy_source, \'\')) LIKE :q_prefix OR lower(COALESCE(legacy_table, \'\')) LIKE :q_prefix OR lower(COALESCE(legacy_id, \'\')) LIKE :q_prefix OR lower(COALESCE(notes, \'\')) LIKE :q_any)';
+    $params[':sku_prefix'] = $skuPrefix;
     $params[':q_prefix'] = $prefix;
     $params[':q_any'] = $any;
 }
@@ -107,7 +109,9 @@ if ($page > $totalPages) {
 }
 
 $sql = '
-    SELECT *
+    SELECT id, created_at, updated_at, sku, sku_normalized, title, status,
+           sold_at, sold_price, purchase_price, source, buyer, notes,
+           legacy_source, legacy_table, legacy_id
     FROM archive_items
     ' . $whereSql . '
     ORDER BY COALESCE(sold_at, updated_at, created_at) DESC, id DESC
@@ -124,9 +128,9 @@ $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 $distinctFilters = [];
 if ($q === '' && $statusFilter === '' && $sourceFilter === '' && $legacySourceFilter === '' && $soldFrom === '' && $soldTo === '') {
-    $distinctFilters['status'] = $pdo->query("SELECT DISTINCT status FROM archive_items WHERE COALESCE(status, '') <> '' ORDER BY status")->fetchAll(PDO::FETCH_COLUMN);
-    $distinctFilters['legacy_source'] = $pdo->query("SELECT DISTINCT legacy_source FROM archive_items WHERE COALESCE(legacy_source, '') <> '' ORDER BY legacy_source")->fetchAll(PDO::FETCH_COLUMN);
-    $distinctFilters['source'] = $pdo->query("SELECT DISTINCT source FROM archive_items WHERE COALESCE(source, '') <> '' ORDER BY source")->fetchAll(PDO::FETCH_COLUMN);
+    $distinctFilters['status'] = $pdo->query("SELECT DISTINCT status FROM archive_items WHERE status IS NOT NULL AND status != '' ORDER BY status")->fetchAll(PDO::FETCH_COLUMN);
+    $distinctFilters['legacy_source'] = $pdo->query("SELECT DISTINCT legacy_source FROM archive_items WHERE legacy_source IS NOT NULL AND legacy_source != '' ORDER BY legacy_source")->fetchAll(PDO::FETCH_COLUMN);
+    $distinctFilters['source'] = $pdo->query("SELECT DISTINCT source FROM archive_items WHERE source IS NOT NULL AND source != '' ORDER BY source")->fetchAll(PDO::FETCH_COLUMN);
 }
 $statusOptions = $distinctFilters['status'] ?? ['Sold', 'SOLD', 'Archived', 'Closed', 'Listed', 'Open'];
 $legacySources = $distinctFilters['legacy_source'] ?? [];
