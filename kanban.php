@@ -151,7 +151,10 @@ foreach ($items as $item) {
                    data-sku-normalized="<?php echo htmlspecialchars($norm, ENT_QUOTES, 'UTF-8'); ?>">
                 <div class="card-top-row">
                   <?php if ($thumb): ?>
-                    <img class="card-thumb" src="photo.php?id=<?php echo $thumb; ?>" alt="" draggable="false" loading="lazy">
+                    <picture>
+                      <source srcset="photo.php?id=<?php echo $thumb; ?>&format=webp" type="image/webp">
+                      <img class="card-thumb" src="photo.php?id=<?php echo $thumb; ?>" alt="" width="72" height="72" draggable="false" loading="lazy">
+                    </picture>
                   <?php else: ?>
                     <div class="card-thumb card-thumb-empty"></div>
                   <?php endif; ?>
