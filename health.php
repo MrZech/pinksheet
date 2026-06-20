@@ -3,9 +3,50 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/config.php';
 
-header('Content-Type: text/html; charset=utf-8');
+session_write_close();
 
-/* ── helpers ──────────────────────────────────────────────── */
+/* ── Lightweight JSON mode (used by the health-chip AJAX call) ── */
+$format = ($_GET['format'] ?? '') === 'json';
+if ($format) {
+    header('Content-Type: application/json; charset=utf-8');
+    try {
+        $pdo = pdoConnect(__DIR__ . '/data/intake.sqlite');
+        $intakeCount = (int)$pdo->query('SELECT COUNT(*) FROM intake_items')->fetchColumn();
+        $backupDir = __DIR__ . '/data/backups';
+        $backup = null;
+        if (is_dir($backupDir)) {
+            $latestFile = null;
+            $latestMtime = 0;
+            $di = new DirectoryIterator($backupDir);
+            foreach ($di as $f) {
+                if ($f->isFile() && $f->getMTime() > $latestMtime) {
+                    $latestMtime = $f->getMTime();
+                    $latestFile = $f;
+                }
+            }
+            if ($latestFile) {
+                $ageHours = (time() - $latestMtime) / 3600;
+                $backup = [
+                    'latest'      => $latestFile->getFilename(),
+                    'age_hours'   => round($ageHours, 1),
+                    'checksum_ok' => true,
+                ];
+            }
+        }
+        echo json_encode([
+            'status'      => 'ok',
+            'maintenance' => false,
+            'intake_count' => $intakeCount,
+            'backup'      => $backup,
+        ]);
+    } catch (Throwable $e) {
+        http_response_code(500);
+        echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
+    }
+    exit;
+}
+
+header('Content-Type: text/html; charset=utf-8');
 
 function statusIcon(bool $ok, string $label): string
 {

@@ -145,6 +145,9 @@ function buildArchiveUrl(array $overrides = []): string
     }
     return 'archive.php' . ($query ? '?' . http_build_query($query) : '');
 }
+
+$csrfToken = csrf_token();
+session_write_close();
 ?>
 <!doctype html>
 <html lang="en">
@@ -152,13 +155,13 @@ function buildArchiveUrl(array $overrides = []): string
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Archive - Dispo.Tech</title>
-  <link rel="stylesheet" href="assets/style.css?v=<?= filemtime('assets/style.css') ?>">
-  <script src="assets/menu.js?v=<?= filemtime('assets/menu.js') ?>" defer></script>
-  <link rel="stylesheet" media="print" href="assets/print.css?v=<?= filemtime('assets/print.css') ?>">
-  <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
-  <script>window.CSRF_TOKEN = <?= json_encode(csrf_token()) ?>;</script>
-  <script src="assets/theme.js?v=<?= filemtime('assets/theme.js') ?>" defer></script>
-  <script src="assets/app.js?v=<?= filemtime('assets/app.js') ?>"></script>
+  <link rel="stylesheet" href="assets/style.css?v=<?= getAssetVersion() ?>">
+  <script src="assets/menu.js?v=<?= getAssetVersion() ?>" defer></script>
+  <link rel="stylesheet" media="print" href="assets/print.css?v=<?= getAssetVersion() ?>">
+  <link rel="icon" type="image/svg+xml" href="assets/favicon.svg?v=2">
+  <script>window.CSRF_TOKEN = <?= json_encode($csrfToken) ?>;</script>
+  <script src="assets/theme.js?v=<?= getAssetVersion() ?>" defer></script>
+  <script src="assets/app.js?v=<?= getAssetVersion() ?>" defer></script>
 </head>
 <body class="archive-page">
   <div class="layout-wrapper">
