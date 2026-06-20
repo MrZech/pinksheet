@@ -261,8 +261,6 @@ $copySkuPrefill = trim($_GET['copy_sku'] ?? '');
 if ($lookupStatus !== '' && !in_array($lookupStatus, $statusOptions, true)) {
     $lookupStatus = '';
 }
-$bulkErrors = [];
-$bulkMessage = '';
 $deleteMessage = isset($_GET['deleted']) ? (int)$_GET['deleted'] : null;
 $clearDraft = isset($_GET[CLEAR_DRAFT_PARAM]);
 logLookup($lookupSku, $lookupStatus);
@@ -321,64 +319,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit;
     }
 
-    if (!empty($_POST['bulk_delete'])) {
-        $bulkIds = array_values(array_unique(array_map('intval', (array)($_POST['bulk_ids'] ?? []))));
-        $bulkIds = array_filter($bulkIds, static fn ($id): bool => $id > 0);
-        if (!$bulkIds) {
-            $bulkErrors[] = 'Select at least one SKU from the table.';
-        }
-        if (!$bulkErrors) {
-            $placeholders = implode(',', array_fill(0, count($bulkIds), '?'));
-            $pdo->beginTransaction();
-            ensureArchiveTable($pdo);
-            // Archive rows first
-            $fetch = $pdo->prepare("SELECT * FROM intake_items WHERE id IN ($placeholders)");
-            $fetch->execute($bulkIds);
-            $rows = $fetch->fetchAll(PDO::FETCH_ASSOC);
-            if ($rows) {
-                $now = (new DateTime('now'))->format('c');
-                foreach ($rows as $row) {
-                    $row['deleted_at'] = $now;
-                    $cols = array_keys($row);
-                    $placeVals = array_map(static fn($c) => ':' . $c, $cols);
-                    $sql = 'INSERT INTO intake_deleted (' . implode(',', $cols) . ') VALUES (' . implode(',', $placeVals) . ')';
-                    $insert = $pdo->prepare($sql);
-                    $insert->execute($row);
-                }
-            }
-            $stmt = $pdo->prepare("DELETE FROM intake_items WHERE id IN ($placeholders)");
-            $stmt->execute($bulkIds);
-            $pdo->commit();
-            $bulkMessage = 'Deleted ' . $stmt->rowCount() . ' record' . ($stmt->rowCount() === 1 ? '' : 's') . ' (archived for undo).';
-        }
-        $saved = false;
-        $errors = [];
-    } elseif (!empty($_POST['bulk_update'])) {
-        $bulkStatus = trim($_POST['bulk_status'] ?? '');
-        $bulkIds = array_values(array_unique(array_map('intval', (array)($_POST['bulk_ids'] ?? []))));
-        $bulkIds = array_filter($bulkIds, static fn ($id): bool => $id > 0);
-        if ($bulkStatus === '' || !in_array($bulkStatus, $statusOptions, true)) {
-            $bulkErrors[] = 'Please pick a valid status for the bulk update.';
-        }
-        if (!$bulkIds) {
-            $bulkErrors[] = 'Select at least one SKU from the table.';
-        }
-        if (!$bulkErrors) {
-            $placeholders = implode(',', array_fill(0, count($bulkIds), '?'));
-            $skuFetch = $pdo->prepare("SELECT sku_normalized FROM intake_items WHERE id IN ($placeholders)");
-            $skuFetch->execute($bulkIds);
-            $bulkSkus = array_filter(array_map('strval', $skuFetch->fetchAll(PDO::FETCH_COLUMN)));
-            $stmt = $pdo->prepare("UPDATE intake_items SET status = ?, updated_at = datetime('now') WHERE id IN ($placeholders)");
-            $params = array_merge([$bulkStatus], $bulkIds);
-            $stmt->execute($params);
-            foreach ($bulkSkus as $bulkSku) {
-                squareSyncItemBySku($pdo, $bulkSku);
-            }
-            $bulkMessage = 'Updated ' . count($bulkIds) . ' SKU' . (count($bulkIds) === 1 ? '' : 's') . ' to ' . $bulkStatus . '.';
-        }
-        $saved = false;
-        $errors = [];
-    } else {
         $id = isset($_POST['id']) ? (int)$_POST['id'] : null;
         $sku = trim($_POST['sku'] ?? '');
         $priceRaw = $_POST['price'] ?? ($_POST['dispotech_price'] ?? ($_POST['ebay_price'] ?? ''));
@@ -576,67 +516,8 @@ SQL);
                 exit;
             }
         }
-    }
 }
 
-$recent = [];
-if ($lookupStatus !== '') {
-    $recentStmt = $pdo->prepare('SELECT * FROM intake_items WHERE status = :status ORDER BY updated_at DESC, id DESC LIMIT 100');
-    $recentStmt->execute(['status' => $lookupStatus]);
-    $recent = $recentStmt->fetchAll(PDO::FETCH_ASSOC);
-} else {
-    $recent = $pdo->query('SELECT * FROM intake_items ORDER BY id DESC LIMIT 25')->fetchAll(PDO::FETCH_ASSOC);
-}
-$recentThumbnails = [];
-$recentSkuNorms = array_values(array_unique(array_filter(array_map(
-    static fn($i) => normalizeSku(trim((string)($i['sku'] ?? ''))),
-    $recent
-), static fn($s) => $s !== '')));
-if ($recentSkuNorms) {
-    $placeholders = implode(',', array_fill(0, count($recentSkuNorms), '?'));
-    $photoStmt = $pdo->prepare("
-        SELECT sku_normalized, id
-        FROM sku_photos
-        WHERE sku_normalized IN ($placeholders)
-        ORDER BY is_thumb DESC, id DESC
-    ");
-    $photoStmt->execute($recentSkuNorms);
-    foreach ($photoStmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
-        $sn = (string)$row['sku_normalized'];
-        if ($sn && !isset($recentThumbnails[$sn])) {
-            $recentThumbnails[$sn] = (int)$row['id'];
-        }
-    }
-}
-
-// Build a map of sku_normalized => script status for the recent items table.
-// Possible values: 'final' (full script), 'draft' (chatgpt text only), 'prompt' (prompt only), '' (none).
-$recentScriptStatus = [];
-if ($recent) {
-    $recentSkuNorms = array_values(array_filter(array_unique(array_map(
-        static fn($i) => normalizeSku(trim((string)($i['sku'] ?? ''))),
-        $recent
-    )), static fn($s) => $s !== ''));
-    if ($recentSkuNorms) {
-        $placeholders = implode(',', array_fill(0, count($recentSkuNorms), '?'));
-        $draftStmt = $pdo->prepare("SELECT sku_normalized, payload FROM intake_drafts WHERE sku_normalized IN ($placeholders)");
-        $draftStmt->execute($recentSkuNorms);
-        foreach ($draftStmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
-            $sn = (string)$row['sku_normalized'];
-            $payload = json_decode((string)$row['payload'], true);
-            if (!is_array($payload)) {
-                continue;
-            }
-            if (!empty($payload['final_output'])) {
-                $recentScriptStatus[$sn] = 'final';
-            } elseif (!empty($payload['chatgpt_output'])) {
-                $recentScriptStatus[$sn] = 'draft';
-            } elseif (!empty($payload['prompt_output'])) {
-                $recentScriptStatus[$sn] = 'prompt';
-            }
-        }
-    }
-}
 $formData = $_POST;
 if (!$formData && $currentItem) {
     $formData = $currentItem;
@@ -687,6 +568,7 @@ function checked(string $name, string $value, array $formData): string
   <script>window.CSRF_TOKEN = <?= json_encode(csrf_token()) ?>;</script>
   <script src="assets/theme.js?v=<?= getAssetVersion() ?>" defer></script>
   <script src="assets/app.js?v=<?= getAssetVersion() ?>" defer></script>
+  <script src="assets/nav.js?v=<?= getAssetVersion() ?>" defer></script>
   <script src="assets/qz-tray.js?v=<?= getAssetVersion() ?>" defer></script>
   <style>
     :root {
@@ -813,12 +695,6 @@ function checked(string $name, string $value, array $formData): string
       data-message="<?php echo h($toastMessage); ?>">
     </div>
 
-    <!-- Undo toast for item deletes -->
-    <div id="intake-undo-toast" class="intake-undo-toast" role="status" aria-live="polite">
-      <span id="intake-undo-msg">Item deleted</span>
-      <button type="button" id="intake-undo-btn">Undo</button>
-      <div class="intake-undo-progress" id="intake-undo-progress"></div>
-    </div>
     <section class="sheet intake">
       <div class="sheet-scale" id="sheet-scale">
         <div class="sheet-content" id="sheet-content">
@@ -1245,155 +1121,6 @@ function checked(string $name, string $value, array $formData): string
 
       </div>
 
-      <section class="section recent-items">
-        <h2><?php echo $lookupStatus !== '' ? 'Status Results' : 'Recent SKUs'; ?></h2>
-        <form class="form-grid" method="get" action="intake.php">
-          <div class="row">
-            <label>SKU
-              <input type="text" name="sku" value="<?php echo h($lookupSku); ?>">
-            </label>
-            <label>Status
-              <select name="status">
-                <option value="">Any status</option>
-                <?php foreach ($statusOptions as $opt): ?>
-                  <option value="<?php echo $opt; ?>" <?php echo $lookupStatus === $opt ? 'selected' : ''; ?>><?php echo $opt; ?></option>
-                <?php endforeach; ?>
-              </select>
-            </label>
-          </div>
-            <div class="actions">
-            <button type="submit">Search</button>
-            <a class="button-link" href="intake.php?clear_draft=1" data-new-intake>Clear</a>
-          </div>
-        </form>
-        <?php if ($bulkErrors): ?>
-          <div class="error-box">
-            <?php foreach ($bulkErrors as $error): ?>
-              <p class="error"><?php echo h($error); ?></p>
-            <?php endforeach; ?>
-          </div>
-        <?php elseif ($bulkMessage): ?>
-          <p class="success"><?php echo h($bulkMessage); ?></p>
-        <?php endif; ?>
-        <form id="undo-delete-form" method="post" action="undo_delete.php" class="visually-hidden"><?= csrf_field() ?></form>
-        <form id="bulk-form" method="post"><?= csrf_field() ?>
-          <div class="bulk-actions">
-            <label>
-              Set selected to
-              <select name="bulk_status">
-                <option value="">Choose status</option>
-                <?php foreach ($statusOptions as $opt): ?>
-                  <option value="<?php echo $opt; ?>"><?php echo $opt; ?></option>
-                <?php endforeach; ?>
-              </select>
-            </label>
-            <button type="submit" name="bulk_update" value="1">Apply to selected</button>
-            <input type="hidden" name="bulk_delete" id="bulk-delete-flag" value="">
-            <button type="button" class="ghost danger" id="bulk-delete-button">Delete selected</button>
-            <button type="submit" form="undo-delete-form" class="ghost">Undo last delete</button>
-            <span class="hint">Check boxes in the table, then update that status in bulk. You can undo the most recent delete.</span>
-          </div>
-            <div class="table-wrap">
-            <div class="table-responsive-wrapper">
-            <table class="inventory-main-table">
-              <thead>
-                <tr>
-                  <th>Select</th>
-                  <th>Photo</th>
-                  <th>SKU</th>
-                  <th>Status</th>
-                  <th>What is it?</th>
-                  <th>Price</th>
-                  <th>Updated</th>
-                  <th>Open</th>
-                  <th>Prompt</th>
-                  <th>Delete</th>
-                </tr>
-              </thead>
-              <tbody>
-                <?php if (!$recent): ?>
-                  <tr>
-                    <td colspan="10">No items found for this lookup.</td>
-                  </tr>
-                <?php else: ?>
-                  <?php foreach ($recent as $item): ?>
-                    <tr>
-                      <td class="bulk-checkbox-cell">
-                        <label class="bulk-checkbox">
-                          <input type="checkbox" name="bulk_ids[]" value="<?php echo isset($item['id']) ? (int)$item['id'] : 0; ?>">
-                          <span></span>
-                        </label>
-                      </td>
-                      <td class="thumb-cell">
-                        <?php
-                          $skuNormRow = normalizeSku(trim((string)($item['sku'] ?? '')));
-                          $thumbId = $recentThumbnails[$skuNormRow] ?? null;
-                        ?>
-                        <?php if ($thumbId): ?>
-                          <a class="thumb" href="photo.php?id=<?php echo $thumbId; ?>" target="_blank" rel="noopener">
-                            <img src="photo.php?id=<?php echo $thumbId; ?>" alt="Photo for <?php echo h($item['sku'] ?? 'SKU'); ?>">
-                          </a>
-                        <?php else: ?>
-                          <span class="thumb placeholder" title="No photo added">No photo</span>
-                        <?php endif; ?>
-                      </td>
-                      <td><?php echo h($item['sku'] ?? ''); ?></td>
-                      <td>
-                        <select class="js-inline-status" data-sku="<?php echo h($item['sku'] ?? ''); ?>">
-                          <option value="">Set status</option>
-                          <?php foreach ($statusOptions as $opt): ?>
-                            <option value="<?php echo $opt; ?>" <?php echo (($item['status'] ?? '') === $opt) ? 'selected' : ''; ?>><?php echo $opt; ?></option>
-                          <?php endforeach; ?>
-                        </select>
-                      </td>
-                      <td><?php echo h($item['what_is_it'] ?? ''); ?></td>
-                      <?php $rowPrice = isset($item['dispotech_price']) ? $item['dispotech_price'] : ($item['ebay_price'] ?? null); ?>
-                      <td><input type="number" step="0.01" class="js-inline-price" data-field="price" data-sku="<?php echo h($item['sku'] ?? ''); ?>" value="<?php echo isset($rowPrice) ? h((string)$rowPrice) : ''; ?>" placeholder="—"></td>
-                      <td><?php echo h($item['updated_at'] ?? ''); ?></td>
-                      <td><a class="open-link" href="intake.php?sku=<?php echo urlencode((string)($item['sku'] ?? '')); ?>">Open</a></td>
-                      <td>
-                        <?php
-                          $rowSkuNorm = normalizeSku(trim((string)($item['sku'] ?? '')));
-                          $scriptState = $recentScriptStatus[$rowSkuNorm] ?? '';
-                          if ($scriptState === 'final') {
-                              $scriptDot   = '🟢';
-                              $scriptLabel = 'Script ready';
-                              $scriptTitle = 'Final eBay script saved';
-                          } elseif ($scriptState === 'draft') {
-                              $scriptDot   = '🟡';
-                              $scriptLabel = 'Draft';
-                              $scriptTitle = 'ChatGPT draft saved, no final script yet';
-                          } elseif ($scriptState === 'prompt') {
-                              $scriptDot   = '🔵';
-                              $scriptLabel = 'Prompt only';
-                              $scriptTitle = 'Prompt saved, no ChatGPT response yet';
-                          } else {
-                              $scriptDot   = '⚪';
-                              $scriptLabel = 'No script';
-                              $scriptTitle = 'No script started yet';
-                          }
-                        ?>
-                        <a class="open-link script-status-link" href="prompt_builder.php?sku=<?php echo urlencode((string)($item['sku'] ?? '')); ?>" title="<?php echo h($scriptTitle); ?>">
-                          <span aria-hidden="true"><?php echo $scriptDot; ?></span> <?php echo h($scriptLabel); ?>
-                        </a>
-                      </td>
-                      <td>
-                        <button type="button"
-                                class="ghost danger js-delete-item"
-                                data-sku="<?php echo h($item['sku'] ?? ''); ?>"
-                                data-id="<?php echo isset($item['id']) ? (int)$item['id'] : 0; ?>">
-                          Delete
-                        </button>
-                      </td>
-                    </tr>
-                  <?php endforeach; ?>
-                <?php endif; ?>
-              </tbody>
-            </table>
-          </div>
-          </div>
-        </form>
-      </section>
         </div>
       </div>
     </section>
@@ -1651,78 +1378,6 @@ function checked(string $name, string $value, array $formData): string
       var findSkuQuery = document.getElementById('find-sku-query');
       var findSkuResults = document.getElementById('find-sku-results');
       var copySkuPrefill = '<?php echo h($copySkuPrefill); ?>';
-      var inlineStatuses = document.querySelectorAll('.js-inline-status');
-      var inlinePrices = document.querySelectorAll('.js-inline-price');
-      var deleteForm = null;
-      var deleteInputId = null;
-      var deleteInputSku = null;
-      var recentDeleteForm = document.createElement('form');
-      recentDeleteForm.method = 'post';
-      recentDeleteForm.action = 'delete_item.php';
-      recentDeleteForm.className = 'visually-hidden';
-      deleteInputId = document.createElement('input');
-      deleteInputId.type = 'hidden';
-      deleteInputId.name = 'id';
-      deleteInputSku = document.createElement('input');
-      deleteInputSku.type = 'hidden';
-      deleteInputSku.name = 'sku';
-      var deleteConfirm = document.createElement('input');
-      deleteConfirm.type = 'hidden';
-      deleteConfirm.name = 'confirm';
-      deleteConfirm.value = 'DELETE';
-      recentDeleteForm.appendChild(deleteInputId);
-      recentDeleteForm.appendChild(deleteInputSku);
-      recentDeleteForm.appendChild(deleteConfirm);
-      document.body.appendChild(recentDeleteForm);
-      var bulkDeleteBtn = document.getElementById('bulk-delete-button');
-      var bulkDeleteFlag = document.getElementById('bulk-delete-flag');
-      var bulkForm = document.getElementById('bulk-form');
-      var undoDeleteForm = document.getElementById('undo-delete-form');
-      var restoreDeletedRow = function (newId) {
-        if (!lastDeletedRowHTML || !recentTableBody) return;
-        var temp = document.createElement('tbody');
-        temp.innerHTML = lastDeletedRowHTML;
-        var tr = temp.firstElementChild;
-        if (tr) {
-          if (newId) {
-            tr.querySelectorAll('[data-id]').forEach(function (el) {
-              el.setAttribute('data-id', String(newId));
-            });
-          }
-          recentTableBody.insertBefore(tr, recentTableBody.firstChild);
-          tr.style.transition = 'opacity 200ms ease';
-          tr.style.opacity = '0';
-          requestAnimationFrame(function () { tr.style.opacity = '1'; });
-        }
-      };
-
-      var intakeUndoing = false;
-      if (undoDeleteForm) {
-        undoDeleteForm.addEventListener('submit', function (evt) {
-          evt.preventDefault();
-          if (intakeUndoing) return;
-          intakeUndoing = true;
-          fetch('undo_delete.php', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: 'csrf_token=' + encodeURIComponent(window.CSRF_TOKEN)
-          })
-            .then(function (r) { return r.json(); })
-            .then(function (data) {
-              intakeUndoing = false;
-              if (data && data.status === 'ok') {
-                restoreDeletedRow(data.new_id);
-                showToast('Restored ' + (data.restored_sku || 'item'));
-              } else {
-                alert(data && data.message ? data.message : 'Undo failed. Please retry.');
-              }
-            })
-            .catch(function () {
-              intakeUndoing = false;
-              alert('Undo failed. Please retry.');
-            });
-        });
-      }
         var applyDraftObject = function (draft) {
           if (!draft) return;
           Object.keys(draft).forEach(function (name) {
@@ -1910,65 +1565,6 @@ function checked(string $name, string $value, array $formData): string
           copySkuStatus.classList.remove('ok', 'warn', 'err');
           if (tone) copySkuStatus.classList.add(tone);
         };
-        var lastDeletedRowHTML = null;
-        var recentTableBody = document.querySelector('.section.recent-items table tbody');
-        if (recentTableBody) {
-          recentTableBody.addEventListener('click', function (e) {
-            var btn = e.target.closest('.js-delete-item');
-            if (!btn) return;
-            var id = btn.getAttribute('data-id');
-            var sku = (btn.getAttribute('data-sku') || '').toUpperCase();
-            if (!id || !sku) return;
-            if (!confirm('Delete SKU ' + sku + '? You can undo immediately after.')) return;
-
-            var row = btn.closest('tr');
-            if (row) lastDeletedRowHTML = row.outerHTML;
-
-            fetch('delete_item.php', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-                'X-Requested-With': 'XMLHttpRequest'
-              },
-              body: 'id=' + encodeURIComponent(id) + '&sku=' + encodeURIComponent(sku) + '&confirm=DELETE&csrf_token=' + encodeURIComponent(window.CSRF_TOKEN)
-            })
-              .then(function (r) { return r.json(); })
-              .then(function (data) {
-                if (data.status === 'ok') {
-                  if (row) {
-                    row.style.transition = 'opacity 180ms ease';
-                    row.style.opacity = '0';
-                    setTimeout(function () { if (row.parentNode) row.parentNode.removeChild(row); }, 190);
-                  }
-                  showIntakeUndoToast(sku);
-                } else {
-                  alert('Delete failed: ' + (data.message || 'unknown error'));
-                }
-              })
-              .catch(function () {
-                alert('Delete failed — please reload.');
-              });
-          });
-        }
-
-        if (bulkDeleteBtn && bulkDeleteFlag && bulkForm) {
-          bulkDeleteBtn.addEventListener('click', function () {
-            var checked = bulkForm.querySelectorAll('input[name="bulk_ids[]"]:checked');
-            if (!checked.length) {
-              alert('Select at least one row to delete.');
-              return;
-            }
-            var first = confirm('Delete ' + checked.length + ' record(s)? This will not delete photos.');
-            if (!first) return;
-            var second = prompt('Type DELETE to confirm bulk delete');
-            if (!second || second.toUpperCase() !== 'DELETE') {
-              alert('Bulk delete canceled.');
-              return;
-            }
-            bulkDeleteFlag.value = '1';
-            bulkForm.submit();
-          });
-        }
         form.addEventListener('submit', function (event) {
           var skuField = form.querySelector('[name="sku"]');
           var sku = ((skuField || {}).value || '').trim().toUpperCase();
@@ -2528,82 +2124,6 @@ function checked(string $name, string $value, array $formData): string
           });
         }
       })();
-      var refreshRowTimestamp = function (el, serverTime) {
-        if (serverTime) {
-          var row = el && el.closest('tr');
-          if (!row) return;
-          var cells = row.cells;
-          for (var i = 0; i < cells.length; i++) {
-            if (cells[i].textContent && cells[i].textContent.match(/^\d{4}-\d{2}-\d{2}/)) {
-              cells[i].textContent = serverTime;
-              break;
-            }
-          }
-          return;
-        }
-        var row = el && el.closest('tr');
-        if (!row) return;
-        var cells = row.cells;
-        for (var i = 0; i < cells.length; i++) {
-          if (cells[i].textContent && cells[i].textContent.match(/^\d{4}-\d{2}-\d{2}/)) {
-            var now = new Date();
-            var pad = function (n) { return String(n).padStart(2, '0'); };
-            cells[i].textContent = now.getFullYear() + '-' + pad(now.getMonth() + 1) + '-' + pad(now.getDate()) + ' ' + pad(now.getHours()) + ':' + pad(now.getMinutes()) + ':' + pad(now.getSeconds());
-            break;
-          }
-        }
-      };
-      var refreshRowCell = function (row, field, value) {
-        if (!row) return;
-        // Update the displayed value in the row cells after a save
-        if (field === 'status' || field === 'price') {
-          var cells = row.cells;
-          for (var i = 0; i < cells.length; i++) {
-            var sel = cells[i].querySelector('.js-inline-status');
-            if (sel && field === 'status') {
-              sel.value = value;
-              continue;
-            }
-            var inp = cells[i].querySelector('.js-inline-price');
-            if (inp && field === 'price') {
-              inp.value = value;
-              continue;
-            }
-          }
-        }
-      };
-      var inlineUpdate = function (el, sku, field, value) {
-        fetch('update_item.php', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-          body: 'sku=' + encodeURIComponent(sku) + '&field=' + encodeURIComponent(field) + '&value=' + encodeURIComponent(value) + '&csrf_token=' + encodeURIComponent(window.CSRF_TOKEN)
-        })
-          .then(function (r) { return r.json(); })
-          .then(function (data) {
-            if (data.ok) {
-              var row = el && el.closest('tr');
-              refreshRowTimestamp(el, data.updated_at);
-              refreshRowCell(row, field, value);
-              showToast('Updated ' + field);
-            } else {
-              showToast('Update failed: ' + (data.error || 'error'));
-            }
-          })
-          .catch(function () { showToast('Update failed'); });
-      };
-      inlineStatuses.forEach(function (sel) {
-        sel.addEventListener('change', function () {
-          var sku = sel.getAttribute('data-sku') || '';
-          inlineUpdate(sel, sku, 'status', sel.value);
-        });
-      });
-      inlinePrices.forEach(function (input) {
-        input.addEventListener('change', function () {
-          var sku = input.getAttribute('data-sku') || '';
-          var field = input.getAttribute('data-field') || '';
-          inlineUpdate(input, sku, field, input.value);
-        });
-      });
 
       // Compatible OS quick-select buttons
       var compatOsInput = document.getElementById('compatible-os-input');
@@ -2729,64 +2249,6 @@ function checked(string $name, string $value, array $formData): string
         }, 4200);
       };
 
-      // Undo toast for intake page deletes
-      var intakeUndoToast = document.getElementById('intake-undo-toast');
-      var intakeUndoMsg = document.getElementById('intake-undo-msg');
-      var intakeUndoBtn = document.getElementById('intake-undo-btn');
-      var intakeUndoProgress = document.getElementById('intake-undo-progress');
-      var intakeUndoTimer = null;
-      var INTAKE_UNDO_DURATION = 6000;
-
-      var hideIntakeUndoToast = function () {
-        if (intakeUndoToast) intakeUndoToast.classList.remove('toast-visible');
-        clearTimeout(intakeUndoTimer);
-      };
-
-      var showIntakeUndoToast = function (skuLabel) {
-        if (!intakeUndoToast) return;
-        if (intakeUndoMsg) intakeUndoMsg.textContent = 'Deleted ' + skuLabel;
-        intakeUndoToast.classList.add('toast-visible');
-        if (intakeUndoProgress) {
-          intakeUndoProgress.style.transition = 'none';
-          intakeUndoProgress.style.transform = 'scaleX(1)';
-          intakeUndoProgress.getBoundingClientRect();
-          intakeUndoProgress.style.transition = 'transform ' + INTAKE_UNDO_DURATION + 'ms linear';
-          intakeUndoProgress.style.transform = 'scaleX(0)';
-        }
-        clearTimeout(intakeUndoTimer);
-        intakeUndoTimer = setTimeout(hideIntakeUndoToast, INTAKE_UNDO_DURATION);
-      };
-
-      var intakeBtnUndoing = false;
-      if (intakeUndoBtn) {
-        intakeUndoBtn.addEventListener('click', function () {
-          if (intakeBtnUndoing) return;
-          intakeBtnUndoing = true;
-          intakeUndoBtn.disabled = true;
-          hideIntakeUndoToast();
-          fetch('undo_delete.php', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: 'csrf_token=' + encodeURIComponent(window.CSRF_TOKEN)
-          })
-            .then(function (r) { return r.json(); })
-            .then(function (data) {
-              intakeBtnUndoing = false;
-              intakeUndoBtn.disabled = false;
-              if (data.status === 'ok') {
-                restoreDeletedRow(data.new_id);
-                showToast('Restored ' + (data.restored_sku || 'item'));
-              } else {
-                alert(data && data.message ? data.message : 'Nothing to undo.');
-              }
-            })
-            .catch(function () {
-              intakeBtnUndoing = false;
-              intakeUndoBtn.disabled = false;
-              alert('Undo failed. Please retry.');
-            });
-        });
-      }
       if (toastElement && toastElement.dataset.active === '1') {
         var toastMessage = (toastElement.dataset.message || '').trim();
         if (toastMessage !== '') {

@@ -65,6 +65,7 @@ session_write_close();
   <script>window.CSRF_TOKEN = <?= json_encode($csrfToken) ?>;</script>
   <script src="assets/theme.js?v=<?= getAssetVersion() ?>" defer></script>
   <script src="assets/app.js?v=<?= getAssetVersion() ?>" defer></script>
+  <script src="assets/nav.js?v=<?= getAssetVersion() ?>" defer></script>
   <script src="assets/qz-tray.js?v=<?= getAssetVersion() ?>" defer></script>
 </head>
 <body class="home prompt-page">

@@ -142,6 +142,7 @@ $queryLabel = $q !== '' ? ' results for "' . $q . '"' : ' archive items';
 function buildArchiveUrl(array $overrides = []): string
 {
     $query = array_merge($_GET, $overrides);
+    unset($query['partial']);
     foreach ($query as $key => $value) {
         if ($value === null || $value === '') {
             unset($query[$key]);
@@ -152,6 +153,9 @@ function buildArchiveUrl(array $overrides = []): string
 
 $csrfToken = csrf_token();
 session_write_close();
+
+$isPartial = ($_GET['partial'] ?? '') === '1';
+if (!$isPartial):
 ?>
 <!doctype html>
 <html lang="en">
@@ -166,6 +170,7 @@ session_write_close();
   <script>window.CSRF_TOKEN = <?= json_encode($csrfToken) ?>;</script>
   <script src="assets/theme.js?v=<?= getAssetVersion() ?>" defer></script>
   <script src="assets/app.js?v=<?= getAssetVersion() ?>" defer></script>
+  <script src="assets/nav.js?v=<?= getAssetVersion() ?>" defer></script>
 </head>
 <body class="archive-page">
   <div class="layout-wrapper">
@@ -185,6 +190,8 @@ session_write_close();
         </ul>
       </nav>
     </div>
+  <div id="content-area">
+<?php endif; /* end outer shell */ ?>
   <main class="page">
     <section class="sheet archive-sheet">
       <header class="sheet-header">
@@ -333,6 +340,9 @@ session_write_close();
       </section>
     </section>
   </main>
-
+<?php if (!$isPartial): ?>
+  </div> <!-- /content-area -->
+  </div> <!-- /layout-wrapper -->
 </body>
 </html>
+<?php endif; ?>
