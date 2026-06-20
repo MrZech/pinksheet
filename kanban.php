@@ -93,6 +93,9 @@ foreach ($items as $item) {
 
 $csrfToken = csrf_token();
 session_write_close();
+
+$isPartial = ($_GET['partial'] ?? '') === '1';
+if (!$isPartial):
 ?>
 <!doctype html>
 <html lang="en">
@@ -106,6 +109,7 @@ session_write_close();
   <script src="assets/theme.js?v=<?= getAssetVersion() ?>" defer></script>
   <script src="assets/app.js?v=<?= getAssetVersion() ?>" defer></script>
   <script src="assets/qz-tray.js?v=<?= getAssetVersion() ?>" defer></script>
+  <script src="assets/nav.js?v=<?= getAssetVersion() ?>" defer></script>
 </head>
 <body class="home status-board">
   <div class="layout-wrapper">
@@ -125,6 +129,8 @@ session_write_close();
         </ul>
       </nav>
     </div>
+  <div id="content-area">
+<?php endif; /* end outer shell */ ?>
   <main class="page">
     <section class="sheet kanban-shell">
       <header class="sheet-header">
@@ -779,6 +785,9 @@ session_write_close();
     document.body.appendChild(s2);
   }, 1);
   </script>
-  </div>
+<?php if (!$isPartial): ?>
+  </div> <!-- /content-area -->
+  </div> <!-- /layout-wrapper -->
 </body>
 </html>
+<?php endif; ?>
