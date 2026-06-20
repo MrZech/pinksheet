@@ -97,29 +97,6 @@ CREATE TABLE IF NOT EXISTS sku_photos (
 SQL);
 $pdo->exec("CREATE INDEX IF NOT EXISTS idx_sku_photos_sku_normalized ON sku_photos (sku_normalized)");
 
-try {
-    $pdo->exec("ALTER TABLE sku_photos ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0");
-} catch (Throwable $e) {
-    // ignore if exists
-}
-
-$columns = $pdo->query("PRAGMA table_info(intake_items)")->fetchAll(PDO::FETCH_ASSOC);
-$columnNames = array_map(static fn(array $column): string => (string)$column['name'], $columns);
-if (!in_array('sku_normalized', $columnNames, true)) {
-    $pdo->exec('ALTER TABLE intake_items ADD COLUMN sku_normalized TEXT');
-}
-if (!in_array('os', $columnNames, true)) {
-    $pdo->exec('ALTER TABLE intake_items ADD COLUMN os TEXT');
-}
-if (!in_array('diagnostics_test_ran', $columnNames, true)) {
-    $pdo->exec('ALTER TABLE intake_items ADD COLUMN diagnostics_test_ran INTEGER NOT NULL DEFAULT 0');
-}
-if (!in_array('wifi_card_installed', $columnNames, true)) {
-    $pdo->exec('ALTER TABLE intake_items ADD COLUMN wifi_card_installed INTEGER NOT NULL DEFAULT 0');
-}
-if (!in_array('compatible_os', $columnNames, true)) {
-    $pdo->exec('ALTER TABLE intake_items ADD COLUMN compatible_os TEXT');
-}
 $pdo->exec("CREATE INDEX IF NOT EXISTS idx_intake_items_sku_normalized ON intake_items (sku_normalized)");
 $pdo->exec("CREATE INDEX IF NOT EXISTS idx_intake_items_status ON intake_items (status)");
 $pdo->exec("CREATE INDEX IF NOT EXISTS idx_intake_items_updated_at ON intake_items (updated_at)");
@@ -130,26 +107,6 @@ if ($schemaVersion < 1) {
     $pdo->exec('PRAGMA user_version = 1');
 }
 $pdo->exec("CREATE TABLE IF NOT EXISTS intake_deleted AS SELECT * FROM intake_items WHERE 0");
-$archiveColumns = [];
-foreach ($pdo->query("PRAGMA table_info(intake_deleted)") as $col) {
-    $archiveColumns[(string)$col['name']] = true;
-}
-foreach ($pdo->query("PRAGMA table_info(intake_items)") as $col) {
-    $name = (string)$col['name'];
-    if ($name === 'id' || isset($archiveColumns[$name])) {
-        continue;
-    }
-    $type = trim((string)($col['type'] ?? ''));
-    $definition = 'ALTER TABLE intake_deleted ADD COLUMN ' . $name;
-    if ($type !== '') {
-        $definition .= ' ' . $type;
-    }
-    $pdo->exec($definition);
-    $archiveColumns[$name] = true;
-}
-if (!isset($archiveColumns['deleted_at'])) {
-    $pdo->exec("ALTER TABLE intake_deleted ADD COLUMN deleted_at TEXT");
-}
 $schemaVersion = (int)$pdo->query('PRAGMA user_version')->fetchColumn();
 if ($schemaVersion < 2) {
 $dupStmt = $pdo->query("
@@ -225,26 +182,6 @@ squareSyncEnsureSchema($pdo);
 function ensureArchiveTable(PDO $pdo): void
 {
     $pdo->exec("CREATE TABLE IF NOT EXISTS intake_deleted AS SELECT * FROM intake_items WHERE 0");
-    $archiveColumns = [];
-    foreach ($pdo->query("PRAGMA table_info(intake_deleted)") as $col) {
-        $archiveColumns[(string)$col['name']] = true;
-    }
-    foreach ($pdo->query("PRAGMA table_info(intake_items)") as $col) {
-        $name = (string)$col['name'];
-        if ($name === 'id' || isset($archiveColumns[$name])) {
-            continue;
-        }
-        $type = trim((string)($col['type'] ?? ''));
-        $definition = 'ALTER TABLE intake_deleted ADD COLUMN ' . $name;
-        if ($type !== '') {
-            $definition .= ' ' . $type;
-        }
-        $pdo->exec($definition);
-        $archiveColumns[$name] = true;
-    }
-    if (!isset($archiveColumns['deleted_at'])) {
-        $pdo->exec("ALTER TABLE intake_deleted ADD COLUMN deleted_at TEXT");
-    }
 }
 
 function loadSkuPhotos(PDO $pdo, string $skuNormalized): array
@@ -261,11 +198,6 @@ function loadLatestPhotoId(PDO $pdo, string $skuNormalized): ?int
 {
     if ($skuNormalized === '') {
         return null;
-    }
-    try {
-        $pdo->exec("ALTER TABLE sku_photos ADD COLUMN is_thumb INTEGER NOT NULL DEFAULT 0");
-    } catch (Throwable $e) {
-        // ignore if exists
     }
     $stmt = $pdo->prepare('SELECT id FROM sku_photos WHERE sku_normalized = :sku_normalized ORDER BY is_thumb DESC, id DESC LIMIT 1');
     $stmt->execute(['sku_normalized' => $skuNormalized]);

@@ -85,7 +85,7 @@ if (is_readable(HOME_DB_PATH)) {
             WHERE sku IS NOT NULL
               AND TRIM(sku) <> ''
             ORDER BY updated_at DESC, id DESC
-            LIMIT 500
+            LIMIT 200
         ");
         $listedItems = $stmtListed->fetchAll(PDO::FETCH_ASSOC);
         $listedSkus = array_values(array_filter(array_map(static fn($r) => trim((string)($r['sku'] ?? '')), $listedItems)));

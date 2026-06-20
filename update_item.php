@@ -83,16 +83,26 @@ try {
     $updatedStmt = $pdo->prepare('SELECT updated_at FROM intake_items WHERE ' . $skuWhere);
     $updatedStmt->execute([':sku' => $sku]);
     $updatedAt = (string)($updatedStmt->fetchColumn() ?? '');
-    $squareSync = squareSyncItemBySku($pdo, $sku);
-    $syncStatus = $squareSync['status'] ?? 'skipped';
 
-    // Return flat JSON so JS callers can check `data.ok` directly.
     header('Content-Type: application/json; charset=utf-8');
     echo json_encode([
         'ok'          => true,
         'updated_at'  => $updatedAt,
-        'square_sync' => $syncStatus,
+        'square_sync' => 'pending',
     ]);
+
+    if (function_exists('fastcgi_finish_request')) {
+        session_write_close();
+        fastcgi_finish_request();
+    }
+
+    $squareSync = squareSyncItemBySku($pdo, $sku);
+    $syncStatus = $squareSync['status'] ?? 'skipped';
+
+    if ($syncStatus === 'error') {
+        squareSyncLog('Background sync error for ' . $sku . ': ' . ($squareSync['message'] ?? 'unknown'));
+    }
+
     exit;
 } catch (Throwable $e) {
     http_response_code(500);
