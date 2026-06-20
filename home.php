@@ -307,7 +307,10 @@ if (is_dir($backupDir)) {
                   ?>
                   <?php if ($thumbId): ?>
                     <a class="thumb" href="photo.php?id=<?php echo $thumbId; ?>" target="_blank" rel="noopener">
-                      <img src="photo.php?id=<?php echo $thumbId; ?>" alt="Photo for <?php echo htmlspecialchars($skuVal ?: 'SKU', ENT_QUOTES, 'UTF-8'); ?>">
+                      <picture>
+                        <source srcset="photo.php?id=<?php echo $thumbId; ?>&format=webp" type="image/webp">
+                        <img src="photo.php?id=<?php echo $thumbId; ?>" alt="Photo for <?php echo htmlspecialchars($skuVal ?: 'SKU', ENT_QUOTES, 'UTF-8'); ?>" width="52" height="52" loading="lazy">
+                      </picture>
                     </a>
                   <?php else: ?>
                     <span class="thumb placeholder" title="No photo added">No photo</span>
@@ -422,7 +425,12 @@ if (is_dir($backupDir)) {
                       <td>
                         <?php echo htmlspecialchars($skuVal ?: 'Unknown', ENT_QUOTES, 'UTF-8'); ?>
                         <?php if ($thumbId): ?>
-                          <span class="thumb-wrap"><img class="preview-thumb" src="photo.php?id=<?php echo $thumbId; ?>" alt="Photo for <?php echo htmlspecialchars($skuVal ?: 'SKU', ENT_QUOTES, 'UTF-8'); ?>"></span>
+                          <span class="thumb-wrap">
+                            <picture>
+                              <source srcset="photo.php?id=<?php echo $thumbId; ?>&format=webp" type="image/webp">
+                              <img class="preview-thumb" src="photo.php?id=<?php echo $thumbId; ?>" alt="Photo for <?php echo htmlspecialchars($skuVal ?: 'SKU', ENT_QUOTES, 'UTF-8'); ?>" width="34" height="34" loading="lazy">
+                            </picture>
+                          </span>
                         <?php endif; ?>
                       </td>
                       <td>

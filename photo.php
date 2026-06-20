@@ -59,6 +59,49 @@ try {
     $mimeType = (string)($photo['mime_type'] ?? 'application/octet-stream');
     $fileMtime = filemtime($path);
     $forceDownload = (int)($_GET['download'] ?? 0) === 1;
+    $webpFormat = (string)($_GET['format'] ?? '') === 'webp';
+
+    /* ── On-the-fly WebP conversion ───────────────────────────── */
+    if ($webpFormat && function_exists('imagewebp')) {
+        $gd = null;
+        $ext = strtolower(pathinfo($storedName, PATHINFO_EXTENSION));
+        switch ($ext) {
+            case 'jpg':
+            case 'jpeg': $gd = @imagecreatefromjpeg($path); break;
+            case 'png':  $gd = @imagecreatefrompng($path);  break;
+            case 'webp': $gd = @imagecreatefromwebp($path); break;
+        }
+        if ($gd) {
+            $webpData = null;
+            $captured = false;
+            ob_start();
+            if (imagewebp($gd, null, 75)) {
+                $webpData = ob_get_contents();
+                $captured = true;
+            }
+            ob_end_clean();
+            imagedestroy($gd);
+
+            if ($captured && $webpData !== false && $webpData !== '') {
+                $fileSize = strlen($webpData);
+                $etag = sprintf('W/"webp-%x-%x-%x"', $photoId, $fileMtime, $fileSize);
+
+                if (isset($_SERVER['HTTP_IF_NONE_MATCH']) && trim((string)$_SERVER['HTTP_IF_NONE_MATCH']) === $etag) {
+                    http_response_code(304);
+                    header('Cache-Control: public, max-age=' . PHOTO_CACHE_MAX_AGE);
+                    header('ETag: ' . $etag);
+                    exit;
+                }
+
+                header('Cache-Control: public, max-age=' . PHOTO_CACHE_MAX_AGE);
+                header('ETag: ' . $etag);
+                header('Content-Type: image/webp');
+                header('Content-Length: ' . (string)$fileSize);
+                echo $webpData;
+                exit;
+            }
+        }
+    }
 
     /* ── In-memory PNG conversion for legacy non-PNG files ────── */
     // If PNG_ONLY_MODE is active and the file on disk isn't PNG, convert in-memory.

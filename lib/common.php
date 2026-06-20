@@ -162,7 +162,7 @@ function imageConvertToPng(string $srcPath, string $destDir): ?string
     }
 
     /* ── Probe dimensions before decoding ─────────────────── */
-    $maxDim = 4096;
+    $maxDim = 1200;
     $dims   = @getimagesize($srcPath);
     $srcW   = $dims[0] ?? 0;
     $srcH   = $dims[1] ?? 0;
@@ -223,15 +223,91 @@ function imageConvertToPng(string $srcPath, string $destDir): ?string
 }
 
 /**
+ * Resize, compress, and strip EXIF from an image file using GD.
+ *
+ * Skips GIFs (would break animation). The processed file is written
+ * to a temporary path and the caller is responsible for cleanup.
+ *
+ * @param  string $sourcePath  Absolute path to the source image.
+ * @param  string $mimeType    MIME type (image/jpeg, image/png, image/webp).
+ * @return array               ['ok' => bool, 'path' => ?string, 'message' => ?string]
+ */
+function compressUploadedImage(string $sourcePath, string $mimeType): array
+{
+    $maxWidth = 1200;
+    $quality  = 75;
+
+    if ($mimeType === 'image/gif') {
+        return ['ok' => true, 'path' => $sourcePath];
+    }
+
+    $gd = null;
+    switch ($mimeType) {
+        case 'image/jpeg': $gd = @imagecreatefromjpeg($sourcePath); break;
+        case 'image/png':  $gd = @imagecreatefrompng($sourcePath);  break;
+        case 'image/webp': $gd = @imagecreatefromwebp($sourcePath); break;
+        default:
+            return ['ok' => false, 'message' => 'Unsupported image format.'];
+    }
+
+    if (!$gd) {
+        return ['ok' => false, 'message' => 'Failed to decode image.'];
+    }
+
+    $origW = imagesx($gd);
+    $origH = imagesy($gd);
+
+    if ($origW > $maxWidth) {
+        $newW = $maxWidth;
+        $newH = (int)round($origH * ($maxWidth / $origW));
+        $resized = imagecreatetruecolor($newW, $newH);
+        if (!$resized) {
+            imagedestroy($gd);
+            return ['ok' => false, 'message' => 'Failed to allocate resized canvas.'];
+        }
+        imagealphablending($resized, false);
+        imagesavealpha($resized, true);
+        imagecopyresampled($resized, $gd, 0, 0, 0, 0, $newW, $newH, $origW, $origH);
+        imagedestroy($gd);
+        $gd = $resized;
+    }
+
+    $tempPath = dirname($sourcePath) . '/' . bin2hex(random_bytes(8)) . '_processed.tmp';
+    $saved = false;
+
+    switch ($mimeType) {
+        case 'image/jpeg':
+            imageinterlace($gd, true);
+            $saved = imagejpeg($gd, $tempPath, $quality);
+            break;
+        case 'image/png':
+            $saved = imagepng($gd, $tempPath, 6);
+            break;
+        case 'image/webp':
+            $saved = imagewebp($gd, $tempPath, $quality);
+            break;
+    }
+
+    imagedestroy($gd);
+
+    if (!$saved) {
+        @unlink($tempPath);
+        return ['ok' => false, 'message' => 'Failed to write processed image.'];
+    }
+
+    return ['ok' => true, 'path' => $tempPath];
+}
+
+/**
  * Centralised upload processor.
  *
  * Handles the ENTIRE pipeline for a single uploaded file:
  *
  *   1. MIME validation (finfo magic-bytes)
  *   2. GD decode check (polyglot / execution-boundary defence)
- *   3. Format conversion / pass-through according to
+ *   3. Image resize + compression (strips EXIF, caps at 1200px)
+ *   4. Format conversion / pass-through according to
  *      PNG_ONLY_MODE and PNG_REJECT_NON_PNG constants
- *   4. Temp-file cleanup
  *   5. Content-hash computation (SHA-256 for dedup)
  *   6. Temp-file cleanup
  *   7. Final storage write
@@ -283,6 +359,17 @@ function processUploadedPhoto(array $file, string $sku, ?string $baseDir = null)
     imagedestroy($gdCheck);
     unset($raw);
 
+    /* ── Resize, compress, strip EXIF ──────────────────────── */
+    $processed = compressUploadedImage($tmp, $mime);
+    if (!$processed['ok']) {
+        @unlink($tmp);
+        return ['ok' => false, 'message' => $processed['message']];
+    }
+    if ($processed['path'] !== $tmp) {
+        @unlink($tmp);
+        $tmp = $processed['path'];
+    }
+
     /* ── Content-hash (SHA-256) for deduplication ──────────── */
     $contentHash = @hash_file('sha256', $tmp);
     if ($contentHash === false) {
@@ -324,11 +411,11 @@ function processUploadedPhoto(array $file, string $sku, ?string $baseDir = null)
         $storedName = bin2hex(random_bytes(16)) . '.' . $ext;
         $dest    = $skuDir . '/' . $storedName;
 
-        if (!move_uploaded_file($tmp, $dest)) {
+        if (!rename($tmp, $dest)) {
             @unlink($tmp);
             return ['ok' => false, 'message' => 'Failed to write file to disk.'];
         }
-        $finalSize = (int)($file['size'] ?? @filesize($dest));
+        $finalSize = (int)@filesize($dest);
         $dbMime    = $mime;
     }
 
