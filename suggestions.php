@@ -36,21 +36,23 @@ if (!is_readable(DB_PATH)) {
 try {
     $pdo = pdoConnect(DB_PATH);
     $normalizedTerm = strtoupper(trim($term));
-    $like = '%' . str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $term) . '%';
-    $normalizedLike = '%' . str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $normalizedTerm) . '%';
+    $prefix = str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $term) . '%';
+    $normalizedPrefix = str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $normalizedTerm) . '%';
+    $any = '%' . str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $term) . '%';
     $sql = <<<SQL
         SELECT sku, what_is_it
         FROM intake_items
-        WHERE (sku IS NOT NULL AND sku <> '' AND sku LIKE :term ESCAPE '\\')
-          OR (sku_normalized IS NOT NULL AND sku_normalized <> '' AND sku_normalized LIKE :term_normalized ESCAPE '\\')
-          OR (what_is_it IS NOT NULL AND what_is_it <> '' AND what_is_it LIKE :term ESCAPE '\\')
+        WHERE (sku IS NOT NULL AND sku <> '' AND sku LIKE :prefix ESCAPE '\\')
+          OR (sku_normalized IS NOT NULL AND sku_normalized <> '' AND sku_normalized LIKE :normalized_prefix ESCAPE '\\')
+          OR (what_is_it IS NOT NULL AND what_is_it <> '' AND what_is_it LIKE :any ESCAPE '\\')
         ORDER BY updated_at DESC, id DESC
         LIMIT {SUGGESTION_LIMIT}
     SQL;
     $stmt = $pdo->prepare(str_replace('{SUGGESTION_LIMIT}', (string)SUGGESTION_LIMIT, $sql));
     $stmt->execute([
-        'term' => $like,
-        'term_normalized' => $normalizedLike,
+        'prefix' => $prefix,
+        'normalized_prefix' => $normalizedPrefix,
+        'any' => $any,
     ]);
     $suggestions = [];
     $seen = [];

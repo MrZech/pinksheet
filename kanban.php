@@ -16,20 +16,6 @@ try {
     exit;
 }
 
-// Ensure thumbnail column exists.
-try {
-    $pdo->exec("ALTER TABLE sku_photos ADD COLUMN is_thumb INTEGER NOT NULL DEFAULT 0");
-} catch (Throwable $e) {
-    // ignore
-}
-
-// Ensure reviewed column exists.
-try {
-    $pdo->exec("ALTER TABLE intake_items ADD COLUMN reviewed INTEGER NOT NULL DEFAULT 0");
-} catch (Throwable $e) {
-    // ignore
-}
-
 $lanes = ['Intake', 'Tested', 'Ready for eBay Listing', 'Dispo Tech Store', 'eBay Listed', 'SOLD'];
 $cards = [];
 $thumbs = [];
@@ -38,7 +24,7 @@ $items = $pdo->query("
     FROM intake_items
     WHERE sku IS NOT NULL AND TRIM(sku) <> ''
     ORDER BY updated_at DESC, id DESC
-    LIMIT 5000
+    LIMIT 2000
 ")->fetchAll();
 
 $rowMentionsRefurb = static function (array $row): bool {

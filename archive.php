@@ -69,8 +69,11 @@ $where = [];
 $params = [];
 
 if ($q !== '') {
-    $where[] = '(lower(COALESCE(sku, \'\')) LIKE :q OR lower(COALESCE(title, \'\')) LIKE :q OR lower(COALESCE(status, \'\')) LIKE :q OR lower(COALESCE(source, \'\')) LIKE :q OR lower(COALESCE(buyer, \'\')) LIKE :q OR lower(COALESCE(notes, \'\')) LIKE :q OR lower(COALESCE(legacy_source, \'\')) LIKE :q OR lower(COALESCE(legacy_table, \'\')) LIKE :q OR lower(COALESCE(legacy_id, \'\')) LIKE :q OR lower(COALESCE(legacy_payload, \'\')) LIKE :q)';
-    $params[':q'] = '%' . strtolower($q) . '%';
+    $prefix = str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], strtolower($q)) . '%';
+    $any = '%' . str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], strtolower($q)) . '%';
+    $where[] = '(lower(COALESCE(sku, \'\')) LIKE :q_prefix OR lower(COALESCE(sku_normalized, \'\')) LIKE :q_prefix OR lower(COALESCE(title, \'\')) LIKE :q_prefix OR lower(COALESCE(status, \'\')) LIKE :q_prefix OR lower(COALESCE(source, \'\')) LIKE :q_prefix OR lower(COALESCE(buyer, \'\')) LIKE :q_prefix OR lower(COALESCE(legacy_source, \'\')) LIKE :q_prefix OR lower(COALESCE(legacy_table, \'\')) LIKE :q_prefix OR lower(COALESCE(legacy_id, \'\')) LIKE :q_prefix OR lower(COALESCE(notes, \'\')) LIKE :q_any)';
+    $params[':q_prefix'] = $prefix;
+    $params[':q_any'] = $any;
 }
 if ($statusFilter !== '') {
     $where[] = 'lower(COALESCE(status, \'\')) = lower(:status)';
@@ -119,13 +122,15 @@ $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
 $stmt->execute();
 $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-$statusOptions = $pdo->query("SELECT DISTINCT status FROM archive_items WHERE COALESCE(status, '') <> '' ORDER BY status")->fetchAll(PDO::FETCH_COLUMN);
-if (!$statusOptions) {
-    $statusOptions = ['Sold', 'SOLD', 'Archived', 'Closed', 'Listed', 'Open'];
+$distinctFilters = [];
+if ($q === '' && $statusFilter === '' && $sourceFilter === '' && $legacySourceFilter === '' && $soldFrom === '' && $soldTo === '') {
+    $distinctFilters['status'] = $pdo->query("SELECT DISTINCT status FROM archive_items WHERE COALESCE(status, '') <> '' ORDER BY status")->fetchAll(PDO::FETCH_COLUMN);
+    $distinctFilters['legacy_source'] = $pdo->query("SELECT DISTINCT legacy_source FROM archive_items WHERE COALESCE(legacy_source, '') <> '' ORDER BY legacy_source")->fetchAll(PDO::FETCH_COLUMN);
+    $distinctFilters['source'] = $pdo->query("SELECT DISTINCT source FROM archive_items WHERE COALESCE(source, '') <> '' ORDER BY source")->fetchAll(PDO::FETCH_COLUMN);
 }
-$legacySources = $pdo->query("SELECT DISTINCT legacy_source FROM archive_items WHERE COALESCE(legacy_source, '') <> '' ORDER BY legacy_source")->fetchAll(PDO::FETCH_COLUMN);
-$sources = $pdo->query("SELECT DISTINCT source FROM archive_items WHERE COALESCE(source, '') <> '' ORDER BY source")->fetchAll(PDO::FETCH_COLUMN);
-$overallTotal = (int)$pdo->query('SELECT COUNT(*) FROM archive_items')->fetchColumn();
+$statusOptions = $distinctFilters['status'] ?? ['Sold', 'SOLD', 'Archived', 'Closed', 'Listed', 'Open'];
+$legacySources = $distinctFilters['legacy_source'] ?? [];
+$sources = $distinctFilters['source'] ?? [];
 $rangeStart = $totalRows > 0 ? ($offset + 1) : 0;
 $rangeEnd = min($offset + $limit, $totalRows);
 $queryLabel = $q !== '' ? ' results for "' . $q . '"' : ' archive items';
@@ -179,7 +184,6 @@ function buildArchiveUrl(array $overrides = []): string
         <div class="updated">Dispo.Tech Archive</div>
         <div class="sheet-header-right">
           <span class="autosave-status" id="autosave-status" hidden>Autosave ready</span>
-          <span class="badge subtle"><?php echo h((string)$overallTotal); ?> total</span>
           <a class="button-link new-intake-cta" href="intake.php?clear_draft=1" data-new-intake>New Intake</a>
           <button type="button" class="theme-toggle" id="theme-toggle">Dark mode</button>
         </div>
@@ -193,8 +197,7 @@ function buildArchiveUrl(array $overrides = []): string
       <p class="lead">Search old records here. This page is read-only and intended for legacy purchase history, sold inventory, and other historical references.</p>
       <section class="section archive-summary archive-pill-row">
         <div class="badge archive-db-path">Archive DB: <?php echo h($archiveDbPath); ?></div>
-        <div class="badge">Total rows: <?php echo h((string)$overallTotal); ?></div>
-        <div class="badge">Filtered rows: <?php echo h((string)$totalRows); ?></div>
+        <div class="badge">Rows: <?php echo h((string)$totalRows); ?></div>
       </section>
 
       <section class="section archive-summary archive-pill-row">

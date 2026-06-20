@@ -49,14 +49,16 @@ try {
     $params = [];
     if ($sku !== '') {
         $normalizedQuery = strtoupper(trim($sku));
-        $escaped = '%' . str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $sku) . '%';
-        $normalizedEscaped = '%' . str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $normalizedQuery) . '%';
-        $matchClause = "(sku IS NOT NULL AND sku <> '' AND sku LIKE :sku ESCAPE '\\')"
-            . " OR (sku_normalized IS NOT NULL AND sku_normalized <> '' AND sku_normalized LIKE :sku_normalized ESCAPE '\\')"
-            . " OR (what_is_it IS NOT NULL AND what_is_it <> '' AND what_is_it LIKE :sku ESCAPE '\\')";
+        $skuPrefix = str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $sku) . '%';
+        $normalizedPrefix = str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $normalizedQuery) . '%';
+        $skuAny = '%' . str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $sku) . '%';
+        $matchClause = "(sku IS NOT NULL AND sku <> '' AND sku LIKE :sku_prefix ESCAPE '\\')"
+            . " OR (sku_normalized IS NOT NULL AND sku_normalized <> '' AND sku_normalized LIKE :sku_normalized_prefix ESCAPE '\\')"
+            . " OR (what_is_it IS NOT NULL AND what_is_it <> '' AND what_is_it LIKE :sku_any ESCAPE '\\')";
         $conditions[] = '(' . $matchClause . ')';
-        $params['sku'] = $escaped;
-        $params['sku_normalized'] = $normalizedEscaped;
+        $params['sku_prefix'] = $skuPrefix;
+        $params['sku_normalized_prefix'] = $normalizedPrefix;
+        $params['sku_any'] = $skuAny;
     }
     if ($status !== '') {
         $conditions[] = 'status = :status';
