@@ -91,8 +91,9 @@ try {
         'square_sync' => 'pending',
     ]);
 
+    session_write_close();
+
     if (function_exists('fastcgi_finish_request')) {
-        session_write_close();
         fastcgi_finish_request();
     }
 
