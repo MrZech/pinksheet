@@ -19,3 +19,4 @@ scripts/alert.config.ps1
 
 # Local app secrets
 .env
+.aider*

@@ -745,11 +745,6 @@ function checked(string $name, string $value, array $formData): string
           <div class="print-summary-label">Price</div>
           <div class="print-summary-value"><?php echo $printPrice !== null ? '$' . number_format((float)$printPrice, 2) : '—'; ?></div>
         </div>
-        <?php if ($printThumbId): ?>
-          <div class="print-thumb-wrap" aria-hidden="true">
-            <img src="photo.php?id=<?php echo $printThumbId; ?>" alt="Thumbnail for <?php echo h($activeSkuNormalized); ?>">
-          </div>
-        <?php endif; ?>
       </header>
       <nav class="breadcrumbs" aria-label="Breadcrumb">
         <a href="home.php">Home</a>
