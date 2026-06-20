@@ -48,6 +48,9 @@ if (is_readable(PROMPT_DB_PATH)) {
 }
 
 $initialItemJson = $currentItem ? json_encode($currentItem, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT) : 'null';
+
+$csrfToken = csrf_token();
+session_write_close();
 ?>
 <!doctype html>
 <html lang="en">
@@ -55,14 +58,14 @@ $initialItemJson = $currentItem ? json_encode($currentItem, JSON_HEX_TAG | JSON_
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Dispo.Tech eBay Script Builder</title>
-  <link rel="stylesheet" href="assets/style.css?v=<?= filemtime('assets/style.css') ?>">
-  <script src="assets/menu.js?v=<?= filemtime('assets/menu.js') ?>" defer></script>
-  <link rel="stylesheet" media="print" href="assets/print.css?v=<?= filemtime('assets/print.css') ?>">
+  <link rel="stylesheet" href="assets/style.css?v=<?= getAssetVersion() ?>">
+  <script src="assets/menu.js?v=<?= getAssetVersion() ?>" defer></script>
+  <link rel="stylesheet" media="print" href="assets/print.css?v=<?= getAssetVersion() ?>">
   <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
-  <script src="assets/qz-tray.js?v=<?= filemtime('assets/qz-tray.js') ?>"></script>
-  <script>window.CSRF_TOKEN = <?= json_encode(csrf_token()) ?>;</script>
-  <script src="assets/theme.js?v=<?= filemtime('assets/theme.js') ?>" defer></script>
-  <script src="assets/app.js?v=<?= filemtime('assets/app.js') ?>"></script>
+  <script>window.CSRF_TOKEN = <?= json_encode($csrfToken) ?>;</script>
+  <script src="assets/theme.js?v=<?= getAssetVersion() ?>" defer></script>
+  <script src="assets/app.js?v=<?= getAssetVersion() ?>" defer></script>
+  <script src="assets/qz-tray.js?v=<?= getAssetVersion() ?>" defer></script>
 </head>
 <body class="home prompt-page">
   <div class="layout-wrapper">

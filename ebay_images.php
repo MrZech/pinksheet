@@ -48,6 +48,9 @@ if ($currentSku !== '') {
         error_log('ebay_images sku_photos: ' . $e->getMessage());
     }
 }
+
+$csrfToken = csrf_token();
+session_write_close();
 ?>
 <!doctype html>
 <html lang="en">
@@ -55,11 +58,11 @@ if ($currentSku !== '') {
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>eBay Images - Dispo.Tech</title>
-  <link rel="stylesheet" href="assets/style.css?v=<?= filemtime('assets/style.css') ?>">
-  <script src="assets/menu.js?v=<?= filemtime('assets/menu.js') ?>" defer></script>
+  <link rel="stylesheet" href="assets/style.css?v=<?= getAssetVersion() ?>">
+  <script src="assets/menu.js?v=<?= getAssetVersion() ?>" defer></script>
   <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
-  <script>window.CSRF_TOKEN = <?= json_encode(csrf_token()) ?>;</script>
-  <script src="assets/theme.js?v=<?= filemtime('assets/theme.js') ?>" defer></script>
+  <script>window.CSRF_TOKEN = <?= json_encode($csrfToken) ?>;</script>
+  <script src="assets/theme.js?v=<?= getAssetVersion() ?>" defer></script>
   <style>
     .ebay-canvas-wrap {
       position: relative;

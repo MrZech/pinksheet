@@ -90,6 +90,9 @@ foreach ($items as $item) {
     }
     $cards[$status][] = $item;
 }
+
+$csrfToken = csrf_token();
+session_write_close();
 ?>
 <!doctype html>
 <html lang="en">
@@ -97,14 +100,14 @@ foreach ($items as $item) {
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Status Board · Pinksheet</title>
-  <link rel="stylesheet" href="assets/style.css?v=<?= filemtime('assets/style.css') ?>">
-  <script src="assets/menu.js?v=<?= filemtime('assets/menu.js') ?>" defer></script>
-  <script src="assets/qz-tray.js?v=<?= filemtime('assets/qz-tray.js') ?>"></script>
-  <script>window.CSRF_TOKEN = <?= json_encode(csrf_token()) ?>;</script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" integrity="sha512-CNgIRecGo7nphbeZ04Sc13ka07paqdeTu0WR1IM4kNcpmBAUSHSQX0FslNhTDadL4O5SAGapGt4FodqL8My0mA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js" integrity="sha512-r6rDA7W6ZeQhvl8S7yRVQUKVHdexq+GAlNkNNqVC7YyIV+NwqCTJe2hDWCiffTyRNOeGEzRRJ9ifvRm/HCzGYg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-  <script src="assets/theme.js?v=<?= filemtime('assets/theme.js') ?>" defer></script>
-  <script src="assets/app.js?v=<?= filemtime('assets/app.js') ?>"></script>
+  <link rel="stylesheet" href="assets/style.css?v=<?= getAssetVersion() ?>">
+  <script src="assets/menu.js?v=<?= getAssetVersion() ?>" defer></script>
+  <script>window.CSRF_TOKEN = <?= json_encode($csrfToken) ?>;</script>
+  <script src="assets/theme.js?v=<?= getAssetVersion() ?>" defer></script>
+  <script src="assets/app.js?v=<?= getAssetVersion() ?>" defer></script>
+  <script src="assets/qz-tray.js?v=<?= getAssetVersion() ?>" defer></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" integrity="sha512-CNgIRecGo7nphbeZ04Sc13ka07paqdeTu0WR1IM4kNcpmBAUSHSQX0FslNhTDadL4O5SAGapGt4FodqL8My0mA==" crossorigin="anonymous" referrerpolicy="no-referrer" defer></script>
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js" integrity="sha512-r6rDA7W6ZeQhvl8S7yRVQUKVHdexq+GAlNkNNqVC7YyIV+NwqCTJe2hDWCiffTyRNOeGEzRRJ9ifvRm/HCzGYg==" crossorigin="anonymous" referrerpolicy="no-referrer" defer></script>
 </head>
 <body class="home status-board">
   <div class="layout-wrapper">

@@ -203,11 +203,19 @@ function loadDotEnv(string $path): void
 
 loadDotEnv(__DIR__ . '/.env');
 
+const STORAGE_CHECK_CACHE_TTL = 60; // seconds between full checks
+
 /**
  * Ensure on-disk storage (SQLite + uploads + logs) is writable. Exit with 500 if not.
+ * Results are cached to avoid repeated stat()/chmod() syscalls on every request.
  */
 function ensureStorageWritable(): void
 {
+    $cacheFile = __DIR__ . '/data/.storage_ok';
+    if (is_file($cacheFile) && (time() - filemtime($cacheFile)) < STORAGE_CHECK_CACHE_TTL) {
+        return;
+    }
+
     $paths = [
         __DIR__ . '/data',
         __DIR__ . '/data/sku_photos',
@@ -237,6 +245,8 @@ function ensureStorageWritable(): void
     if (!is_writable($dbFile)) {
         storageFatal('Database file is read-only: ' . $dbFile);
     }
+
+    @touch($cacheFile);
 }
 
 function storageFatal(string $message): void
@@ -309,6 +319,42 @@ function checkMaintenance(bool $json = false): void
     header('Content-Type: text/plain; charset=utf-8');
     echo MAINTENANCE_MESSAGE;
     exit;
+}
+
+/**
+ * Return a single cache-busting query-string value shared by all assets.
+ * Computed from the newest mtime among the asset files, cached for 5 minutes
+ * to avoid repeated stat() syscalls on every request.
+ */
+function getAssetVersion(): int
+{
+    $cacheFile = __DIR__ . '/data/.asset_version';
+    if (is_file($cacheFile)) {
+        $cached = (int)@file_get_contents($cacheFile);
+        if ($cached > 0 && (time() - $cached) < 300) {
+            return $cached;
+        }
+    }
+
+    $assets = [
+        'assets/style.css',
+        'assets/menu.js',
+        'assets/print.css',
+        'assets/theme.js',
+        'assets/app.js',
+        'assets/qz-tray.js',
+    ];
+    $latest = 0;
+    foreach ($assets as $f) {
+        $m = is_file($f) ? filemtime($f) : 0;
+        if ($m > $latest) {
+            $latest = $m;
+        }
+    }
+    if ($latest > 0) {
+        @file_put_contents($cacheFile, (string)$latest);
+    }
+    return $latest ?: 0;
 }
 
 function normalizeSku(string $sku): string

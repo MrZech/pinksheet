@@ -117,6 +117,11 @@ if (is_dir($backupDir)) {
 } else {
     $alerts[] = 'Backup directory missing (data/backups).';
 }
+
+// Generate CSRF token and release session lock before rendering.
+// Read-only pages don't need the session lock after the token is generated.
+$csrfToken = csrf_token();
+session_write_close();
 ?>
 <!doctype html>
 <html lang="en">
@@ -124,13 +129,13 @@ if (is_dir($backupDir)) {
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title><?php echo $isLookupPage ? 'Dispo.Tech SKU Lookup' : 'Dispo.Tech Intake Home'; ?></title>
-  <link rel="stylesheet" href="assets/style.css?v=<?= filemtime('assets/style.css') ?>">
-  <script src="assets/menu.js?v=<?= filemtime('assets/menu.js') ?>" defer></script>
-  <link rel="stylesheet" media="print" href="assets/print.css?v=<?= filemtime('assets/print.css') ?>">
+  <link rel="stylesheet" href="assets/style.css?v=<?= getAssetVersion() ?>">
+  <script src="assets/menu.js?v=<?= getAssetVersion() ?>" defer></script>
+  <link rel="stylesheet" media="print" href="assets/print.css?v=<?= getAssetVersion() ?>">
   <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
-  <script>window.CSRF_TOKEN = <?= json_encode(csrf_token()) ?>;</script>
-  <script src="assets/theme.js?v=<?= filemtime('assets/theme.js') ?>" defer></script>
-  <script src="assets/app.js?v=<?= filemtime('assets/app.js') ?>"></script>
+  <script>window.CSRF_TOKEN = <?= json_encode($csrfToken) ?>;</script>
+  <script src="assets/theme.js?v=<?= getAssetVersion() ?>" defer></script>
+  <script src="assets/app.js?v=<?= getAssetVersion() ?>" defer></script>
 </head>
 <body class="home<?php echo $isLookupPage ? ' lookup-page' : ''; ?>">
   <div class="layout-wrapper">
@@ -1234,7 +1239,7 @@ if (is_dir($backupDir)) {
         }
         var healthChip = document.getElementById('health-chip');
         if (healthChip && window.fetch) {
-          fetch('health.php')
+          fetch('health.php?format=json')
             .then(function (r) { return r.json(); })
             .then(function (data) {
               var txt = 'Health: ok';

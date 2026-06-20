@@ -680,15 +680,15 @@ function checked(string $name, string $value, array $formData): string
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Dispo.Tech Intake Sheet</title>
-  <link rel="stylesheet" href="assets/style.css?v=<?= filemtime('assets/style.css') ?>">
-  <script src="assets/menu.js?v=<?= filemtime('assets/menu.js') ?>" defer></script>
-  <link rel="stylesheet" media="print" href="assets/print.css?v=<?= filemtime('assets/print.css') ?>">
+  <link rel="stylesheet" href="assets/style.css?v=<?= getAssetVersion() ?>">
+  <script src="assets/menu.js?v=<?= getAssetVersion() ?>" defer></script>
+  <link rel="stylesheet" media="print" href="assets/print.css?v=<?= getAssetVersion() ?>">
   <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" integrity="sha512-CNgIRecGo7nphbeZ04Sc13ka07paqdeTu0WR1IM4kNcpmBAUSHSQX0FslNhTDadL4O5SAGapGt4FodqL8My0mA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-  <script src="assets/qz-tray.js?v=<?= filemtime('assets/qz-tray.js') ?>"></script>
   <script>window.CSRF_TOKEN = <?= json_encode(csrf_token()) ?>;</script>
-  <script src="assets/theme.js?v=<?= filemtime('assets/theme.js') ?>" defer></script>
-  <script src="assets/app.js?v=<?= filemtime('assets/app.js') ?>"></script>
+  <script src="assets/theme.js?v=<?= getAssetVersion() ?>" defer></script>
+  <script src="assets/app.js?v=<?= getAssetVersion() ?>" defer></script>
+  <script src="assets/qz-tray.js?v=<?= getAssetVersion() ?>" defer></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" integrity="sha512-CNgIRecGo7nphbeZ04Sc13ka07paqdeTu0WR1IM4kNcpmBAUSHSQX0FslNhTDadL4O5SAGapGt4FodqL8My0mA==" crossorigin="anonymous" referrerpolicy="no-referrer" defer></script>
   <style>
     :root {
       --mobile-tap: 44px;
