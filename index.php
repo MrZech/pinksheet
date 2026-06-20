@@ -101,6 +101,9 @@ $pdo->exec("CREATE INDEX IF NOT EXISTS idx_intake_items_sku_normalized ON intake
 $pdo->exec("CREATE INDEX IF NOT EXISTS idx_intake_items_status ON intake_items (status)");
 $pdo->exec("CREATE INDEX IF NOT EXISTS idx_intake_items_updated_at ON intake_items (updated_at)");
 $pdo->exec("CREATE INDEX IF NOT EXISTS idx_intake_items_what_is_it ON intake_items (what_is_it)");
+$pdo->exec("CREATE INDEX IF NOT EXISTS idx_intake_items_updated_id ON intake_items (updated_at, id)");
+$pdo->exec("CREATE INDEX IF NOT EXISTS idx_intake_items_created_at ON intake_items (created_at)");
+$pdo->exec("CREATE INDEX IF NOT EXISTS idx_sku_photos_sku_thumb ON sku_photos (sku_normalized, is_thumb, id)");
 $schemaVersion = (int)$pdo->query('PRAGMA user_version')->fetchColumn();
 if ($schemaVersion < 1) {
     $pdo->exec("UPDATE intake_items SET sku_normalized = UPPER(TRIM(COALESCE(sku, ''))) WHERE sku_normalized IS NULL OR sku_normalized = ''");

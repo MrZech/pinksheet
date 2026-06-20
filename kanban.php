@@ -63,18 +63,22 @@ $items = array_values($dedupedItems);
 
 $skus = array_values(array_unique(array_filter(array_map(static fn($r) => strtoupper(trim((string)($r['sku'] ?? ''))), $items))));
 if ($skus) {
-    $placeholders = implode(',', array_fill(0, count($skus), '?'));
-    $stmt = $pdo->prepare("
-        SELECT sku_normalized, id
-        FROM sku_photos
-        WHERE sku_normalized IN ($placeholders)
-        ORDER BY is_thumb DESC, id DESC
-    ");
-    $stmt->execute($skus);
-    foreach ($stmt->fetchAll() as $row) {
-        $norm = trim((string)$row['sku_normalized']);
-        if ($norm && !isset($thumbs[$norm])) {
-            $thumbs[$norm] = (int)$row['id'];
+    $maxVars = 900;
+    $thumbs = [];
+    foreach (array_chunk($skus, $maxVars) as $chunk) {
+        $placeholders = implode(',', array_fill(0, count($chunk), '?'));
+        $stmt = $pdo->prepare("
+            SELECT sku_normalized, id
+            FROM sku_photos
+            WHERE sku_normalized IN ($placeholders)
+            ORDER BY is_thumb DESC, id DESC
+        ");
+        $stmt->execute($chunk);
+        foreach ($stmt->fetchAll() as $row) {
+            $norm = trim((string)$row['sku_normalized']);
+            if ($norm && !isset($thumbs[$norm])) {
+                $thumbs[$norm] = (int)$row['id'];
+            }
         }
     }
 }

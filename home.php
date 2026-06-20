@@ -29,80 +29,49 @@ $backupSummary = 'No backup yet';
 if (is_readable(HOME_DB_PATH)) {
     try {
         $pdo = pdoConnect(HOME_DB_PATH);
-        $stmt = $pdo->query("
-            SELECT sku
-            FROM intake_items
-            WHERE sku IS NOT NULL
-              AND TRIM(sku) <> ''
-            ORDER BY updated_at DESC, id DESC
-            LIMIT 60
-        ");
-        $values = array_unique(array_map('trim', $stmt->fetchAll(PDO::FETCH_COLUMN)));
-        $lookupSuggestions = array_values(array_filter($values, static fn ($value): bool => $value !== ''));
-
         // Dashboard metrics
         $counts['total'] = (int) $pdo->query("SELECT COUNT(*) FROM intake_items")->fetchColumn();
         $today = (new DateTime('now'))->format('Y-m-d');
-        $stmtToday = $pdo->prepare("SELECT COUNT(*) FROM intake_items WHERE date(created_at) = :today");
-        $stmtToday->execute([':today' => $today]);
+        $stmtToday = $pdo->prepare("SELECT COUNT(*) FROM intake_items WHERE created_at >= :today_start AND created_at < :today_end");
+        $stmtToday->execute([':today_start' => $today . ' 00:00:00', ':today_end' => $today . ' 23:59:59']);
         $counts['today'] = (int) $stmtToday->fetchColumn();
         $counts['sold'] = (int) $pdo->query("SELECT COUNT(*) FROM intake_items WHERE status = 'SOLD'")->fetchColumn();
         $counts['in_progress'] = (int) $pdo->query("SELECT COUNT(*) FROM intake_items WHERE status != 'SOLD'")->fetchColumn();
 
-        // Recent activity list
-        $stmtRecent = $pdo->query("
+        // Single fetch for all listings (replaces 3 redundant queries)
+        $stmtAll = $pdo->query("
             SELECT sku, status, what_is_it, updated_at, dispotech_price, ebay_price
             FROM intake_items
             WHERE sku IS NOT NULL AND TRIM(sku) <> ''
             ORDER BY updated_at DESC, id DESC
-            LIMIT 10
-        ");
-        $recentActivity = $stmtRecent->fetchAll(PDO::FETCH_ASSOC);
-        // Attach latest photo id per SKU for quick thumbnails.
-        $recentSkus = array_values(array_filter(array_map(static fn($r) => trim((string)($r['sku'] ?? '')), $recentActivity)));
-        $recentThumbs = [];
-        if ($recentSkus) {
-            $norms = array_map(static fn($s) => strtoupper($s), $recentSkus);
-            $placeholders = implode(',', array_fill(0, count($norms), '?'));
-            $photoStmt = $pdo->prepare("
-                SELECT sku_normalized, id
-                FROM sku_photos
-                WHERE sku_normalized IN ($placeholders)
-                ORDER BY id DESC
-            ");
-            $photoStmt->execute($norms);
-            foreach ($photoStmt->fetchAll(PDO::FETCH_ASSOC) as $photoRow) {
-                $norm = trim((string)$photoRow['sku_normalized']);
-                if ($norm !== '' && !isset($recentThumbs[$norm])) {
-                    $recentThumbs[$norm] = (int)$photoRow['id'];
-                }
-            }
-        }
-
-        $stmtListed = $pdo->query("
-            SELECT sku, status, what_is_it, updated_at, dispotech_price, ebay_price
-            FROM intake_items
-            WHERE sku IS NOT NULL
-              AND TRIM(sku) <> ''
-            ORDER BY updated_at DESC, id DESC
             LIMIT 200
         ");
-        $listedItems = $stmtListed->fetchAll(PDO::FETCH_ASSOC);
-        $listedSkus = array_values(array_filter(array_map(static fn($r) => trim((string)($r['sku'] ?? '')), $listedItems)));
-        if ($listedSkus) {
-            $listedNorms = array_map(static fn($s) => strtoupper($s), $listedSkus);
-            $placeholders = implode(',', array_fill(0, count($listedNorms), '?'));
+        $allItems = $stmtAll->fetchAll(PDO::FETCH_ASSOC);
+        $lookupSuggestions = array_values(array_unique(array_filter(array_map(static fn($r) => trim((string)($r['sku'] ?? '')), $allItems))));
+        $recentActivity = array_slice($allItems, 0, 10);
+        $listedItems = $allItems;
+
+        // Attach latest photo id per SKU for quick thumbnails.
+        $allNorms = array_map(static fn($s) => strtoupper($s), array_filter(array_map(static fn($r) => trim((string)($r['sku'] ?? '')), $allItems)));
+        $recentThumbs = [];
+        $listedThumbs = [];
+        if ($allNorms) {
+            $placeholders = implode(',', array_fill(0, count($allNorms), '?'));
             $photoStmt = $pdo->prepare("
                 SELECT sku_normalized, id
                 FROM sku_photos
                 WHERE sku_normalized IN ($placeholders)
-                ORDER BY id DESC
+                ORDER BY is_thumb DESC, id DESC
             ");
-            $photoStmt->execute($listedNorms);
+            $photoStmt->execute($allNorms);
             foreach ($photoStmt->fetchAll(PDO::FETCH_ASSOC) as $photoRow) {
                 $norm = trim((string)$photoRow['sku_normalized']);
-                if ($norm !== '' && !isset($listedThumbs[$norm])) {
-                    $listedThumbs[$norm] = (int)$photoRow['id'];
+                if ($norm === '' || isset($listedThumbs[$norm])) {
+                    continue;
+                }
+                $listedThumbs[$norm] = (int)$photoRow['id'];
+                if (!isset($recentThumbs[$norm]) && count($recentThumbs) < 10) {
+                    $recentThumbs[$norm] = (int)$photoRow['id'];
                 }
             }
         }

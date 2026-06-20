@@ -160,6 +160,8 @@ $pdo->exec("CREATE INDEX IF NOT EXISTS idx_intake_items_status_updated ON intake
 $pdo->exec("CREATE INDEX IF NOT EXISTS idx_intake_items_status ON intake_items (status)");
 $pdo->exec("CREATE INDEX IF NOT EXISTS idx_intake_items_updated_at ON intake_items (updated_at)");
 $pdo->exec("CREATE INDEX IF NOT EXISTS idx_intake_items_what_is_it ON intake_items (what_is_it)");
+$pdo->exec("CREATE INDEX IF NOT EXISTS idx_intake_items_updated_id ON intake_items (updated_at, id)");
+$pdo->exec("CREATE INDEX IF NOT EXISTS idx_intake_items_created_at ON intake_items (created_at)");
 $pdo->exec(<<<'SQL'
 CREATE TABLE IF NOT EXISTS archive_items (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -199,6 +201,7 @@ CREATE TABLE IF NOT EXISTS sku_photos (
 );
 SQL);
 $pdo->exec("CREATE INDEX IF NOT EXISTS idx_sku_photos_sku_normalized ON sku_photos (sku_normalized)");
+$pdo->exec("CREATE INDEX IF NOT EXISTS idx_sku_photos_sku_thumb ON sku_photos (sku_normalized, is_thumb, id)");
 
 $skuPhotoColumns = $pdo->query("PRAGMA table_info(sku_photos)")->fetchAll(PDO::FETCH_ASSOC);
 $skuPhotoNames = array_column($skuPhotoColumns, 'name');
