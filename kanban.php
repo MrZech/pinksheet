@@ -106,8 +106,6 @@ session_write_close();
   <script src="assets/theme.js?v=<?= getAssetVersion() ?>" defer></script>
   <script src="assets/app.js?v=<?= getAssetVersion() ?>" defer></script>
   <script src="assets/qz-tray.js?v=<?= getAssetVersion() ?>" defer></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" integrity="sha512-CNgIRecGo7nphbeZ04Sc13ka07paqdeTu0WR1IM4kNcpmBAUSHSQX0FslNhTDadL4O5SAGapGt4FodqL8My0mA==" crossorigin="anonymous" referrerpolicy="no-referrer" defer></script>
-  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js" integrity="sha512-r6rDA7W6ZeQhvl8S7yRVQUKVHdexq+GAlNkNNqVC7YyIV+NwqCTJe2hDWCiffTyRNOeGEzRRJ9ifvRm/HCzGYg==" crossorigin="anonymous" referrerpolicy="no-referrer" defer></script>
 </head>
 <body class="home status-board">
   <div class="layout-wrapper">
@@ -763,6 +761,23 @@ session_write_close();
       saveState();
     });
   })();
+  </script>
+  <script>
+  setTimeout(function () {
+    var s1 = document.createElement('script');
+    s1.src = 'https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js';
+    s1.integrity = 'sha512-CNgIRecGo7nphbeZ04Sc13ka07paqdeTu0WR1IM4kNcpmBAUSHSQX0FslNhTDadL4O5SAGapGt4FodqL8My0mA==';
+    s1.crossOrigin = 'anonymous';
+    s1.referrerPolicy = 'no-referrer';
+    document.body.appendChild(s1);
+
+    var s2 = document.createElement('script');
+    s2.src = 'https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js';
+    s2.integrity = 'sha512-r6rDA7W6ZeQhvl8S7yRVQUKVHdexq+GAlNkNNqVC7YyIV+NwqCTJe2hDWCiffTyRNOeGEzRRJ9ifvRm/HCzGYg==';
+    s2.crossOrigin = 'anonymous';
+    s2.referrerPolicy = 'no-referrer';
+    document.body.appendChild(s2);
+  }, 1);
   </script>
   </div>
 </body>
