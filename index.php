@@ -2262,12 +2262,47 @@ function checked(string $name, string $value, array $formData): string
     var qrWrap = document.getElementById('intake-qr-wrap');
     var qrRender = document.getElementById('intake-qr-render');
     var skuInput = document.querySelector('input[name="sku"]');
+    var qrLibPromise = null;
+
+    var loadQrLibrary = function () {
+      if (window.QRCode) {
+        return Promise.resolve();
+      }
+      if (qrLibPromise) {
+        return qrLibPromise;
+      }
+      qrLibPromise = new Promise(function (resolve, reject) {
+        var existing = document.querySelector('script[data-qrcode-lib="1"]');
+        if (existing) {
+          existing.addEventListener('load', function () { resolve(); }, { once: true });
+          existing.addEventListener('error', function () { reject(new Error('QR library failed to load')); }, { once: true });
+          return;
+        }
+        var script = document.createElement('script');
+        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js';
+        script.integrity = 'sha512-CNgIRecGo7nphbeZ04Sc13ka07paqdeTu0WR1IM4kNcpmBAUSHSQX0FslNhTDadL4O5SAGapGt4FodqL8My0mA==';
+        script.crossOrigin = 'anonymous';
+        script.referrerPolicy = 'no-referrer';
+        script.dataset.qrcodeLib = '1';
+        script.onload = function () { resolve(); };
+        script.onerror = function () { reject(new Error('QR library failed to load')); };
+        document.body.appendChild(script);
+      });
+      return qrLibPromise;
+    };
 
     var updateQrCode = function () {
       if (!qrRender || !qrWrap) return;
       var sku = skuInput ? skuInput.value.trim().toUpperCase() : '';
       if (!sku) {
         qrWrap.hidden = true;
+        return;
+      }
+      if (typeof QRCode === 'undefined') {
+        qrWrap.hidden = true;
+        loadQrLibrary().then(updateQrCode).catch(function () {
+          qrWrap.hidden = true;
+        });
         return;
       }
       var isHttps = window.location.protocol === 'https:';
@@ -2309,15 +2344,5 @@ function checked(string $name, string $value, array $formData): string
     </div>
   </div>
   </div>
-  <script>
-  setTimeout(function () {
-    var s = document.createElement('script');
-    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js';
-    s.integrity = 'sha512-CNgIRecGo7nphbeZ04Sc13ka07paqdeTu0WR1IM4kNcpmBAUSHSQX0FslNhTDadL4O5SAGapGt4FodqL8My0mA==';
-    s.crossOrigin = 'anonymous';
-    s.referrerPolicy = 'no-referrer';
-    document.body.appendChild(s);
-  }, 1);
-  </script>
 </body>
 </html>
