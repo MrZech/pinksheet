@@ -17,10 +17,16 @@ try {
 }
 
 $lanes = ['Intake', 'Tested', 'Ready for eBay Listing', 'Dispo Tech Store', 'eBay Listed', 'SOLD'];
+$cols = $pdo->query('PRAGMA table_info(intake_items)')->fetchAll(PDO::FETCH_ASSOC);
+$colNames = array_map(static fn($row) => (string)($row['name'] ?? ''), $cols);
+if (!in_array('ready', $colNames, true)) {
+    $pdo->exec("ALTER TABLE intake_items ADD COLUMN ready INTEGER NOT NULL DEFAULT 0");
+}
+
 $cards = [];
 $thumbs = [];
 $items = $pdo->query("
-    SELECT id, sku, sku_normalized, status, what_is_it, notes, updated_at, dispotech_price, reviewed
+    SELECT id, sku, sku_normalized, status, what_is_it, notes, updated_at, dispotech_price, reviewed, ready
     FROM intake_items
     WHERE sku IS NOT NULL AND sku != ''
     ORDER BY updated_at DESC, id DESC
@@ -104,6 +110,7 @@ if (!$isPartial):
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Status Board · Pinksheet</title>
   <link rel="stylesheet" href="assets/style.css?v=<?= getAssetVersion() ?>">
+  <style>.ready-indicator{display:inline-flex;align-items:center;gap:3px;margin-left:6px;font-size:0.75rem;opacity:0.8}.ready-indicator .visual-ready{width:13px;height:13px;margin:0;cursor:pointer}.ready-indicator .ready-label{color:var(--text-secondary,inherit)}</style>
   <script src="assets/menu.js?v=<?= getAssetVersion() ?>" defer></script>
   <script>window.CSRF_TOKEN = <?= json_encode($csrfToken) ?>;</script>
   <script src="assets/theme.js?v=<?= getAssetVersion() ?>" defer></script>
@@ -203,6 +210,10 @@ if (!$isPartial):
                     <a href="intake.php?sku=<?php echo urlencode($sku); ?>" title="Open <?php echo htmlspecialchars($sku, ENT_QUOTES, 'UTF-8'); ?> in intake">
                       <?php echo htmlspecialchars($sku, ENT_QUOTES, 'UTF-8'); ?>
                     </a>
+                    <span class="ready-indicator">
+                      <input type="checkbox" class="visual-ready"<?php echo (int)($card['ready'] ?? 0) === 1 ? ' checked' : ''; ?>>
+                      <span class="ready-label">Ready</span>
+                    </span>
                   </div>
                   <div class="what"><?php echo htmlspecialchars($card['what_is_it'] ?? '', ENT_QUOTES, 'UTF-8'); ?></div>
                   <div class="meta">
@@ -431,6 +442,32 @@ if (!$isPartial):
           })
           .catch(function () {
             alert('Failed to update status');
+          });
+      });
+
+      // ── Ready checkbox toggle ──────────────────────────────────
+      board.addEventListener('change', function (e) {
+        var cb = e.target;
+        if (!cb.classList.contains('visual-ready')) return;
+        var card = cb.closest('.kanban-card');
+        if (!card) return;
+        var sku = card.getAttribute('data-sku-normalized') || card.getAttribute('data-sku') || '';
+        if (!sku) return;
+        var checked = cb.checked;
+        var readyVal = checked ? '1' : '0';
+        fetch('update_item.php', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: 'sku=' + encodeURIComponent(sku) + '&field=ready&value=' + readyVal + '&csrf_token=' + encodeURIComponent(window.CSRF_TOKEN)
+        })
+          .then(function (r) { return r.json(); })
+          .then(function (data) {
+            if (!data.ok) {
+              cb.checked = !checked;
+            }
+          })
+          .catch(function () {
+            cb.checked = !checked;
           });
       });
 

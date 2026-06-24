@@ -35,6 +35,7 @@ $allowedFields = [
     'status' => true,
     'price' => true,
     'reviewed' => true,
+    'ready' => true,
     'dispotech_price' => true,
     'ebay_price' => true,
 ];
@@ -54,6 +55,11 @@ try {
         ? '(UPPER(COALESCE(sku, \'\')) = :sku OR UPPER(COALESCE(sku_normalized, \'\')) = :sku)'
         : 'UPPER(COALESCE(sku, \'\')) = :sku';
 
+    if (!in_array('ready', $columnNames, true)) {
+        $pdo->exec("ALTER TABLE intake_items ADD COLUMN ready INTEGER NOT NULL DEFAULT 0");
+        $columnNames[] = 'ready';
+    }
+
     if ($field === 'status') {
         $stmt = $pdo->prepare('UPDATE intake_items SET status = :val, updated_at = datetime("now") WHERE ' . $skuWhere);
         $stmt->execute([':val' => (string)$value, ':sku' => $sku]);
@@ -65,6 +71,10 @@ try {
         };
         $stmt = $pdo->prepare('UPDATE intake_items SET reviewed = :val, updated_at = datetime("now") WHERE ' . $skuWhere);
         $stmt->execute([':val' => $reviewed, ':sku' => $sku]);
+    } elseif ($field === 'ready') {
+        $ready = $value === '1' || $value === 1 || $value === true ? 1 : 0;
+        $stmt = $pdo->prepare('UPDATE intake_items SET ready = :val, updated_at = datetime("now") WHERE ' . $skuWhere);
+        $stmt->execute([':val' => $ready, ':sku' => $sku]);
     } else {
         $price = is_numeric($value) ? (float)$value : null;
         // Unify pricing: treat any price update as the single canonical price.

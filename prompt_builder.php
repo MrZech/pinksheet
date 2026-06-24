@@ -51,6 +51,8 @@ $initialItemJson = $currentItem ? json_encode($currentItem, JSON_HEX_TAG | JSON_
 
 $csrfToken = csrf_token();
 session_write_close();
+$isPartial = ($_GET['partial'] ?? '') === '1';
+if (!$isPartial):
 ?>
 <!doctype html>
 <html lang="en">
@@ -86,6 +88,8 @@ session_write_close();
         </ul>
       </nav>
     </div>
+    <div id="content-area">
+<?php endif; /* end outer shell */ ?>
   <main class="page">
     <section class="sheet home-sheet">
       <header class="sheet-header">
@@ -617,6 +621,9 @@ session_write_close();
       // State persistence handled by app.js via window.appState -> autosave.php
     })();
   </script>
-  </div>
+<?php if (!$isPartial): ?>
+  </div> <!-- /content-area -->
+  </div> <!-- /layout-wrapper -->
 </body>
 </html>
+<?php endif; ?>
