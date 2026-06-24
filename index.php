@@ -554,6 +554,9 @@ function checked(string $name, string $value, array $formData): string
 {
     return (($formData[$name] ?? '') === $value) ? 'checked' : '';
 }
+$isPartial = ($_GET['partial'] ?? '') === '1';
+$currentPage = 'intake';
+if (!$isPartial):
 ?>
 <!doctype html>
 <html lang="en">
@@ -689,6 +692,8 @@ function checked(string $name, string $value, array $formData): string
         </ul>
       </nav>
     </div>
+    <div id="content-area">
+<?php endif; /* end outer shell */ ?>
   <main class="page">
     <div id="save-toast" class="toast" role="status" aria-live="polite"
       data-active="<?php echo $saved ? '1' : '0'; ?>"
@@ -2343,6 +2348,9 @@ function checked(string $name, string $value, array $formData): string
       </div>
     </div>
   </div>
-  </div>
+<?php if (!$isPartial): ?>
+  </div> <!-- /content-area -->
+  </div> <!-- /layout-wrapper -->
 </body>
 </html>
+<?php endif; ?>

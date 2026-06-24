@@ -51,6 +51,8 @@ if ($currentSku !== '') {
 
 $csrfToken = csrf_token();
 session_write_close();
+$isPartial = ($_GET['partial'] ?? '') === '1';
+if (!$isPartial):
 ?>
 <!doctype html>
 <html lang="en">
@@ -192,6 +194,8 @@ session_write_close();
       </ul>
     </nav>
   </div>
+  <div id="content-area">
+<?php endif; /* end outer shell */ ?>
   <main class="page">
     <section class="sheet home-sheet">
       <header class="sheet-header">
@@ -272,7 +276,6 @@ session_write_close();
       </div>
     </section>
   </main>
-</div>
 
 <script>
 (function () {
@@ -510,7 +513,6 @@ session_write_close();
     var input = document.getElementById('url-input');
     var url = input.value.trim();
     if (!url) return;
-    // CORS proxy approach: use a simple image load to verify
     var rect = canvas.getBoundingClientRect();
     var x = 30 + Math.random() * 60, y = 30 + Math.random() * 60;
     addImage(url, 'eBay image', x, y);
@@ -556,5 +558,9 @@ session_write_close();
   render();
 })();
 </script>
+<?php if (!$isPartial): ?>
+  </div> <!-- /content-area -->
+  </div> <!-- /layout-wrapper -->
 </body>
 </html>
+<?php endif; ?>
