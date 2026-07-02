@@ -98,6 +98,13 @@ foreach ($items as $item) {
 }
 
 $csrfToken = csrf_token();
+// Cards are now loaded via AJAX — no need to build them server-side
+$laneCounts = [];
+foreach ($lanes as $lane) {
+    $stmt = $pdo->prepare("SELECT COUNT(DISTINCT sku_normalized) FROM intake_items WHERE status = :s AND sku IS NOT NULL AND sku != ''");
+    $stmt->execute(['s' => $lane]);
+    $laneCounts[$lane] = (int)$stmt->fetchColumn();
+}
 session_write_close();
 
 $isPartial = ($_GET['partial'] ?? '') === '1';
@@ -110,7 +117,14 @@ if (!$isPartial):
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Status Board · Pinksheet</title>
   <link rel="stylesheet" href="assets/style.css?v=<?= getAssetVersion() ?>">
-  <style>.ready-indicator{display:inline-flex;align-items:center;gap:3px;margin-left:6px;font-size:0.75rem;opacity:0.8}.ready-indicator .visual-ready{width:13px;height:13px;margin:0;cursor:pointer}.ready-indicator .ready-label{color:var(--text-secondary,inherit)}</style>
+  <style>.ready-indicator{display:inline-flex;align-items:center;gap:3px;margin-left:6px;font-size:0.75rem;opacity:0.8}.ready-indicator .visual-ready{width:13px;height:13px;margin:0;cursor:pointer}.ready-indicator .ready-label{color:var(--text-secondary,inherit)}
+/* Skeleton loader */
+.kanban-skeleton{display:flex;flex-direction:column;gap:8px;padding:4px 0}
+.kanban-skeleton-card{height:88px;border-radius:10px;background:linear-gradient(90deg,var(--surface-secondary,#e4f2e9) 25%,var(--surface-primary,#f4fbf6) 50%,var(--surface-secondary,#e4f2e9) 75%);background-size:200% 100%;animation:skeletonShimmer 1.4s ease-in-out infinite}
+body[data-theme=dark] .kanban-skeleton-card{background:linear-gradient(90deg,rgba(255,255,255,0.04) 25%,rgba(255,255,255,0.08) 50%,rgba(255,255,255,0.04) 75%);background-size:200% 100%}
+@keyframes skeletonShimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+.kanban-lane-loading .kanban-lane-body{min-height:96px}
+  </style>
   <script src="assets/menu.js?v=<?= getAssetVersion() ?>" defer></script>
   <script>window.CSRF_TOKEN = <?= json_encode($csrfToken) ?>;</script>
   <script src="assets/theme.js?v=<?= getAssetVersion() ?>" defer></script>
@@ -154,101 +168,16 @@ if (!$isPartial):
       <p class="lead">Drag cards to update status; inline updates save immediately.</p>
       <div class="kanban-scroll">
       <div class="kanban-board" id="kanban-board">
-        <?php foreach ($lanes as $lane): $list = $cards[$lane] ?? []; ?>
+        <?php foreach ($lanes as $lane): ?>
           <div class="kanban-lane" data-status="<?php echo htmlspecialchars($lane, ENT_QUOTES, 'UTF-8'); ?>">
-            <h3><?php echo htmlspecialchars($lane, ENT_QUOTES, 'UTF-8'); ?> <span class="kanban-count"><?php echo count($list); ?></span></h3>
-            <div class="kanban-lane-body">
-            <?php foreach ($list as $card):
-                $sku = trim((string)($card['sku'] ?? ''));
-                $norm = strtoupper($sku);
-                $thumb = $thumbs[$norm] ?? null;
-            ?>
-              <div class="kanban-card<?php echo $lane === 'SOLD' ? ' is-sold' : ''; ?>" draggable="true"
-                   data-id="<?php echo (int)($card['id'] ?? 0); ?>"
-                   data-sku="<?php echo htmlspecialchars($sku, ENT_QUOTES, 'UTF-8'); ?>"
-                   data-sku-normalized="<?php echo htmlspecialchars($norm, ENT_QUOTES, 'UTF-8'); ?>">
-                <div class="card-top-row">
-                  <?php if ($thumb): ?>
-                    <picture>
-                      <source srcset="photo.php?id=<?php echo $thumb; ?>&format=webp" type="image/webp">
-                      <img class="card-thumb" src="photo.php?id=<?php echo $thumb; ?>" alt="" width="72" height="72" draggable="false" loading="lazy">
-                    </picture>
-                  <?php else: ?>
-                    <div class="card-thumb card-thumb-empty"></div>
-                  <?php endif; ?>
-                  <div class="card-action-buttons">
-                    <button type="button" class="card-qr-toggle"
-                            data-url="<?php
-                                $isHttps = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
-                                    || (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https')
-                                    || (isset($_SERVER['HTTP_CF_VISITOR']) && str_contains($_SERVER['HTTP_CF_VISITOR'], '"scheme":"https"'));
-                                $protocol = $isHttps ? 'https' : 'http';
-                                $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
-                                $qrUrl = $protocol . '://' . $host . '/intake.php?sku=' . urlencode($norm);
-                            ?><?php echo htmlspecialchars($qrUrl, ENT_QUOTES, 'UTF-8'); ?>"
-                            title="Show QR for <?php echo htmlspecialchars($sku, ENT_QUOTES, 'UTF-8'); ?>"
-                            aria-label="Show QR for <?php echo htmlspecialchars($sku, ENT_QUOTES, 'UTF-8'); ?>">
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3zM18 14h3v3h-3zM14 19h3v2h-3zM19 17v2h2"/></svg>
-                    </button>
-                    <button type="button" class="card-print-btn"
-                            data-sku="<?php echo htmlspecialchars($sku, ENT_QUOTES, 'UTF-8'); ?>"
-                            title="Print card for <?php echo htmlspecialchars($sku, ENT_QUOTES, 'UTF-8'); ?>"
-                            aria-label="Print card for <?php echo htmlspecialchars($sku, ENT_QUOTES, 'UTF-8'); ?>">
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
-                    </button>
-                    <button type="button" class="card-delete-btn"
-                            data-id="<?php echo (int)($card['id'] ?? 0); ?>"
-                            data-sku="<?php echo htmlspecialchars($norm, ENT_QUOTES, 'UTF-8'); ?>"
-                            title="Delete <?php echo htmlspecialchars($sku, ENT_QUOTES, 'UTF-8'); ?>"
-                            aria-label="Delete <?php echo htmlspecialchars($sku, ENT_QUOTES, 'UTF-8'); ?>">
-                      🗑
-                    </button>
-                  </div>
-                </div>
-                <div class="card-body">
-                  <div class="sku">
-                    <a href="intake.php?sku=<?php echo urlencode($sku); ?>" title="Open <?php echo htmlspecialchars($sku, ENT_QUOTES, 'UTF-8'); ?> in intake">
-                      <?php echo htmlspecialchars($sku, ENT_QUOTES, 'UTF-8'); ?>
-                    </a>
-                    <span class="ready-indicator">
-                      <input type="checkbox" class="visual-ready"<?php echo (int)($card['ready'] ?? 0) === 1 ? ' checked' : ''; ?>>
-                      <span class="ready-label">Ready</span>
-                    </span>
-                  </div>
-                  <div class="what"><?php echo htmlspecialchars($card['what_is_it'] ?? '', ENT_QUOTES, 'UTF-8'); ?></div>
-                  <div class="meta">
-                    <span><?php echo htmlspecialchars($card['updated_at'] ?? '', ENT_QUOTES, 'UTF-8'); ?></span>
-                    <?php if (isset($card['dispotech_price']) && $card['dispotech_price'] !== ''): ?>
-                      <span>$<?php echo number_format((float)$card['dispotech_price'], 2); ?></span>
-                    <?php endif; ?>
-                  </div>
-                   <?php
-                        $reviewedVal = (int)($card['reviewed'] ?? 0);
-                        if ($reviewedVal === 2) {
-                            $cardStatus = 'sold';
-                            $cardLabel = 'SOLD';
-                        } elseif ($reviewedVal === 1) {
-                            $cardStatus = 'active';
-                            $cardLabel = 'ACTIVE';
-                        } else {
-                            $cardStatus = 'inactive';
-                            $cardLabel = 'INACTIVE';
-                        }
-                    ?>
-                   <div class="status-badge-container status-<?= $cardStatus ?>"
-                        data-status="<?= $cardStatus ?>"
-                        data-sku="<?= htmlspecialchars($sku, ENT_QUOTES, 'UTF-8'); ?>">
-                     <?php if ($cardStatus === 'active'): ?>
-                        <svg class="ck-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-                     <?php endif; ?>
-                     <span class="label-text"><?= $cardLabel ?></span>
-                    </div>
-                 </div>
-                 <div class="qr-drawer">
-                   <div class="qr-drawer-inner"></div>
-                 </div>
-               </div>
-            <?php endforeach; ?>
+            <h3><?php echo htmlspecialchars($lane, ENT_QUOTES, 'UTF-8'); ?> <span class="kanban-count"><?php echo $laneCounts[$lane] ?? 0; ?></span></h3>
+            <div class="kanban-lane-body" data-lane="<?php echo htmlspecialchars($lane, ENT_QUOTES, 'UTF-8'); ?>">
+              <!-- Cards injected by JS after page load -->
+              <div class="kanban-skeleton">
+                <div class="kanban-skeleton-card"></div>
+                <div class="kanban-skeleton-card"></div>
+                <div class="kanban-skeleton-card"></div>
+              </div>
             </div>
           </div>
         <?php endforeach; ?>
@@ -264,6 +193,100 @@ if (!$isPartial):
   </div>
 
   <script>
+    /* ── Build a card DOM element from JSON data ─────────────────── */
+    function buildCard(c, lane) {
+      var isSold = lane === 'SOLD';
+      var card = document.createElement('div');
+      card.className = 'kanban-card' + (isSold ? ' is-sold' : '');
+      card.setAttribute('draggable', 'true');
+      card.setAttribute('data-id', String(c.id));
+      card.setAttribute('data-sku', c.sku);
+      card.setAttribute('data-sku-normalized', c.norm);
+
+      /* Thumbnail */
+      var thumbHtml = c.thumb_id
+        ? '<picture><source srcset="photo.php?id=' + c.thumb_id + '&format=webp" type="image/webp"><img class="card-thumb" src="photo.php?id=' + c.thumb_id + '" alt="" width="72" height="72" draggable="false" loading="lazy"></picture>'
+        : '<div class="card-thumb card-thumb-empty"></div>';
+
+      /* reviewed badge */
+      var rv = c.reviewed === true ? 1 : (c.reviewed === false ? 0 : Number(c.reviewed));
+      var badgeStatus = rv === 2 ? 'sold' : (rv === 1 ? 'active' : 'inactive');
+      var badgeLabel  = rv === 2 ? 'SOLD'  : (rv === 1 ? 'ACTIVE'  : 'INACTIVE');
+      var checkSvg = badgeStatus === 'active'
+        ? '<svg class="ck-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>'
+        : '';
+
+      var price = c.price !== null ? '<span>$' + Number(c.price).toFixed(2) + '</span>' : '';
+
+      card.innerHTML =
+        '<div class="card-top-row">' +
+          thumbHtml +
+          '<div class="card-action-buttons">' +
+            '<button type="button" class="card-qr-toggle" data-url="' + escH(c.qr_url) + '" title="Show QR for ' + escH(c.sku) + '" aria-label="Show QR for ' + escH(c.sku) + '">' +
+              '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3zM18 14h3v3h-3zM14 19h3v2h-3zM19 17v2h2"/></svg>' +
+            '</button>' +
+            '<button type="button" class="card-print-btn" data-sku="' + escH(c.sku) + '" title="Print card for ' + escH(c.sku) + '" aria-label="Print card for ' + escH(c.sku) + '">' +
+              '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>' +
+            '</button>' +
+            '<button type="button" class="card-delete-btn" data-id="' + c.id + '" data-sku="' + escH(c.norm) + '" title="Delete ' + escH(c.sku) + '" aria-label="Delete ' + escH(c.sku) + '">🗑</button>' +
+          '</div>' +
+        '</div>' +
+        '<div class="card-body">' +
+          '<div class="sku">' +
+            '<a href="intake.php?sku=' + encodeURIComponent(c.norm) + '" title="Open ' + escH(c.sku) + ' in intake">' + escH(c.sku) + '</a>' +
+            '<span class="ready-indicator">' +
+              '<input type="checkbox" class="visual-ready"' + (c.ready ? ' checked' : '') + '>' +
+              '<span class="ready-label">Ready</span>' +
+            '</span>' +
+          '</div>' +
+          '<div class="what">' + escH(c.what) + '</div>' +
+          '<div class="meta"><span>' + escH(c.updated) + '</span>' + price + '</div>' +
+          '<div class="status-badge-container status-' + badgeStatus + '" data-status="' + badgeStatus + '" data-sku="' + escH(c.sku) + '">' +
+            checkSvg + '<span class="label-text">' + badgeLabel + '</span>' +
+          '</div>' +
+        '</div>' +
+        '<div class="qr-drawer"><div class="qr-drawer-inner"></div></div>';
+
+      return card;
+    }
+
+    function escH(str) {
+      return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+    }
+
+    /* ── Load all cards via AJAX after shell is visible ──────────── */
+    (function loadCards() {
+      fetch('kanban_cards.php', { credentials: 'same-origin', cache: 'no-store' })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+          var lanesData = data.lanes || {};
+          document.querySelectorAll('.kanban-lane').forEach(function (laneEl) {
+            var laneName = laneEl.getAttribute('data-status') || '';
+            var body     = laneEl.querySelector('.kanban-lane-body');
+            var skeleton = body ? body.querySelector('.kanban-skeleton') : null;
+            var cards    = lanesData[laneName] || [];
+
+            if (skeleton) skeleton.remove();
+            if (!body) return;
+
+            // Update count badge
+            var countEl = laneEl.querySelector('.kanban-count');
+            if (countEl) countEl.textContent = String(cards.length);
+
+            cards.forEach(function (c) {
+              body.appendChild(buildCard(c, laneName));
+            });
+          });
+        })
+        .catch(function (err) {
+          /* On error replace skeletons with a simple message */
+          document.querySelectorAll('.kanban-skeleton').forEach(function (sk) {
+            sk.innerHTML = '<p style="padding:8px;font-size:0.82rem;opacity:0.6;">Failed to load cards. Reload to retry.</p>';
+          });
+          console.error('kanban_cards.php failed:', err);
+        });
+    })();
+
     (function () {
       var dragged = null;
       var draggedFromLane = null;
