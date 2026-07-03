@@ -672,6 +672,78 @@ if (!$isPartial):
         margin-right: auto;
       }
     }
+    /* Mobile mode toggle: force single-column at any viewport */
+    .sheet.intake.mobile-mode .form-columns {
+      grid-template-columns: 1fr !important;
+    }
+    .sheet.intake.mobile-mode .form-col-left,
+    .sheet.intake.mobile-mode .form-col-right {
+      grid-column: 1 / -1 !important;
+    }
+    .sheet.intake.mobile-mode .row {
+      grid-template-columns: 1fr !important;
+    }
+    .sheet.intake.mobile-mode .sheet-header {
+      flex-direction: column;
+      gap: var(--gap-mobile);
+    }
+    .sheet.intake.mobile-mode .conjoined {
+      grid-template-columns: 1fr;
+    }
+    .sheet.intake.mobile-mode .conjoined .segment {
+      border-right: none;
+      border-bottom: 1px solid var(--border-color, #d5dce6);
+    }
+    .sheet.intake.mobile-mode .conjoined .segment:last-child {
+      border-bottom: none;
+    }
+    .sheet.intake.mobile-mode input,
+    .sheet.intake.mobile-mode select,
+    .sheet.intake.mobile-mode textarea,
+    .sheet.intake.mobile-mode button,
+    .sheet.intake.mobile-mode .button-link {
+      min-height: var(--mobile-tap);
+      box-sizing: border-box;
+    }
+    .sheet.intake.mobile-mode input[type="checkbox"],
+    .sheet.intake.mobile-mode input[type="radio"] {
+      min-height: auto;
+    }
+    .sheet.intake.mobile-mode input[type="text"],
+    .sheet.intake.mobile-mode input[type="date"],
+    .sheet.intake.mobile-mode input[type="number"],
+    .sheet.intake.mobile-mode select,
+    .sheet.intake.mobile-mode textarea {
+      width: 100%;
+    }
+    .sheet.intake.mobile-mode .actions {
+      justify-content: stretch;
+    }
+    .sheet.intake.mobile-mode .actions button,
+    .sheet.intake.mobile-mode .actions .button-link {
+      flex: 1;
+      text-align: center;
+    }
+    /* Hide clutter in mobile mode */
+    .sheet.intake.mobile-mode .breadcrumbs,
+    .sheet.intake.mobile-mode .print-toggle,
+    .sheet.intake.mobile-mode .print-summary,
+    .sheet.intake.mobile-mode .updated,
+    .sheet.intake.mobile-mode .copy-sku,
+    .sheet.intake.mobile-mode .intake-qr-wrap,
+    .sheet.intake.mobile-mode .form-col-right,
+    .sheet.intake.mobile-mode .draft-restore-wrap,
+    .sheet.intake.mobile-mode #print-sticker-btn,
+    .sheet.intake.mobile-mode .row:has([name="date_received"]) {
+      display: none !important;
+    }
+    /* Show location field only in mobile mode */
+    .mobile-location {
+      display: none;
+    }
+    .sheet.intake.mobile-mode .mobile-location {
+      display: block !important;
+    }
   </style>
 </head>
 <body>
@@ -714,6 +786,7 @@ if (!$isPartial):
         <div class="sheet-header-right">
           <button type="button" class="print-button" id="print-button">Print</button>
           <button type="button" class="theme-toggle" id="theme-toggle">Dark mode</button>
+          <button type="button" class="button-link" id="mobile-mode-toggle">Mobile</button>
           <a class="button-link new-intake-cta" href="intake.php?clear_draft=1" data-new-intake>New Intake</a>
         </div>
         <div class="status">
@@ -862,6 +935,11 @@ if (!$isPartial):
                   <?php endforeach; ?>
                 </datalist>
           </label>
+            </div>
+            <div class="row mobile-location">
+              <label>Location / Where it goes
+                <input type="text" name="where_it_goes" value="<?php echo h($formData['where_it_goes'] ?? ''); ?>">
+              </label>
             </div>
             <p class="error client-error" id="what-error" hidden>Please enter a value for "What is it?".</p>
 
@@ -2230,6 +2308,25 @@ if (!$isPartial):
         checkbox.addEventListener('change', function () {
           apply(checkbox.checked);
           localStorage.setItem(storageKey, checkbox.checked ? '1' : '0');
+        });
+      }
+
+      // Mobile mode toggle
+      var mobileToggle = document.getElementById('mobile-mode-toggle');
+      var intakeSheet = document.querySelector('.sheet.intake');
+      if (mobileToggle && intakeSheet) {
+        var mobileStorageKey = 'intakeMobileMode';
+        var applyMobile = function (enabled) {
+          intakeSheet.classList.toggle('mobile-mode', enabled);
+          mobileToggle.textContent = enabled ? 'Desktop' : 'Mobile';
+        };
+        if (localStorage.getItem(mobileStorageKey) === '1') {
+          applyMobile(true);
+        }
+        mobileToggle.addEventListener('click', function () {
+          var enabled = !intakeSheet.classList.contains('mobile-mode');
+          applyMobile(enabled);
+          localStorage.setItem(mobileStorageKey, enabled ? '1' : '0');
         });
       }
 
