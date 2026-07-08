@@ -173,14 +173,14 @@ final class ScriptBuilderTest extends TestCase
     public function test_script_generation_filters_sold_items(): void
     {
         InventoryFixtures::standardInventory($this->pdo);
-        $stmt = $this->pdo->query("SELECT COUNT(*) FROM intake_items WHERE status != 'SOLD'");
+        $stmt = $this->pdo->query("SELECT COUNT(*) FROM intake_items WHERE status != 'sold'");
         $this->assertSame(10, (int) $stmt->fetchColumn());
     }
 
     public function test_script_generation_includes_ready_for_ebay(): void
     {
         InventoryFixtures::standardInventory($this->pdo);
-        $stmt = $this->pdo->query("SELECT COUNT(*) FROM intake_items WHERE status = 'Ready for eBay Listing'");
+        $stmt = $this->pdo->query("SELECT COUNT(*) FROM intake_items WHERE status = 'ebay review'");
         $this->assertSame(2, (int) $stmt->fetchColumn());
     }
 }

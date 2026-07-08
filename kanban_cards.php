@@ -14,7 +14,7 @@ checkMaintenance(true);
 header('Content-Type: application/json; charset=utf-8');
 header('Cache-Control: no-store');
 
-$validLanes = ['Intake', 'Tested', 'Ready for eBay Listing', 'Dispo Tech Store', 'eBay Listed', 'SOLD'];
+$validLanes = ['intake', 'ebay draft', 'ebay review', 'ebay listed', 'dispo tech store', 'sold'];
 
 try {
     $pdo = pdoConnect(__DIR__ . '/data/intake.sqlite');
@@ -124,7 +124,7 @@ $host     = $_SERVER['HTTP_HOST'] ?? 'localhost';
 foreach ($rows as $row) {
     $status = $row['status'] ?? '';
     if (!in_array($status, $validLanes, true)) {
-        $status = 'Intake';
+        $status = 'intake';
     }
     $sku  = trim((string)($row['sku'] ?? ''));
     $norm = strtoupper($sku);

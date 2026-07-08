@@ -144,7 +144,7 @@ final class SessionStateRegressionTest extends TestCase
 
         // Item 2 should be unaffected
         $status2 = $this->pdo->query("SELECT status FROM intake_items WHERE id = 2")->fetchColumn();
-        $this->assertSame('Tested', $status2);
+        $this->assertSame('ebay draft', $status2);
     }
 
     public function test_reviewed_flag_not_lost_on_misc_update(): void

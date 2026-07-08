@@ -6,7 +6,7 @@ $scriptName = basename($_SERVER['SCRIPT_NAME'] ?? $_SERVER['PHP_SELF'] ?? '');
 $isLookupPage = $scriptName === 'lookup.php';
 $currentPage = $isLookupPage ? 'lookup' : 'home';
 const HOME_DB_PATH = __DIR__ . '/data/intake.sqlite';
-$statusOptions = ['Intake', 'Tested', 'Ready for eBay Listing', 'Dispo Tech Store', 'eBay Listed', 'SOLD'];
+$statusOptions = ['intake', 'ebay draft', 'ebay review', 'ebay listed', 'dispo tech store', 'sold'];
 $lookupSuggestions = [];
 $listedItems = [];
 $listedThumbs = [];
@@ -35,8 +35,8 @@ if (is_readable(HOME_DB_PATH)) {
         $stmtToday = $pdo->prepare("SELECT COUNT(*) FROM intake_items WHERE created_at >= :today_start AND created_at < :today_end");
         $stmtToday->execute([':today_start' => $today . ' 00:00:00', ':today_end' => $today . ' 23:59:59']);
         $counts['today'] = (int) $stmtToday->fetchColumn();
-        $counts['sold'] = (int) $pdo->query("SELECT COUNT(*) FROM intake_items WHERE status = 'SOLD'")->fetchColumn();
-        $counts['in_progress'] = (int) $pdo->query("SELECT COUNT(*) FROM intake_items WHERE status != 'SOLD'")->fetchColumn();
+        $counts['sold'] = (int) $pdo->query("SELECT COUNT(*) FROM intake_items WHERE status = 'sold'")->fetchColumn();
+        $counts['in_progress'] = (int) $pdo->query("SELECT COUNT(*) FROM intake_items WHERE status != 'sold'")->fetchColumn();
 
         // Single fetch for all listings (replaces 3 redundant queries)
         $stmtAll = $pdo->query("
@@ -348,11 +348,12 @@ if (!$isPartial):
             <p class="error client-error" id="lookup-error" hidden>Enter a SKU or pick a status to search.</p>
             <div class="filter-chips" id="lookup-chips">
               <button type="button" data-lookup-status="">Any</button>
-              <button type="button" data-lookup-status="Intake">Intake</button>
-              <button type="button" data-lookup-status="Tested">Tested</button>
-              <button type="button" data-lookup-status="Dispo Tech Store">Dispo Tech Store</button>
-              <button type="button" data-lookup-status="eBay">eBay</button>
-              <button type="button" data-lookup-status="SOLD">Sold</button>
+              <button type="button" data-lookup-status="intake">Intake</button>
+              <button type="button" data-lookup-status="ebay draft">eBay Draft</button>
+              <button type="button" data-lookup-status="ebay review">eBay Review</button>
+              <button type="button" data-lookup-status="ebay listed">eBay Listed</button>
+              <button type="button" data-lookup-status="dispo tech store">Dispo Tech Store</button>
+              <button type="button" data-lookup-status="sold">Sold</button>
             </div>
             <div class="actions lookup-actions">
               <button type="submit">Open in intake</button>
@@ -1103,7 +1104,7 @@ if (!$isPartial):
             actionsTd.appendChild(priceBadge);
           }
           var inlineStatus = document.createElement('select');
-          ['','Intake','Tested','Ready for eBay Listing','Dispo Tech Store','eBay Listed','SOLD'].forEach(function (opt) {
+          ['','intake','ebay draft','ebay review','ebay listed','dispo tech store','sold'].forEach(function (opt) {
             var o = document.createElement('option');
             o.value = opt;
             o.textContent = opt || 'Set status';
