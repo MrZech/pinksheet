@@ -53,7 +53,7 @@ final class ItemLifecycleTest extends TestCase
         if (trim($_POST['sku'] ?? '') === '') {
             $errors[] = 'SKU is required.';
         }
-        $allowed_statuses = ['Intake', 'Tested', 'Ready for eBay Listing', 'eBay Listed', 'SOLD', 'Dispo Tech Store'];
+        $allowed_statuses = ['intake', 'ebay draft', 'ebay review', 'ebay listed', 'dispo tech store', 'sold'];
         if (!in_array($_POST['status'] ?? '', $allowed_statuses, true)) {
             $errors[] = 'Invalid status.';
         }

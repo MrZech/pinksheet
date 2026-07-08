@@ -16,7 +16,7 @@ try {
     exit;
 }
 
-$lanes = ['Intake', 'Tested', 'Ready for eBay Listing', 'Dispo Tech Store', 'eBay Listed', 'SOLD'];
+$lanes = ['intake', 'ebay draft', 'ebay review', 'ebay listed', 'dispo tech store', 'sold'];
 $cols = $pdo->query('PRAGMA table_info(intake_items)')->fetchAll(PDO::FETCH_ASSOC);
 $colNames = array_map(static fn($row) => (string)($row['name'] ?? ''), $cols);
 if (!in_array('ready', $colNames, true)) {
@@ -92,7 +92,7 @@ if ($skus) {
 foreach ($items as $item) {
     $status = $item['status'] ?? '';
     if (!in_array($status, $lanes, true)) {
-        $status = 'Intake';
+        $status = 'intake';
     }
     $cards[$status][] = $item;
 }
@@ -195,7 +195,7 @@ body[data-theme=dark] .kanban-skeleton-card{background:linear-gradient(90deg,rgb
   <script>
     /* ── Build a card DOM element from JSON data ─────────────────── */
     function buildCard(c, lane) {
-      var isSold = lane === 'SOLD';
+      var isSold = lane === 'sold';
       var card = document.createElement('div');
       card.className = 'kanban-card' + (isSold ? ' is-sold' : '');
       card.setAttribute('draggable', 'true');
@@ -387,8 +387,8 @@ body[data-theme=dark] .kanban-skeleton-card{background:linear-gradient(90deg,rgb
             if (dropBody) dropBody.appendChild(card);
             card.style.opacity = '1';
 
-            // When dropped on SOLD lane, also set reviewed=2 (sold) and update badge
-            if (status === 'SOLD') {
+            // When dropped on sold lane, also set reviewed=2 (sold) and update badge
+            if (status === 'sold') {
               fetch('update_item.php', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -400,7 +400,7 @@ body[data-theme=dark] .kanban-skeleton-card{background:linear-gradient(90deg,rgb
                 }
               });
             }
-            var isSold = status === 'SOLD';
+            var isSold = status === 'sold';
             card.classList.toggle('is-sold', isSold);
           })
           .catch(function () {

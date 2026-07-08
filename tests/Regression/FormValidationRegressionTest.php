@@ -26,12 +26,12 @@ final class FormValidationRegressionTest extends TestCase
     public function test_all_canonical_statuses_are_accepted(): void
     {
         $allowed = [
-            'Intake',
-            'Tested',
-            'Ready for eBay Listing',
-            'eBay Listed',
-            'SOLD',
-            'Dispo Tech Store',
+            'intake',
+            'ebay draft',
+            'ebay review',
+            'ebay listed',
+            'dispo tech store',
+            'sold',
         ];
 
         foreach ($allowed as $status) {

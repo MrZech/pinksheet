@@ -32,29 +32,29 @@ final class SquareSyncTest extends TestCase
     private static function mapSquareStatus(string $status): string
     {
         return match ($status) {
-            'SOLD'              => 'SOLD',
-            'Dispo Tech Store'  => 'ACTIVE',
-            'eBay Listed'       => 'ACTIVE',
+            'sold'              => 'SOLD',
+            'dispo tech store'  => 'ACTIVE',
+            'ebay listed'       => 'ACTIVE',
             default             => 'DRAFT',
         };
     }
 
     public function test_map_square_status_sold(): void
     {
-        $this->assertSame('SOLD', self::mapSquareStatus('SOLD'));
+        $this->assertSame('SOLD', self::mapSquareStatus('sold'));
     }
 
     public function test_map_square_status_active(): void
     {
-        $this->assertSame('ACTIVE', self::mapSquareStatus('Dispo Tech Store'));
-        $this->assertSame('ACTIVE', self::mapSquareStatus('eBay Listed'));
+        $this->assertSame('ACTIVE', self::mapSquareStatus('dispo tech store'));
+        $this->assertSame('ACTIVE', self::mapSquareStatus('ebay listed'));
     }
 
     public function test_map_square_status_defaults_draft(): void
     {
-        $this->assertSame('DRAFT', self::mapSquareStatus('Intake'));
-        $this->assertSame('DRAFT', self::mapSquareStatus('Tested'));
-        $this->assertSame('DRAFT', self::mapSquareStatus('Ready for eBay Listing'));
+        $this->assertSame('DRAFT', self::mapSquareStatus('intake'));
+        $this->assertSame('DRAFT', self::mapSquareStatus('ebay draft'));
+        $this->assertSame('DRAFT', self::mapSquareStatus('ebay review'));
     }
 
     // ── SKU Normalization ───────────────────────────────────────────────

@@ -41,7 +41,7 @@ final class CrudOperationsTest extends TestCase
         $stmt->execute([
             'sku'            => 'FULL-TEST',
             'sku_normalized' => 'FULL-TEST',
-            'status'         => 'Ready for eBay Listing',
+            'status'         => 'ebay review',
             'what_is_it'     => 'Full Fields Item',
             'functional'     => 'Yes',
             'condition'      => 'Excellent',
@@ -74,7 +74,7 @@ final class CrudOperationsTest extends TestCase
     public function test_select_items_by_status(): void
     {
         InventoryFixtures::standardInventory($this->pdo);
-        $stmt = $this->pdo->prepare("SELECT COUNT(*) FROM intake_items WHERE status = 'Intake'");
+        $stmt = $this->pdo->prepare("SELECT COUNT(*) FROM intake_items WHERE status = 'intake'");
         $stmt->execute();
         $this->assertSame(2, (int) $stmt->fetchColumn());
     }
