@@ -89,10 +89,19 @@ if ($skus) {
     }
 }
 
+$legacyStatusMap = [
+    'SOLD'                  => 'sold',
+    'Tested'                => 'ebay draft',
+    'Ready for eBay Listing'=> 'ebay review',
+    'eBay Listed'           => 'ebay listed',
+    'Dispo Tech Store'      => 'dispo tech store',
+    'Intake'                => 'intake',
+];
+
 foreach ($items as $item) {
     $status = $item['status'] ?? '';
     if (!in_array($status, $lanes, true)) {
-        $status = 'intake';
+        $status = $legacyStatusMap[$status] ?? 'intake';
     }
     $cards[$status][] = $item;
 }

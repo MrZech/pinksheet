@@ -121,10 +121,19 @@ $isHttps  = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
 $protocol = $isHttps ? 'https' : 'http';
 $host     = $_SERVER['HTTP_HOST'] ?? 'localhost';
 
+$legacyStatusMap = [
+    'SOLD'                  => 'sold',
+    'Tested'                => 'ebay draft',
+    'Ready for eBay Listing'=> 'ebay review',
+    'eBay Listed'           => 'ebay listed',
+    'Dispo Tech Store'      => 'dispo tech store',
+    'Intake'                => 'intake',
+];
+
 foreach ($rows as $row) {
     $status = $row['status'] ?? '';
     if (!in_array($status, $validLanes, true)) {
-        $status = 'intake';
+        $status = $legacyStatusMap[$status] ?? 'intake';
     }
     $sku  = trim((string)($row['sku'] ?? ''));
     $norm = strtoupper($sku);
