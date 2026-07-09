@@ -9,6 +9,20 @@ $currentPage = 'kanban';
 try {
     $pdo = pdoConnect(__DIR__ . '/data/intake.sqlite');
     $pdo->exec('PRAGMA cache_size = -8000'); // 8MB query cache
+
+// Ensure schema columns exist
+$cols = $pdo->query('PRAGMA table_info(intake_items)')->fetchAll(PDO::FETCH_ASSOC);
+$colNames = array_map(static fn($row) => (string)($row['name'] ?? ''), $cols);
+if (!in_array('ready', $colNames, true)) {
+    $pdo->exec("ALTER TABLE intake_items ADD COLUMN ready INTEGER NOT NULL DEFAULT 0");
+}
+
+// Create indexes for faster queries (IF NOT EXISTS is safe to run repeatedly)
+$pdo->exec('CREATE INDEX IF NOT EXISTS idx_intake_items_status ON intake_items(status)');
+$pdo->exec('CREATE INDEX IF NOT EXISTS idx_intake_items_sku ON intake_items(sku)');
+$pdo->exec('CREATE INDEX IF NOT EXISTS idx_intake_items_sku_normalized ON intake_items(sku_normalized)');
+$pdo->exec('CREATE INDEX IF NOT EXISTS idx_intake_items_updated_at ON intake_items(updated_at DESC)');
+$pdo->exec('CREATE INDEX IF NOT EXISTS idx_sku_photos_sku_normalized ON sku_photos(sku_normalized)');
 } catch (Throwable $e) {
     http_response_code(500);
     header('Content-Type: text/plain; charset=utf-8');
@@ -17,102 +31,13 @@ try {
 }
 
 $lanes = ['intake', 'ebay draft', 'ebay review', 'ebay listed', 'dispo tech store', 'sold'];
-$cols = $pdo->query('PRAGMA table_info(intake_items)')->fetchAll(PDO::FETCH_ASSOC);
-$colNames = array_map(static fn($row) => (string)($row['name'] ?? ''), $cols);
-if (!in_array('ready', $colNames, true)) {
-    $pdo->exec("ALTER TABLE intake_items ADD COLUMN ready INTEGER NOT NULL DEFAULT 0");
-}
-
-$cards = [];
-$thumbs = [];
-$items = $pdo->query("
-    SELECT id, sku, sku_normalized, status, what_is_it, notes, updated_at, dispotech_price, reviewed, ready
-    FROM intake_items
-    WHERE sku IS NOT NULL AND sku != ''
-    ORDER BY updated_at DESC, id DESC
-    LIMIT 500
-")->fetchAll();
-
-$rowMentionsRefurb = static function (array $row): bool {
-    $combined = strtolower(trim((string)($row['what_is_it'] ?? '') . ' ' . (string)($row['notes'] ?? '')));
-    return str_contains($combined, 'refurb');
-};
-
-$dedupedItems = [];
-foreach ($items as $item) {
-    $norm = strtoupper(trim((string)($item['sku_normalized'] ?? $item['sku'] ?? '')));
-    if ($norm === '') {
-        continue;
-    }
-    if (!isset($dedupedItems[$norm])) {
-        $dedupedItems[$norm] = $item;
-        continue;
-    }
-
-    $current = $dedupedItems[$norm];
-    $currentRefurb = $rowMentionsRefurb($current);
-    $incomingRefurb = $rowMentionsRefurb($item);
-    if ($incomingRefurb && !$currentRefurb) {
-        $dedupedItems[$norm] = $item;
-        continue;
-    }
-    if ($incomingRefurb === $currentRefurb) {
-        $incomingStamp = (string)($item['updated_at'] ?? '');
-        $currentStamp = (string)($current['updated_at'] ?? '');
-        if ($incomingStamp > $currentStamp || ($incomingStamp === $currentStamp && (int)$item['id'] > (int)$current['id'])) {
-            $dedupedItems[$norm] = $item;
-        }
-    }
-}
-
-$items = array_values($dedupedItems);
-
-$skus = array_values(array_unique(array_filter(array_map(static fn($r) => strtoupper(trim((string)($r['sku'] ?? ''))), $items))));
-if ($skus) {
-    $maxVars = 900;
-    $thumbs = [];
-    foreach (array_chunk($skus, $maxVars) as $chunk) {
-        $placeholders = implode(',', array_fill(0, count($chunk), '?'));
-        $stmt = $pdo->prepare("
-            SELECT sku_normalized, id
-            FROM sku_photos
-            WHERE sku_normalized IN ($placeholders)
-            ORDER BY is_thumb DESC, id DESC
-        ");
-        $stmt->execute($chunk);
-        foreach ($stmt->fetchAll() as $row) {
-            $norm = trim((string)$row['sku_normalized']);
-            if ($norm && !isset($thumbs[$norm])) {
-                $thumbs[$norm] = (int)$row['id'];
-            }
-        }
-    }
-}
-
-$legacyStatusMap = [
-    'SOLD'                  => 'sold',
-    'Tested'                => 'ebay draft',
-    'Ready for eBay Listing'=> 'ebay review',
-    'eBay Listed'           => 'ebay listed',
-    'Dispo Tech Store'      => 'dispo tech store',
-    'Intake'                => 'intake',
-];
-
-foreach ($items as $item) {
-    $status = $item['status'] ?? '';
-    if (!in_array($status, $lanes, true)) {
-        $status = $legacyStatusMap[$status] ?? 'intake';
-    }
-    $cards[$status][] = $item;
-}
 
 $csrfToken = csrf_token();
-// Cards are now loaded via AJAX — no need to build them server-side
+// Cards are loaded via AJAX — server just needs lane counts
 $laneCounts = [];
-foreach ($lanes as $lane) {
-    $stmt = $pdo->prepare("SELECT COUNT(DISTINCT sku_normalized) FROM intake_items WHERE status = :s AND sku IS NOT NULL AND sku != ''");
-    $stmt->execute(['s' => $lane]);
-    $laneCounts[$lane] = (int)$stmt->fetchColumn();
+$stmt = $pdo->query("SELECT status, COUNT(DISTINCT sku_normalized) AS cnt FROM intake_items WHERE sku IS NOT NULL AND sku != '' AND status IS NOT NULL GROUP BY status");
+foreach ($stmt->fetchAll() as $row) {
+    $laneCounts[(string)$row['status']] = (int)$row['cnt'];
 }
 session_write_close();
 
