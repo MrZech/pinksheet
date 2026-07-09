@@ -92,7 +92,9 @@ CREATE TABLE IF NOT EXISTS sku_photos (
     stored_name TEXT NOT NULL,
     mime_type TEXT NOT NULL,
     file_size INTEGER NOT NULL DEFAULT 0,
-    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    is_thumb INTEGER NOT NULL DEFAULT 0,
+    sort_order INTEGER NOT NULL DEFAULT 0
 );
 SQL);
 $pdo->exec("CREATE INDEX IF NOT EXISTS idx_sku_photos_sku_normalized ON sku_photos (sku_normalized)");
@@ -2278,7 +2280,12 @@ if (!$isPartial):
             if (id) ids.push(id);
           });
           if (!ids.length) return;
-          var delay = 150;
+          var total = ids.length;
+          var origText = downloadAllBtn.textContent;
+          downloadAllBtn.textContent = 'Downloading 0 / ' + total + '...';
+          downloadAllBtn.disabled = true;
+          var delay = 400;
+          var completed = 0;
           ids.forEach(function (id, index) {
             setTimeout(function () {
               var a = document.createElement('a');
@@ -2288,6 +2295,14 @@ if (!$isPartial):
               document.body.appendChild(a);
               a.click();
               document.body.removeChild(a);
+              completed++;
+              downloadAllBtn.textContent = 'Downloading ' + completed + ' / ' + total + '...';
+              if (completed === total) {
+                setTimeout(function () {
+                  downloadAllBtn.textContent = origText;
+                  downloadAllBtn.disabled = false;
+                }, 800);
+              }
             }, index * delay);
           });
         });

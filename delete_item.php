@@ -13,10 +13,25 @@ const DB_PATH = __DIR__ . '/data/intake.sqlite';
 function ensureArchiveTable(PDO $pdo): void
 {
     $pdo->exec("CREATE TABLE IF NOT EXISTS intake_deleted AS SELECT * FROM intake_items WHERE 0");
-    $delCols = $pdo->query("PRAGMA table_info(intake_deleted)")->fetchAll(PDO::FETCH_ASSOC);
-    $delColNames = array_map(static fn($c) => (string)($c['name'] ?? ''), $delCols);
-    if (!in_array('ready', $delColNames, true)) {
-        $pdo->exec("ALTER TABLE intake_deleted ADD COLUMN ready INTEGER NOT NULL DEFAULT 0");
+    $archiveColumns = [];
+    foreach ($pdo->query("PRAGMA table_info(intake_deleted)") as $col) {
+        $archiveColumns[(string)$col['name']] = true;
+    }
+    foreach ($pdo->query("PRAGMA table_info(intake_items)") as $col) {
+        $name = (string)$col['name'];
+        if ($name === 'id' || isset($archiveColumns[$name])) {
+            continue;
+        }
+        $type = trim((string)($col['type'] ?? ''));
+        $definition = 'ALTER TABLE intake_deleted ADD COLUMN ' . $name;
+        if ($type !== '') {
+            $definition .= ' ' . $type;
+        }
+        $pdo->exec($definition);
+        $archiveColumns[$name] = true;
+    }
+    if (!isset($archiveColumns['deleted_at'])) {
+        $pdo->exec("ALTER TABLE intake_deleted ADD COLUMN deleted_at TEXT");
     }
 }
 

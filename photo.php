@@ -61,6 +61,10 @@ try {
     $forceDownload = (int)($_GET['download'] ?? 0) === 1;
     $webpFormat = (string)($_GET['format'] ?? '') === 'webp';
 
+    // Compute base download name once for all serving paths
+    $baseDownloadName = preg_replace('/[^A-Za-z0-9._-]+/', '_', (string)($photo['original_name'] ?? 'photo'));
+    $baseDownloadName = trim($baseDownloadName, '._-') ?: 'photo';
+
     /* ── On-the-fly WebP conversion ───────────────────────────── */
     if ($webpFormat && function_exists('imagewebp')) {
         $gd = null;
@@ -93,10 +97,12 @@ try {
                     exit;
                 }
 
+                $webpDownloadName = pathinfo($baseDownloadName, PATHINFO_FILENAME) . '.webp';
                 header('Cache-Control: public, max-age=' . PHOTO_CACHE_MAX_AGE);
                 header('ETag: ' . $etag);
                 header('Content-Type: image/webp');
                 header('Content-Length: ' . (string)$fileSize);
+                header('Content-Disposition: ' . ($forceDownload ? 'attachment' : 'inline') . '; filename="' . $webpDownloadName . '"');
                 echo $webpData;
                 exit;
             }
@@ -142,15 +148,13 @@ try {
                     exit;
                 }
 
-                $downloadName = preg_replace('/[^A-Za-z0-9._-]+/', '_', (string)($photo['original_name'] ?? 'photo'));
-                $downloadName = trim($downloadName, '._-') ?: 'photo';
-                $downloadName = pathinfo($downloadName, PATHINFO_FILENAME) . '.png';
+                $pngDownloadName = pathinfo($baseDownloadName, PATHINFO_FILENAME) . '.png';
 
                 header('Cache-Control: public, max-age=' . PHOTO_CACHE_MAX_AGE);
                 header('ETag: ' . $etag);
                 header('Content-Type: image/png');
                 header('Content-Length: ' . (string)$fileSize);
-                header('Content-Disposition: ' . ($forceDownload ? 'attachment' : 'inline') . '; filename="' . $downloadName . '"');
+                header('Content-Disposition: ' . ($forceDownload ? 'attachment' : 'inline') . '; filename="' . $pngDownloadName . '"');
                 echo $pngData;
                 exit;
             }
@@ -170,17 +174,11 @@ try {
         exit;
     }
 
-    $originalName = preg_replace('/[^A-Za-z0-9._-]+/', '_', (string)($photo['original_name'] ?? 'photo'));
-    $downloadName = trim((string)$originalName, '._-');
-    if ($downloadName === '') {
-        $downloadName = 'photo';
-    }
-
     header('Cache-Control: public, max-age=' . PHOTO_CACHE_MAX_AGE);
     header('ETag: ' . $etag);
     header('Content-Type: ' . $mimeType);
     header('Content-Length: ' . (string)$fileSize);
-    header('Content-Disposition: ' . ($forceDownload ? 'attachment' : 'inline') . '; filename="' . $downloadName . '"');
+    header('Content-Disposition: ' . ($forceDownload ? 'attachment' : 'inline') . '; filename="' . $baseDownloadName . '"');
     readfile($path);
 } catch (Throwable $e) {
     http_response_code(500);

@@ -171,7 +171,6 @@ SQL);
             if (!rename($tempAssembled, $destPath)) {
                 errorResponse('Failed to move assembled file.', 500);
             }
-            $finalSize = $finalSize;
             $dbMime = $mimeType;
         }
     } finally {
