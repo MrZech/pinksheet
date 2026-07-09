@@ -238,10 +238,6 @@ body[data-theme=dark] .kanban-skeleton-card{background:linear-gradient(90deg,rgb
               '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>' +
             '</button>' +
             '<button type="button" class="card-delete-btn" data-id="' + c.id + '" data-sku="' + escH(c.norm) + '" title="Delete ' + escH(c.sku) + '" aria-label="Delete ' + escH(c.sku) + '">🗑</button>' +
-            '<div class="card-move">' +
-              '<button type="button" class="card-move-btn" title="Move to another section">↗</button>' +
-              '<div class="card-move-menu"></div>' +
-            '</div>' +
           '</div>' +
         '</div>' +
         '<div class="card-body">' +
@@ -683,110 +679,6 @@ body[data-theme=dark] .kanban-skeleton-card{background:linear-gradient(90deg,rgb
             alert('Delete failed — please reload.');
             restoreDeletedCard();
           });
-      });
-
-      // ── Move-to dropdown ────────────────────────────────────
-      board.addEventListener('click', function (e) {
-        var btn = e.target.closest('.card-move-btn');
-        if (!btn) return;
-        e.stopPropagation();
-        var card = btn.closest('.kanban-card');
-        if (!card) return;
-        var menu = card.querySelector('.card-move-menu');
-        if (!menu) return;
-
-        if (menu.classList.contains('is-open')) {
-          menu.classList.remove('is-open');
-          return;
-        }
-
-        // Close any other open move menus
-        document.querySelectorAll('.card-move-menu.is-open').forEach(function (m) {
-          m.classList.remove('is-open');
-        });
-
-        var currentLane = card.closest('.kanban-lane');
-        var currentStatus = currentLane ? currentLane.getAttribute('data-status') : '';
-
-        menu.innerHTML = '';
-        document.querySelectorAll('.kanban-lane').forEach(function (laneEl) {
-          var status = laneEl.getAttribute('data-status');
-          if (!status || status === currentStatus) return;
-          var opt = document.createElement('button');
-          opt.type = 'button';
-          opt.textContent = status;
-          opt.setAttribute('data-move-status', status);
-          menu.appendChild(opt);
-        });
-
-        if (menu.children.length === 0) return;
-        menu.classList.add('is-open');
-      });
-
-      board.addEventListener('click', function (e) {
-        var opt = e.target.closest('.card-move-menu button[data-move-status]');
-        if (!opt) return;
-
-        var card = opt.closest('.kanban-card');
-        if (!card) return;
-        var status = opt.getAttribute('data-move-status');
-        var sku = card.getAttribute('data-sku-normalized') || card.getAttribute('data-sku') || '';
-        var fromLane = card.closest('.kanban-lane');
-        var menu = opt.closest('.card-move-menu');
-        if (menu) menu.classList.remove('is-open');
-
-        if (!sku) return;
-
-        fetch('update_item.php', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-          body: 'sku=' + encodeURIComponent(sku) + '&field=status&value=' + encodeURIComponent(status) + '&csrf_token=' + encodeURIComponent(window.CSRF_TOKEN)
-        })
-          .then(function (r) { return r.json(); })
-          .then(function (data) {
-            if (!data.ok) {
-              alert('Move failed: ' + (data.error || 'error'));
-              return;
-            }
-
-            var targetLane = board.querySelector('.kanban-lane[data-status="' + status + '"]');
-            var targetBody = targetLane ? targetLane.querySelector('.kanban-lane-body') : null;
-            if (targetBody) targetBody.appendChild(card);
-
-            if (fromLane) {
-              var fromCount = fromLane.querySelector('.kanban-count');
-              if (fromCount) fromCount.textContent = String(Math.max(0, parseInt(fromCount.textContent || '0', 10) - 1));
-            }
-            if (targetLane) {
-              var toCount = targetLane.querySelector('.kanban-count');
-              if (toCount) toCount.textContent = String(parseInt(toCount.textContent || '0', 10) + 1);
-            }
-
-            if (status === 'sold') {
-              fetch('update_item.php', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                body: 'sku=' + encodeURIComponent(sku) + '&field=reviewed&value=2&csrf_token=' + encodeURIComponent(window.CSRF_TOKEN)
-              }).then(function (r) { return r.json(); }).then(function (d) {
-                if (d.ok) {
-                  var badge = card.querySelector('.status-badge-container');
-                  if (badge) updateStatusBadge(badge, 'sold');
-                }
-              });
-            }
-            card.classList.toggle('is-sold', status === 'sold');
-          })
-          .catch(function () {
-            alert('Move failed');
-          });
-      });
-
-      // Close move-to dropdown when clicking outside any card
-      document.addEventListener('click', function (e) {
-        if (e.target.closest('.card-move')) return;
-        document.querySelectorAll('.card-move-menu.is-open').forEach(function (m) {
-          m.classList.remove('is-open');
-        });
       });
 
     })();
