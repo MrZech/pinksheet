@@ -3868,6 +3868,79 @@ body.dark-mode .card-qr-toggle.is-active {
   border-color: #475569;
 }
 
+/* ── Move-to dropdown on kanban cards ── */
+.card-move {
+  position: relative;
+  display: inline-flex;
+}
+.card-move-btn {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 36px !important;
+  height: 36px !important;
+  border: 1px solid #d5dce6 !important;
+  border-radius: 4px !important;
+  box-shadow: none !important;
+  background-color: #ffffff !important;
+  color: #475569;
+  cursor: pointer;
+  font-size: 0.85rem;
+  line-height: 1;
+  flex-shrink: 0;
+  padding: 0 !important;
+  box-sizing: border-box;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.card-move-btn:hover {
+  background-color: #f1f5f9 !important;
+}
+body[data-theme="dark"] .card-move-btn,
+body.dark-mode .card-move-btn {
+  background-color: #1e293b !important;
+  border-color: #334155 !important;
+  color: #94a3b8;
+  box-shadow: none !important;
+}
+body[data-theme="dark"] .card-move-btn:hover,
+body.dark-mode .card-move-btn:hover {
+  background-color: #334155 !important;
+  color: #cbd5e1;
+}
+.card-move-menu {
+  display: none;
+  position: absolute;
+  top: 100%;
+  right: 0;
+  z-index: 20;
+  min-width: 150px;
+  background: var(--surface-primary);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-floating);
+  padding: 4px 0;
+  margin-top: 4px;
+}
+.card-move-menu.is-open {
+  display: block;
+}
+.card-move-menu button {
+  display: block;
+  width: 100%;
+  padding: 8px 14px;
+  text-align: left;
+  background: none;
+  border: none;
+  font-size: 0.8rem;
+  color: var(--text-primary);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.card-move-menu button:hover {
+  background: var(--accent-primary-soft);
+  color: var(--accent-strong);
+}
+
 /* ── Desktop QR Scanner Modal ────────────────────────────────── */
 .scanner-overlay {
   position: fixed;
