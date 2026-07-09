@@ -164,6 +164,13 @@ try {
     }
 
     // Normal serving path (PNG already or conversion skipped/not needed)
+    // Re-detect MIME from the actual file if the stored type is unreliable
+    $mimeFromDb = $mimeType;
+    $mimeType = detectUploadMimeType($path, $photo['original_name'] ?? '');
+    if ($mimeType === 'application/octet-stream') {
+        $mimeType = $mimeFromDb; // fall back to stored value
+    }
+
     $fileSize = filesize($path);
     $etag = sprintf('W/"%x-%x-%x"', $photoId, $fileMtime, $fileSize);
 
@@ -172,6 +179,11 @@ try {
         header('Cache-Control: public, max-age=' . PHOTO_CACHE_MAX_AGE);
         header('ETag: ' . $etag);
         exit;
+    }
+
+    // Clear any stray output buffers so readfile() sends clean image data
+    while (ob_get_level() > 0) {
+        ob_end_clean();
     }
 
     header('Cache-Control: public, max-age=' . PHOTO_CACHE_MAX_AGE);
