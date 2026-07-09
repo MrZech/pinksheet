@@ -739,12 +739,9 @@ if (!$isPartial):
     .sheet.intake.mobile-mode .row:has([name="date_received"]) {
       display: none !important;
     }
-    /* Show location field only in mobile mode */
+    /* Location field visible on desktop and mobile */
     .mobile-location {
-      display: none;
-    }
-    .sheet.intake.mobile-mode .mobile-location {
-      display: block !important;
+      display: block;
     }
   </style>
 </head>
