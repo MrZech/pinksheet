@@ -348,6 +348,15 @@ body[data-theme=dark] .kanban-skeleton-card{background:linear-gradient(90deg,rgb
 
       board.addEventListener('dragover', function (e) {
         if (!dragged) return;
+
+        // Auto-scroll horizontally and vertically while dragging
+        var rect = dragHost.getBoundingClientRect();
+        var hThreshold = 60, vThreshold = 40, speed = 15;
+        if (e.clientX < rect.left + hThreshold) dragHost.scrollLeft -= speed;
+        else if (e.clientX > rect.right - hThreshold) dragHost.scrollLeft += speed;
+        if (e.clientY < vThreshold) window.scrollBy(0, -speed);
+        else if (e.clientY > window.innerHeight - vThreshold) window.scrollBy(0, speed);
+
         var lane = e.target.closest('.kanban-lane');
         if (!lane) {
           clearLaneHighlight();
