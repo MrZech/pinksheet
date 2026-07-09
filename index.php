@@ -2284,27 +2284,44 @@ if (!$isPartial):
           var origText = downloadAllBtn.textContent;
           downloadAllBtn.textContent = 'Downloading 0 / ' + total + '...';
           downloadAllBtn.disabled = true;
-          var delay = 400;
           var completed = 0;
-          ids.forEach(function (id, index) {
-            setTimeout(function () {
-              var a = document.createElement('a');
-              a.href = 'photo.php?id=' + encodeURIComponent(id) + '&download=1';
-              a.download = '';
-              a.style.display = 'none';
-              document.body.appendChild(a);
-              a.click();
-              document.body.removeChild(a);
-              completed++;
-              downloadAllBtn.textContent = 'Downloading ' + completed + ' / ' + total + '...';
-              if (completed === total) {
-                setTimeout(function () {
-                  downloadAllBtn.textContent = origText;
-                  downloadAllBtn.disabled = false;
-                }, 800);
-              }
-            }, index * delay);
-          });
+          var downloadOne = function (idx) {
+            if (idx >= ids.length) {
+              setTimeout(function () {
+                downloadAllBtn.textContent = origText;
+                downloadAllBtn.disabled = false;
+              }, 800);
+              return;
+            }
+            fetch('photo.php?id=' + encodeURIComponent(ids[idx]) + '&download=1')
+              .then(function (r) {
+                if (!r.ok) throw new Error('HTTP ' + r.status);
+                var disposition = r.headers.get('Content-Disposition') || '';
+                var match = disposition.match(/filename\*?=(?:UTF-8'')?["']?([^;"'\s]+)/i);
+                var filename = match ? match[1] : ('photo_' + ids[idx] + '.png');
+                return r.blob().then(function (blob) { return { blob: blob, filename: filename }; });
+              })
+              .then(function (result) {
+                var url = URL.createObjectURL(result.blob);
+                var a = document.createElement('a');
+                a.href = url;
+                a.download = result.filename;
+                a.style.display = 'none';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                setTimeout(function () { URL.revokeObjectURL(url); }, 5000);
+                completed++;
+                downloadAllBtn.textContent = 'Downloading ' + completed + ' / ' + total + '...';
+                setTimeout(function () { downloadOne(idx + 1); }, 300);
+              })
+              .catch(function () {
+                completed++;
+                downloadAllBtn.textContent = 'Downloading ' + completed + ' / ' + total + '...';
+                setTimeout(function () { downloadOne(idx + 1); }, 300);
+              });
+          };
+          downloadOne(0);
         });
       }
 
