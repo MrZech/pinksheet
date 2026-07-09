@@ -164,11 +164,12 @@ try {
     }
 
     // Normal serving path (PNG already or conversion skipped/not needed)
-    // Re-detect MIME from the actual file if the stored type is unreliable
-    $mimeFromDb = $mimeType;
-    $mimeType = detectUploadMimeType($path, $photo['original_name'] ?? '');
+    // Detect MIME from the actual file contents — ignore the stored value
+    $ext = strtolower(pathinfo($storedName, PATHINFO_EXTENSION));
+    $extMap = ['jpg' => 'image/jpeg', 'jpeg' => 'image/jpeg', 'png' => 'image/png', 'webp' => 'image/webp', 'gif' => 'image/gif'];
+    $mimeType = $extMap[$ext] ?? detectUploadMimeType($path, $storedName);
     if ($mimeType === 'application/octet-stream') {
-        $mimeType = $mimeFromDb; // fall back to stored value
+        $mimeType = 'image/png';
     }
 
     $fileSize = filesize($path);
@@ -181,16 +182,9 @@ try {
         exit;
     }
 
-    // Clear any stray output buffers so readfile() sends clean image data
-    while (ob_get_level() > 0) {
-        ob_end_clean();
-    }
-
     header('Cache-Control: public, max-age=' . PHOTO_CACHE_MAX_AGE);
     header('ETag: ' . $etag);
-    header('Content-Type: ' . $mimeType);
-    header('Content-Length: ' . (string)$fileSize);
-    header('Content-Disposition: ' . ($forceDownload ? 'attachment' : 'inline') . '; filename="' . $baseDownloadName . '"');
+    header('Content-Type: ' . $mimeType, true);
     readfile($path);
 } catch (Throwable $e) {
     http_response_code(500);
