@@ -28,13 +28,11 @@ if ($photoId <= 0 || $sku === '') {
 
 try {
     $pdo = pdoConnect(__DIR__ . '/data/intake.sqlite');
-    $pdo->exec("ALTER TABLE sku_photos ADD COLUMN is_thumb INTEGER NOT NULL DEFAULT 0");
-} catch (Throwable $e) {
-    // ignore if exists
-}
-
-try {
-    $pdo = pdoConnect(__DIR__ . '/data/intake.sqlite');
+    try {
+        $pdo->exec("ALTER TABLE sku_photos ADD COLUMN is_thumb INTEGER NOT NULL DEFAULT 0");
+    } catch (Throwable $e) {
+        // ignore if exists
+    }
     squareSyncEnsureSchema($pdo);
     $pdo->beginTransaction();
     $clear = $pdo->prepare('UPDATE sku_photos SET is_thumb = 0 WHERE sku_normalized = :sku');
