@@ -3478,7 +3478,7 @@ body.dark-mode .pagination-page-btns button.is-current-page {
   gap: 12px;
   flex-wrap: nowrap;
   justify-content: flex-start;
-  align-items: flex-start;
+  align-items: stretch;
   min-width: 100%;
 }
 
