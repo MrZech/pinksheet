@@ -24,7 +24,7 @@ ensureStorageWritable();
 require_csrf();
 
 const UPLOAD_DIR  = __DIR__ . '/data/ebay_images';
-const MAX_BYTES   = 16 * 1024 * 1024;
+const MAX_BYTES   = 32 * 1024 * 1024;
 
 /* ── Validate input ──────────────────────────────────────────── */
 $sku = normalizeSku((string)($_POST['sku'] ?? ''));

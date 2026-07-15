@@ -13,9 +13,9 @@ if ($env === 'development') {
     error_reporting(E_ALL & ~E_DEPRECATED & ~E_USER_DEPRECATED);
 }
 // Increase upload limits for photo handling (may be overridden by server config).
-@ini_set('upload_max_filesize', '16M');
-@ini_set('post_max_size', '64M');
-@ini_set('max_file_uploads', '50');
+@ini_set('upload_max_filesize', '32M');
+@ini_set('post_max_size', '128M');
+@ini_set('max_file_uploads', '100');
 
 /* ── Session ─────────────────────────────────────────────────── */
 if (session_status() === PHP_SESSION_NONE && php_sapi_name() !== 'cli') {
