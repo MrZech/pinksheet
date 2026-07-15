@@ -8,8 +8,8 @@ ensureStorageWritable();
 
 const DB_PATH = __DIR__ . '/data/intake.sqlite';
 const PHOTO_UPLOAD_DIR = __DIR__ . '/data/sku_photos';
-const MAX_SKU_PHOTOS_PER_UPLOAD = 8;
-const MAX_SKU_PHOTO_BYTES = 16 * 1024 * 1024;
+const MAX_SKU_PHOTOS_PER_UPLOAD = 16;
+const MAX_SKU_PHOTO_BYTES = 32 * 1024 * 1024;
 const ALLOWED_PHOTO_MIME_TYPES = [
     'image/jpeg' => 'jpg',
     'image/png' => 'png',

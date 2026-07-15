@@ -9,7 +9,7 @@ ensureStorageWritable();
 const DB_PATH = __DIR__ . '/data/intake.sqlite';
 const PHOTO_UPLOAD_DIR = __DIR__ . '/data/sku_photos';
 const CHUNK_DIR = __DIR__ . '/data/chunks';
-const MAX_SKU_PHOTO_BYTES = 50 * 1024 * 1024; // 50 MB per photo
+const MAX_SKU_PHOTO_BYTES = 100 * 1024 * 1024; // 100 MB per photo
 const ALLOWED_PHOTO_MIME_TYPES = [
     'image/jpeg' => 'jpg',
     'image/png' => 'png',
