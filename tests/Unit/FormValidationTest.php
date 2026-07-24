@@ -53,8 +53,8 @@ final class FormValidationTest extends TestCase
     private static function validateStatus(string $status): ?string
     {
         $allowed = [
-            'Intake', 'Tested', 'Ready for eBay Listing',
-            'eBay Listed', 'SOLD', 'Dispo Tech Store',
+            'intake', 'ebay draft', 'ebay review',
+            'ebay listed', 'dispo tech store', 'sold',
         ];
         if (!in_array($status, $allowed, true)) {
             return 'Invalid status selected.';
@@ -128,12 +128,12 @@ final class FormValidationTest extends TestCase
     public static function statusProvider(): array
     {
         return [
-            ['Intake',                  null],
-            ['Tested',                  null],
-            ['Ready for eBay Listing',  null],
-            ['eBay Listed',             null],
-            ['SOLD',                    null],
-            ['Dispo Tech Store',        null],
+            ['intake',             null],
+            ['ebay draft',         null],
+            ['ebay review',        null],
+            ['ebay listed',        null],
+            ['dispo tech store',   null],
+            ['sold',               null],
             ['Invalid',                 'Invalid status selected.'],
             ['',                        'Invalid status selected.'],
         ];
@@ -180,7 +180,7 @@ final class FormValidationTest extends TestCase
     public function test_valid_item_passes_all_rules(): void
     {
         $this->assertNull(self::validateSku('DT-1001'));
-        $this->assertNull(self::validateStatus('Intake'));
+        $this->assertNull(self::validateStatus('intake'));
         $this->assertNull(self::validatePrice(299.99));
     }
 

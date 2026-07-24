@@ -9,15 +9,14 @@ const DB_PATH = __DIR__ . '/data/intake.sqlite';
 
 // Provide a lightweight JSON API that surfaces recent SKU/description matches for lookup autocomplete.
 
-header('Content-Type: application/json; charset=utf-8');
-
 try {
     $term = trim((string)($_GET['q'] ?? ''));
 } catch (Throwable $error) {
     $term = '';
 }
 if ($term === '') {
-    echo '[]';
+    header('Content-Type: application/json; charset=utf-8');
+    echo json_encode([]);
     exit;
 }
 if (function_exists('mb_strlen') && function_exists('mb_substr')) {
@@ -29,31 +28,31 @@ if (function_exists('mb_strlen') && function_exists('mb_substr')) {
 }
 
 if (!is_readable(DB_PATH)) {
-    echo '[]';
+    header('Content-Type: application/json; charset=utf-8');
+    echo json_encode([]);
     exit;
 }
 
 try {
-    $pdo = new PDO('sqlite:' . DB_PATH, null, null, [
-        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-    ]);
+    $pdo = pdoConnect(DB_PATH);
     $normalizedTerm = strtoupper(trim($term));
-    $like = '%' . str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $term) . '%';
-    $normalizedLike = '%' . str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $normalizedTerm) . '%';
+    $prefix = str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $term) . '%';
+    $normalizedPrefix = str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $normalizedTerm) . '%';
+    $any = '%' . str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $term) . '%';
     $sql = <<<SQL
         SELECT sku, what_is_it
         FROM intake_items
-        WHERE (sku IS NOT NULL AND sku <> '' AND sku LIKE :term ESCAPE '\\')
-          OR (sku_normalized IS NOT NULL AND sku_normalized <> '' AND sku_normalized LIKE :term_normalized ESCAPE '\\')
-          OR (what_is_it IS NOT NULL AND what_is_it <> '' AND what_is_it LIKE :term ESCAPE '\\')
+        WHERE (sku IS NOT NULL AND sku <> '' AND sku LIKE :prefix ESCAPE '\\')
+          OR (sku_normalized IS NOT NULL AND sku_normalized <> '' AND sku_normalized LIKE :normalized_prefix ESCAPE '\\')
+          OR (what_is_it IS NOT NULL AND what_is_it <> '' AND what_is_it LIKE :any ESCAPE '\\')
         ORDER BY updated_at DESC, id DESC
         LIMIT {SUGGESTION_LIMIT}
     SQL;
     $stmt = $pdo->prepare(str_replace('{SUGGESTION_LIMIT}', (string)SUGGESTION_LIMIT, $sql));
     $stmt->execute([
-        'term' => $like,
-        'term_normalized' => $normalizedLike,
+        'prefix' => $prefix,
+        'normalized_prefix' => $normalizedPrefix,
+        'any' => $any,
     ]);
     $suggestions = [];
     $seen = [];
@@ -73,7 +72,11 @@ try {
             'label' => implode(' — ', $labelParts),
         ];
     }
-    echo json_encode($suggestions, JSON_THROW_ON_ERROR);
+    header('Content-Type: application/json; charset=utf-8');
+    echo json_encode($suggestions);
+    exit;
 } catch (Throwable $error) {
-    echo '[]';
+    header('Content-Type: application/json; charset=utf-8');
+    echo json_encode([]);
+    exit;
 }

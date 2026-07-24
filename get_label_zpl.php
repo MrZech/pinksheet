@@ -59,10 +59,7 @@ if ($method === 'POST') {
 /* ── Validation ──────────────────────────────────────────────── */
 $sku = trim((string)($input['sku'] ?? ''));
 if ($sku === '') {
-    http_response_code(400);
-    header('Content-Type: application/json; charset=utf-8');
-    echo json_encode(['status' => 'error', 'message' => 'SKU is required.']);
-    exit;
+    errorResponse('SKU is required.', 400);
 }
 
 $preset   = in_array($input['preset'] ?? '', LABEL_PRESET_OPTIONS, true) ? $input['preset'] : 'compact';
@@ -84,11 +81,7 @@ if ($itemName === '' || $description === '' || $date === '') {
     try {
         $dbPath = __DIR__ . '/data/intake.sqlite';
         if (is_file($dbPath) && is_readable($dbPath)) {
-            $pdo = new PDO('sqlite:' . $dbPath, null, null, [
-                PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
-                PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-                PDO::ATTR_EMULATE_PREPARES   => false,
-            ]);
+            $pdo = pdoConnect($dbPath);
             $stmt = $pdo->prepare('SELECT sku, what_is_it, date_received, notes, brand_model FROM intake_items WHERE sku_normalized = ? ORDER BY id DESC LIMIT 1');
             $stmt->execute([strtoupper($sku)]);
             $dbItem = $stmt->fetch();
@@ -117,9 +110,8 @@ $item = [
 $zpl = generateLabelZpl($item);
 
 /* ── Response ────────────────────────────────────────────────── */
-header('Content-Type: application/json; charset=utf-8');
 header('Cache-Control: no-store');
-echo json_encode([
+successResponse([
     'status'     => 'ok',
     'zpl'        => $zpl,
     'sku'        => $item['sku'],

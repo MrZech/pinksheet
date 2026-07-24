@@ -7,7 +7,7 @@ ensureStorageWritable();
 
 const DB_PATH = __DIR__ . '/data/intake.sqlite';
 
-header('Content-Type: application/json; charset=utf-8');
+
 
 function safeStringLength(string $value): int
 {
@@ -32,32 +32,33 @@ if (safeStringLength($status) > MAX_STATUS_LENGTH) {
     $status = safeStringSubstring($status, 0, MAX_STATUS_LENGTH);
 }
 if ($sku === '' && $status === '') {
-    echo '[]';
+    header('Content-Type: application/json; charset=utf-8');
+    echo json_encode([]);
     exit;
 }
 
 if (!is_readable(DB_PATH)) {
-    echo '[]';
+    header('Content-Type: application/json; charset=utf-8');
+    echo json_encode([]);
     exit;
 }
 
 try {
-    $pdo = new PDO('sqlite:' . DB_PATH, null, null, [
-        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-    ]);
+    $pdo = pdoConnect(DB_PATH);
     $conditions = [];
     $params = [];
     if ($sku !== '') {
         $normalizedQuery = strtoupper(trim($sku));
-        $escaped = '%' . str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $sku) . '%';
-        $normalizedEscaped = '%' . str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $normalizedQuery) . '%';
-        $matchClause = "(sku IS NOT NULL AND sku <> '' AND sku LIKE :sku ESCAPE '\\')"
-            . " OR (sku_normalized IS NOT NULL AND sku_normalized <> '' AND sku_normalized LIKE :sku_normalized ESCAPE '\\')"
-            . " OR (what_is_it IS NOT NULL AND what_is_it <> '' AND what_is_it LIKE :sku ESCAPE '\\')";
+        $skuPrefix = str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $sku) . '%';
+        $normalizedPrefix = str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $normalizedQuery) . '%';
+        $skuAny = '%' . str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $sku) . '%';
+        $matchClause = "(sku IS NOT NULL AND sku <> '' AND sku LIKE :sku_prefix ESCAPE '\\')"
+            . " OR (sku_normalized IS NOT NULL AND sku_normalized <> '' AND sku_normalized LIKE :sku_normalized_prefix ESCAPE '\\')"
+            . " OR (what_is_it IS NOT NULL AND what_is_it <> '' AND what_is_it LIKE :sku_any ESCAPE '\\')";
         $conditions[] = '(' . $matchClause . ')';
-        $params['sku'] = $escaped;
-        $params['sku_normalized'] = $normalizedEscaped;
+        $params['sku_prefix'] = $skuPrefix;
+        $params['sku_normalized_prefix'] = $normalizedPrefix;
+        $params['sku_any'] = $skuAny;
     }
     if ($status !== '') {
         $conditions[] = 'status = :status';
@@ -131,7 +132,12 @@ $sql = 'SELECT id, sku, status, what_is_it, updated_at, dispotech_price, ebay_pr
             'ebay_price' => $ePrice,
         ];
     }, $rows);
-    echo json_encode($results, JSON_THROW_ON_ERROR);
+    header('Content-Type: application/json; charset=utf-8');
+    echo json_encode($results);
+    exit;
 } catch (Throwable $error) {
-    echo '[]';
+    http_response_code(500);
+    header('Content-Type: application/json; charset=utf-8');
+    echo json_encode([]);
+    exit;
 }

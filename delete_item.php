@@ -12,9 +12,7 @@ const DB_PATH = __DIR__ . '/data/intake.sqlite';
  */
 function ensureArchiveTable(PDO $pdo): void
 {
-    // Create table with same schema as intake_items.
     $pdo->exec("CREATE TABLE IF NOT EXISTS intake_deleted AS SELECT * FROM intake_items WHERE 0");
-    // Backfill any live-table columns that were added after the archive table was created.
     $archiveColumns = [];
     foreach ($pdo->query("PRAGMA table_info(intake_deleted)") as $col) {
         $archiveColumns[(string)$col['name']] = true;
@@ -32,13 +30,10 @@ function ensureArchiveTable(PDO $pdo): void
         $pdo->exec($definition);
         $archiveColumns[$name] = true;
     }
-    // Add deleted_at for recovery metadata if it does not already exist.
     if (!isset($archiveColumns['deleted_at'])) {
         $pdo->exec("ALTER TABLE intake_deleted ADD COLUMN deleted_at TEXT");
     }
 }
-
-header('Content-Type: application/json; charset=utf-8');
 
 require_csrf();
 
@@ -47,15 +42,11 @@ $sku = strtoupper(trim((string)($_POST['sku'] ?? '')));
 $confirm = strtoupper(trim((string)($_POST['confirm'] ?? '')));
 
 if ($id <= 0) {
-    http_response_code(400);
-    echo json_encode(['status' => 'error', 'message' => 'Missing id']);
-    exit;
+    errorResponse('Missing id');
 }
 
 if ($confirm !== 'DELETE') {
-    http_response_code(400);
-    echo json_encode(['status' => 'error', 'message' => 'Confirm with DELETE']);
-    exit;
+    errorResponse('Confirm with DELETE');
 }
 
 // Detect AJAX via header; default to redirect for form posts.
@@ -63,10 +54,7 @@ $isAjax = isset($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower((string)$_SERVE
 $acceptsJson = isset($_SERVER['HTTP_ACCEPT']) && stripos((string)$_SERVER['HTTP_ACCEPT'], 'application/json') !== false;
 
 try {
-    $pdo = new PDO('sqlite:' . DB_PATH, null, null, [
-        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-    ]);
+    $pdo = pdoConnect(DB_PATH);
     $pdo->beginTransaction();
     ensureArchiveTable($pdo);
 
@@ -77,12 +65,11 @@ try {
     if (!$row) {
         $pdo->rollBack();
         if ($isAjax || $acceptsJson) {
-            http_response_code(404);
-            echo json_encode(['status' => 'error', 'message' => 'Record not found']);
+            errorResponse('Record not found', 404);
         } else {
             header('Location: index.php?deleted=0');
+            exit;
         }
-        exit;
     }
 
     // Preserve the requested SKU in the response flow, but do not let a casing or
@@ -108,24 +95,27 @@ try {
 
     $pdo->commit();
 
-    $response = ['status' => 'ok', 'deleted' => $count, 'archived' => (bool)$row];
     if ($isAjax || $acceptsJson) {
-        echo json_encode($response);
-        exit;
-    } else {
-        header('Location: index.php?deleted=' . (int)$count);
+        header('Content-Type: application/json; charset=utf-8');
+        echo json_encode([
+            'status' => 'ok',
+            'deleted' => $count,
+            'archived' => (bool)$row,
+        ]);
         exit;
     }
+    header('Location: index.php?deleted=' . (int)$count);
+    exit;
 } catch (Throwable $e) {
     if ($pdo && $pdo->inTransaction()) {
         $pdo->rollBack();
     }
-    http_response_code(500);
     if ($isAjax || $acceptsJson) {
+        http_response_code(500);
+        header('Content-Type: application/json; charset=utf-8');
         echo json_encode(['status' => 'error', 'message' => 'Server error']);
         exit;
-    } else {
-        header('Location: index.php?deleted=0');
-        exit;
     }
+    header('Location: index.php?deleted=0');
+    exit;
 }

@@ -5,11 +5,6 @@ ensureStorageWritable();
 
 const PROMPT_DB_PATH = __DIR__ . '/data/intake.sqlite';
 
-function h(?string $value): string
-{
-    return htmlspecialchars((string)$value, ENT_QUOTES, 'UTF-8');
-}
-
 function formatLabel(string $key): string
 {
     return ucwords(str_replace('_', ' ', $key));
@@ -26,10 +21,7 @@ $intakeLink = $currentSkuNormalized !== '' ? 'intake.php?sku=' . urlencode($curr
 
 if (is_readable(PROMPT_DB_PATH)) {
     try {
-        $pdo = new PDO('sqlite:' . PROMPT_DB_PATH, null, null, [
-            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-        ]);
+        $pdo = pdoConnect(PROMPT_DB_PATH);
         $recentStmt = $pdo->query("
             SELECT sku
             FROM intake_items
@@ -56,6 +48,11 @@ if (is_readable(PROMPT_DB_PATH)) {
 }
 
 $initialItemJson = $currentItem ? json_encode($currentItem, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT) : 'null';
+
+$csrfToken = csrf_token();
+session_write_close();
+$isPartial = ($_GET['partial'] ?? '') === '1';
+if (!$isPartial):
 ?>
 <!doctype html>
 <html lang="en">
@@ -63,14 +60,15 @@ $initialItemJson = $currentItem ? json_encode($currentItem, JSON_HEX_TAG | JSON_
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Dispo.Tech eBay Script Builder</title>
-  <link rel="stylesheet" href="assets/style.css?v=<?= filemtime('assets/style.css') ?>">
-  <script src="assets/menu.js?v=<?= filemtime('assets/menu.js') ?>" defer></script>
-  <link rel="stylesheet" media="print" href="assets/print.css?v=<?= filemtime('assets/print.css') ?>">
+  <link rel="stylesheet" href="assets/style.css?v=<?= getAssetVersion() ?>">
+  <script src="assets/menu.js?v=<?= getAssetVersion() ?>" defer></script>
+  <link rel="stylesheet" media="print" href="assets/print.css?v=<?= getAssetVersion() ?>">
   <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
-  <script src="assets/qz-tray.js?v=<?= filemtime('assets/qz-tray.js') ?>"></script>
-  <script>window.CSRF_TOKEN = <?= json_encode(csrf_token()) ?>;</script>
-  <script src="assets/theme.js?v=<?= filemtime('assets/theme.js') ?>"></script>
-  <script src="assets/app.js?v=<?= filemtime('assets/app.js') ?>"></script>
+  <script>window.CSRF_TOKEN = <?= json_encode($csrfToken) ?>;</script>
+  <script src="assets/theme.js?v=<?= getAssetVersion() ?>" defer></script>
+  <script src="assets/app.js?v=<?= getAssetVersion() ?>" defer></script>
+  <script src="assets/nav.js?v=<?= getAssetVersion() ?>" defer></script>
+  <script src="assets/qz-tray.js?v=<?= getAssetVersion() ?>" defer></script>
 </head>
 <body class="home prompt-page">
   <div class="layout-wrapper">
@@ -90,6 +88,8 @@ $initialItemJson = $currentItem ? json_encode($currentItem, JSON_HEX_TAG | JSON_
         </ul>
       </nav>
     </div>
+    <div id="content-area">
+<?php endif; /* end outer shell */ ?>
   <main class="page">
     <section class="sheet home-sheet">
       <header class="sheet-header">
@@ -136,6 +136,7 @@ $initialItemJson = $currentItem ? json_encode($currentItem, JSON_HEX_TAG | JSON_
                 <button type="submit" id="generate-prompt-btn">Build ChatGPT prompt</button>
                 <button type="button" class="ghost" id="clear-prompt-btn">Clear SKU</button>
                 <a class="button-link subtle" href="<?php echo h($intakeLink); ?>">Open intake sheet</a>
+                <a class="button-link subtle" href="ebay_images.php<?php echo $currentSkuNormalized !== '' ? '?sku=' . urlencode($currentSkuNormalized) : ''; ?>">Listing Images</a>
               </div>
             </form>
 
@@ -620,6 +621,9 @@ $initialItemJson = $currentItem ? json_encode($currentItem, JSON_HEX_TAG | JSON_
       // State persistence handled by app.js via window.appState -> autosave.php
     })();
   </script>
-  </div>
+<?php if (!$isPartial): ?>
+  </div> <!-- /content-area -->
+  </div> <!-- /layout-wrapper -->
 </body>
 </html>
+<?php endif; ?>

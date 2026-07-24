@@ -8,8 +8,8 @@ ensureStorageWritable();
 
 const DB_PATH = __DIR__ . '/data/intake.sqlite';
 const PHOTO_UPLOAD_DIR = __DIR__ . '/data/sku_photos';
-const MAX_SKU_PHOTOS_PER_UPLOAD = 8;
-const MAX_SKU_PHOTO_BYTES = 16 * 1024 * 1024;
+const MAX_SKU_PHOTOS_PER_UPLOAD = 16;
+const MAX_SKU_PHOTO_BYTES = 32 * 1024 * 1024;
 const ALLOWED_PHOTO_MIME_TYPES = [
     'image/jpeg' => 'jpg',
     'image/png' => 'png',
@@ -17,33 +17,7 @@ const ALLOWED_PHOTO_MIME_TYPES = [
     'image/gif' => 'gif',
 ];
 
-header('Content-Type: application/json; charset=utf-8');
-
 require_csrf();
-
-function normalizedSkuDirectory(string $skuNormalized): string
-{
-    $dir = preg_replace('/[^A-Z0-9_-]+/', '_', $skuNormalized);
-    return trim((string)$dir, '_') ?: 'UNASSIGNED';
-}
-
-function sanitizeFilename(string $name): string
-{
-    $name = trim($name);
-    if ($name === '') {
-        return 'photo';
-    }
-    $clean = preg_replace('/[^A-Za-z0-9._-]+/', '_', $name);
-    return trim((string)$clean, '._-') ?: 'photo';
-}
-
-function errorResponse(string $message, int $code = 400): void
-{
-    http_response_code($code);
-    @file_put_contents(__DIR__ . '/logs/upload_errors.log', '[' . date('c') . '] ' . $message . PHP_EOL, FILE_APPEND);
-    echo json_encode(['status' => 'error', 'message' => $message]);
-    exit;
-}
 
 $sku = normalizeSku((string)($_POST['sku'] ?? ''));
 if ($sku === '') {
@@ -77,15 +51,17 @@ if (!is_uploaded_file($tmp)) {
     errorResponse($originalDisplayName . ' failed validation.');
 }
 
-$mimeType = detectUploadMimeType($tmp, $originalDisplayName);
-$extension = ALLOWED_PHOTO_MIME_TYPES[$mimeType] ?? null;
-if ($extension === null) {
-    errorResponse($originalDisplayName . ' is not JPG/PNG/WEBP/GIF.');
+/* ── Delegate to centralized pipeline (MIME check, GD polyglot defence, conversion) ──── */
+$result = processUploadedPhoto($upload, $sku);
+if (!$result['ok']) {
+    errorResponse($result['message'] ?? 'Upload failed.', 400);
 }
 
-$pdo = new PDO('sqlite:' . DB_PATH, null, null, [
-    PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-]);
+$storedName = $result['stored_name'];
+$dbMime     = $result['mime_type'];
+$finalSize  = $result['file_size'];
+
+$pdo = pdoConnect(DB_PATH);
 squareSyncEnsureSchema($pdo);
 $pdo->exec(<<<'SQL'
 CREATE TABLE IF NOT EXISTS sku_photos (
@@ -100,33 +76,27 @@ CREATE TABLE IF NOT EXISTS sku_photos (
 );
 SQL);
 
-if (!is_dir(PHOTO_UPLOAD_DIR)) {
-    mkdir(PHOTO_UPLOAD_DIR, 0777, true);
-}
-
-$skuDir = PHOTO_UPLOAD_DIR . '/' . normalizedSkuDirectory($sku);
-if (!is_dir($skuDir) && !mkdir($skuDir, 0777, true) && !is_dir($skuDir)) {
-    errorResponse('Could not create photo folder.');
-}
-
-$storedName = bin2hex(random_bytes(16)) . '.' . $extension;
-$destination = $skuDir . '/' . $storedName;
-
-if (!move_uploaded_file($tmp, $destination)) {
-    errorResponse('Failed to save file to disk.');
+try {
+    $pdo->exec("ALTER TABLE sku_photos ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0");
+} catch (Throwable $e) {
+    // ignore if exists
 }
 
 try {
+    $maxSortStmt = $pdo->prepare('SELECT COALESCE(MAX(sort_order), 0) FROM sku_photos WHERE sku_normalized = :sku');
+    $maxSortStmt->execute(['sku' => $sku]);
+    $nextSort = (int)$maxSortStmt->fetchColumn() + 1;
     $stmt = $pdo->prepare(<<<'SQL'
-INSERT INTO sku_photos (sku_normalized, original_name, stored_name, mime_type, file_size, created_at)
-VALUES (:sku_normalized, :original_name, :stored_name, :mime_type, :file_size, datetime('now'));
+INSERT INTO sku_photos (sku_normalized, original_name, stored_name, mime_type, file_size, created_at, sort_order)
+VALUES (:sku_normalized, :original_name, :stored_name, :mime_type, :file_size, datetime('now'), :sort_order);
 SQL);
     $stmt->execute([
         'sku_normalized' => $sku,
         'original_name' => sanitizeFilename($originalDisplayName),
         'stored_name' => $storedName,
-        'mime_type' => $mimeType,
-        'file_size' => $size,
+        'mime_type' => $dbMime,
+        'file_size' => $finalSize,
+        'sort_order' => $nextSort,
     ]);
     $photoId = $pdo->lastInsertId();
 } catch (Throwable $e) {
@@ -134,9 +104,10 @@ SQL);
 }
 
 $squareSync = squareSyncItemBySku($pdo, $sku);
-echo json_encode([
+successResponse([
     'status' => 'ok',
-    'message' => 'Uploaded',
     'id' => $photoId,
+    'mime_type' => $dbMime,
+    'stored_name' => $storedName,
     'square_sync' => $squareSync['status'] ?? 'skipped',
 ]);

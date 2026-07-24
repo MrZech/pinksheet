@@ -6,7 +6,7 @@ $scriptName = basename($_SERVER['SCRIPT_NAME'] ?? $_SERVER['PHP_SELF'] ?? '');
 $isLookupPage = $scriptName === 'lookup.php';
 $currentPage = $isLookupPage ? 'lookup' : 'home';
 const HOME_DB_PATH = __DIR__ . '/data/intake.sqlite';
-$statusOptions = ['Intake', 'Tested', 'Ready for eBay Listing', 'Dispo Tech Store', 'eBay Listed', 'SOLD'];
+$statusOptions = ['intake', 'ebay draft', 'ebay review', 'ebay listed', 'dispo tech store', 'sold'];
 $lookupSuggestions = [];
 $listedItems = [];
 $listedThumbs = [];
@@ -28,83 +28,50 @@ $backupSummary = 'No backup yet';
 // Provision a short list of the most recently updated SKUs so the home lookup can show instant suggestions.
 if (is_readable(HOME_DB_PATH)) {
     try {
-        $pdo = new PDO('sqlite:' . HOME_DB_PATH, null, null, [
-            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-        ]);
-        $stmt = $pdo->query("
-            SELECT sku
-            FROM intake_items
-            WHERE sku IS NOT NULL
-              AND TRIM(sku) <> ''
-            ORDER BY updated_at DESC, id DESC
-            LIMIT 60
-        ");
-        $values = array_unique(array_map('trim', $stmt->fetchAll(PDO::FETCH_COLUMN)));
-        $lookupSuggestions = array_values(array_filter($values, static fn ($value): bool => $value !== ''));
-
+        $pdo = pdoConnect(HOME_DB_PATH);
         // Dashboard metrics
         $counts['total'] = (int) $pdo->query("SELECT COUNT(*) FROM intake_items")->fetchColumn();
         $today = (new DateTime('now'))->format('Y-m-d');
-        $stmtToday = $pdo->prepare("SELECT COUNT(*) FROM intake_items WHERE date(created_at) = :today");
-        $stmtToday->execute([':today' => $today]);
+        $stmtToday = $pdo->prepare("SELECT COUNT(*) FROM intake_items WHERE created_at >= :today_start AND created_at < :today_end");
+        $stmtToday->execute([':today_start' => $today . ' 00:00:00', ':today_end' => $today . ' 23:59:59']);
         $counts['today'] = (int) $stmtToday->fetchColumn();
-        $counts['sold'] = (int) $pdo->query("SELECT COUNT(*) FROM intake_items WHERE status = 'SOLD'")->fetchColumn();
-        $counts['in_progress'] = (int) $pdo->query("SELECT COUNT(*) FROM intake_items WHERE status != 'SOLD'")->fetchColumn();
+        $counts['sold'] = (int) $pdo->query("SELECT COUNT(*) FROM intake_items WHERE status = 'sold'")->fetchColumn();
+        $counts['in_progress'] = (int) $pdo->query("SELECT COUNT(*) FROM intake_items WHERE status != 'sold'")->fetchColumn();
 
-        // Recent activity list
-        $stmtRecent = $pdo->query("
+        // Single fetch for all listings (replaces 3 redundant queries)
+        $stmtAll = $pdo->query("
             SELECT sku, status, what_is_it, updated_at, dispotech_price, ebay_price
             FROM intake_items
             WHERE sku IS NOT NULL AND TRIM(sku) <> ''
             ORDER BY updated_at DESC, id DESC
-            LIMIT 10
+            LIMIT 200
         ");
-        $recentActivity = $stmtRecent->fetchAll(PDO::FETCH_ASSOC);
-        // Attach latest photo id per SKU for quick thumbnails.
-        $recentSkus = array_values(array_filter(array_map(static fn($r) => trim((string)($r['sku'] ?? '')), $recentActivity)));
-        $recentThumbs = [];
-        if ($recentSkus) {
-            $norms = array_map(static fn($s) => strtoupper($s), $recentSkus);
-            $placeholders = implode(',', array_fill(0, count($norms), '?'));
-            $photoStmt = $pdo->prepare("
-                SELECT sku_normalized, id
-                FROM sku_photos
-                WHERE sku_normalized IN ($placeholders)
-                ORDER BY id DESC
-            ");
-            $photoStmt->execute($norms);
-            foreach ($photoStmt->fetchAll(PDO::FETCH_ASSOC) as $photoRow) {
-                $norm = trim((string)$photoRow['sku_normalized']);
-                if ($norm !== '' && !isset($recentThumbs[$norm])) {
-                    $recentThumbs[$norm] = (int)$photoRow['id'];
-                }
-            }
-        }
+        $allItems = $stmtAll->fetchAll(PDO::FETCH_ASSOC);
+        $lookupSuggestions = array_values(array_unique(array_filter(array_map(static fn($r) => trim((string)($r['sku'] ?? '')), $allItems))));
+        $recentActivity = array_slice($allItems, 0, 10);
+        $listedItems = $allItems;
 
-        $stmtListed = $pdo->query("
-            SELECT sku, status, what_is_it, updated_at, dispotech_price, ebay_price
-            FROM intake_items
-            WHERE sku IS NOT NULL
-              AND TRIM(sku) <> ''
-            ORDER BY updated_at DESC, id DESC
-            LIMIT 500
-        ");
-        $listedItems = $stmtListed->fetchAll(PDO::FETCH_ASSOC);
-        $listedSkus = array_values(array_filter(array_map(static fn($r) => trim((string)($r['sku'] ?? '')), $listedItems)));
-        if ($listedSkus) {
-            $listedNorms = array_map(static fn($s) => strtoupper($s), $listedSkus);
-            $placeholders = implode(',', array_fill(0, count($listedNorms), '?'));
+        // Attach latest photo id per SKU for quick thumbnails.
+        $allNorms = array_map(static fn($s) => strtoupper($s), array_filter(array_map(static fn($r) => trim((string)($r['sku'] ?? '')), $allItems)));
+        $recentThumbs = [];
+        $listedThumbs = [];
+        if ($allNorms) {
+            $placeholders = implode(',', array_fill(0, count($allNorms), '?'));
             $photoStmt = $pdo->prepare("
                 SELECT sku_normalized, id
                 FROM sku_photos
                 WHERE sku_normalized IN ($placeholders)
-                ORDER BY id DESC
+                ORDER BY is_thumb DESC, id DESC
             ");
-            $photoStmt->execute($listedNorms);
+            $photoStmt->execute($allNorms);
             foreach ($photoStmt->fetchAll(PDO::FETCH_ASSOC) as $photoRow) {
                 $norm = trim((string)$photoRow['sku_normalized']);
-                if ($norm !== '' && !isset($listedThumbs[$norm])) {
-                    $listedThumbs[$norm] = (int)$photoRow['id'];
+                if ($norm === '' || isset($listedThumbs[$norm])) {
+                    continue;
+                }
+                $listedThumbs[$norm] = (int)$photoRow['id'];
+                if (!isset($recentThumbs[$norm]) && count($recentThumbs) < 10) {
+                    $recentThumbs[$norm] = (int)$photoRow['id'];
                 }
             }
         }
@@ -150,6 +117,14 @@ if (is_dir($backupDir)) {
 } else {
     $alerts[] = 'Backup directory missing (data/backups).';
 }
+
+// Generate CSRF token and release session lock before rendering.
+// Read-only pages don't need the session lock after the token is generated.
+$csrfToken = csrf_token();
+session_write_close();
+
+$isPartial = ($_GET['partial'] ?? '') === '1';
+if (!$isPartial):
 ?>
 <!doctype html>
 <html lang="en">
@@ -157,13 +132,14 @@ if (is_dir($backupDir)) {
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title><?php echo $isLookupPage ? 'Dispo.Tech SKU Lookup' : 'Dispo.Tech Intake Home'; ?></title>
-  <link rel="stylesheet" href="assets/style.css?v=<?= filemtime('assets/style.css') ?>">
-  <script src="assets/menu.js?v=<?= filemtime('assets/menu.js') ?>" defer></script>
-  <link rel="stylesheet" media="print" href="assets/print.css?v=<?= filemtime('assets/print.css') ?>">
+  <link rel="stylesheet" href="assets/style.css?v=<?= getAssetVersion() ?>">
+  <script src="assets/menu.js?v=<?= getAssetVersion() ?>" defer></script>
+  <link rel="stylesheet" media="print" href="assets/print.css?v=<?= getAssetVersion() ?>">
   <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
-  <script>window.CSRF_TOKEN = <?= json_encode(csrf_token()) ?>;</script>
-  <script src="assets/theme.js?v=<?= filemtime('assets/theme.js') ?>"></script>
-  <script src="assets/app.js?v=<?= filemtime('assets/app.js') ?>"></script>
+  <script>window.CSRF_TOKEN = <?= json_encode($csrfToken) ?>;</script>
+  <script src="assets/theme.js?v=<?= getAssetVersion() ?>" defer></script>
+  <script src="assets/app.js?v=<?= getAssetVersion() ?>" defer></script>
+  <script src="assets/nav.js?v=<?= getAssetVersion() ?>" defer></script>
 </head>
 <body class="home<?php echo $isLookupPage ? ' lookup-page' : ''; ?>">
   <div class="layout-wrapper">
@@ -183,6 +159,8 @@ if (is_dir($backupDir)) {
         </ul>
       </nav>
     </div>
+  <div id="content-area">
+<?php endif; /* end outer shell */ ?>
   <main class="page">
     <section class="sheet home-sheet">
       <header class="sheet-header">
@@ -309,7 +287,10 @@ if (is_dir($backupDir)) {
                   ?>
                   <?php if ($thumbId): ?>
                     <a class="thumb" href="photo.php?id=<?php echo $thumbId; ?>" target="_blank" rel="noopener">
-                      <img src="photo.php?id=<?php echo $thumbId; ?>" alt="Photo for <?php echo htmlspecialchars($skuVal ?: 'SKU', ENT_QUOTES, 'UTF-8'); ?>">
+                      <picture>
+                        <source srcset="photo.php?id=<?php echo $thumbId; ?>&format=webp" type="image/webp">
+                        <img src="photo.php?id=<?php echo $thumbId; ?>" alt="Photo for <?php echo htmlspecialchars($skuVal ?: 'SKU', ENT_QUOTES, 'UTF-8'); ?>" width="52" height="52" loading="lazy">
+                      </picture>
                     </a>
                   <?php else: ?>
                     <span class="thumb placeholder" title="No photo added">No photo</span>
@@ -367,11 +348,12 @@ if (is_dir($backupDir)) {
             <p class="error client-error" id="lookup-error" hidden>Enter a SKU or pick a status to search.</p>
             <div class="filter-chips" id="lookup-chips">
               <button type="button" data-lookup-status="">Any</button>
-              <button type="button" data-lookup-status="Intake">Intake</button>
-              <button type="button" data-lookup-status="Tested">Tested</button>
-              <button type="button" data-lookup-status="Dispo Tech Store">Dispo Tech Store</button>
-              <button type="button" data-lookup-status="eBay">eBay</button>
-              <button type="button" data-lookup-status="SOLD">Sold</button>
+              <button type="button" data-lookup-status="intake">Intake</button>
+              <button type="button" data-lookup-status="ebay draft">eBay Draft</button>
+              <button type="button" data-lookup-status="ebay review">eBay Review</button>
+              <button type="button" data-lookup-status="ebay listed">eBay Listed</button>
+              <button type="button" data-lookup-status="dispo tech store">Dispo Tech Store</button>
+              <button type="button" data-lookup-status="sold">Sold</button>
             </div>
             <div class="actions lookup-actions">
               <button type="submit">Open in intake</button>
@@ -424,7 +406,12 @@ if (is_dir($backupDir)) {
                       <td>
                         <?php echo htmlspecialchars($skuVal ?: 'Unknown', ENT_QUOTES, 'UTF-8'); ?>
                         <?php if ($thumbId): ?>
-                          <span class="thumb-wrap"><img class="preview-thumb" src="photo.php?id=<?php echo $thumbId; ?>" alt="Photo for <?php echo htmlspecialchars($skuVal ?: 'SKU', ENT_QUOTES, 'UTF-8'); ?>"></span>
+                          <span class="thumb-wrap">
+                            <picture>
+                              <source srcset="photo.php?id=<?php echo $thumbId; ?>&format=webp" type="image/webp">
+                              <img class="preview-thumb" src="photo.php?id=<?php echo $thumbId; ?>" alt="Photo for <?php echo htmlspecialchars($skuVal ?: 'SKU', ENT_QUOTES, 'UTF-8'); ?>" width="34" height="34" loading="lazy">
+                            </picture>
+                          </span>
                         <?php endif; ?>
                       </td>
                       <td>
@@ -1117,7 +1104,7 @@ if (is_dir($backupDir)) {
             actionsTd.appendChild(priceBadge);
           }
           var inlineStatus = document.createElement('select');
-          ['','Intake','Tested','Ready for eBay Listing','Dispo Tech Store','eBay Listed','SOLD'].forEach(function (opt) {
+          ['','intake','ebay draft','ebay review','ebay listed','dispo tech store','sold'].forEach(function (opt) {
             var o = document.createElement('option');
             o.value = opt;
             o.textContent = opt || 'Set status';
@@ -1259,7 +1246,7 @@ if (is_dir($backupDir)) {
         }
         var healthChip = document.getElementById('health-chip');
         if (healthChip && window.fetch) {
-          fetch('health.php')
+          fetch('health.php?format=json')
             .then(function (r) { return r.json(); })
             .then(function (data) {
               var txt = 'Health: ok';
@@ -1422,6 +1409,9 @@ if (is_dir($backupDir)) {
       }
     })();
   </script>
-  </div>
+<?php if (!$isPartial): ?>
+  </div> <!-- /content-area -->
+  </div> <!-- /layout-wrapper -->
 </body>
 </html>
+<?php endif; ?>

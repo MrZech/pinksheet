@@ -215,7 +215,7 @@
 
   var printBtnCache = null;
   var refreshPrintBtnCache = function () {
-    printBtnCache = document.querySelectorAll('#print-sticker-btn, .card-print-btn');
+    printBtnCache = document.querySelectorAll('#print-sticker-btn');
   };
   refreshPrintBtnCache();
 
@@ -455,7 +455,7 @@
     });
   };
 
-  /* ── Print Label buttons (kanban cards) ─────── */
+  /* ── Print Card (kanban cards — browser print) ── */
   var initKanbanPrint = function () {
     var board = document.getElementById('kanban-board');
     if (!board) { return; }
@@ -463,15 +463,68 @@
     board.addEventListener('click', function (e) {
       var btn = e.target.closest('.card-print-btn');
       if (!btn) { return; }
-      if (btn._disabled || btn._qzOffline) { return; }
 
       e.stopPropagation();
       var sku = btn.getAttribute('data-sku') || '';
+      if (!sku) { return; }
 
-      var origHtml = btn.innerHTML;
-      runPrintPipeline(sku, 'detail', btn, function (msg) {
-        btn.innerHTML = msg || origHtml;
+      printCardBrowser(sku);
+    });
+  };
+
+  var printCardBrowser = function (sku) {
+    var iframe = document.createElement('iframe');
+    iframe.id = 'print-frame';
+    iframe.style.position = 'fixed';
+    iframe.style.left = '-9999px';
+    iframe.style.top = '0';
+    iframe.style.width = '8.5in';
+    iframe.style.height = '11in';
+    iframe.style.border = '0';
+    iframe.style.background = '#ffffff';
+    iframe.setAttribute('aria-hidden', 'true');
+    document.body.appendChild(iframe);
+
+    iframe.src = 'print_card.php?sku=' + encodeURIComponent(sku);
+
+    var printTimer = null;
+
+    iframe.addEventListener('load', function () {
+      var iframeWindow = iframe.contentWindow;
+      var iframeDoc = iframe.contentDocument || iframeWindow.document;
+
+      var images = Array.prototype.slice.call(iframeDoc.querySelectorAll('img'));
+      var remaining = images.length;
+
+      var printIt = function () {
+        clearTimeout(printTimer);
+        try { iframeWindow.focus(); } catch (e) {}
+        iframeWindow.print();
+        setTimeout(function () {
+          try { iframe.remove(); } catch (e) {}
+        }, 400);
+      };
+
+      if (remaining === 0) {
+        printIt();
+        return;
+      }
+
+      var markLoaded = function () {
+        remaining -= 1;
+        if (remaining <= 0) { printIt(); }
+      };
+
+      images.forEach(function (img) {
+        if (img.complete && img.naturalWidth > 0) {
+          markLoaded();
+          return;
+        }
+        img.addEventListener('load', markLoaded, { once: true });
+        img.addEventListener('error', markLoaded, { once: true });
       });
+
+      printTimer = setTimeout(printIt, 5000);
     });
   };
 
