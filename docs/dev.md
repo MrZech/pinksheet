@@ -156,6 +156,12 @@ The embedded PHP binary in `php-8.5.4/` is available if the system PHP version i
 - Normalize SKUs before using them as a lookup key.
 - Keep write endpoints explicit about what they change.
 
+## Square Webhooks
+
+The inbound implementation consists of `square_webhook.php` (small public POST endpoint), `square_webhook_lib.php` (reusable processing), and `square_webhook_status.php` (private diagnostics). CLI support is in `scripts/test_square_webhook.php`, `scripts/reprocess_square_webhook.php`, and `scripts/reconcile_square_sales.php`.
+
+Square sends a signed event to the endpoint. The raw body is size-limited and HMAC-SHA256 verified using the exact configured `SQUARE_WEBHOOK_NOTIFICATION_URL`, then the event ID is deduplicated and recorded. Completed payment events retrieve the full order using the existing Square API helper, map catalog variations through `square_catalog_sync`, record sale rows, and set mapped inventory to `SOLD` in a transaction. Refunds set a configurable inspection status. Inventory events are stored for reconciliation only and never change item status. The webhook never invokes outbound Square synchronization, preventing loops.
+
 ## Change Hotspots
 
 - Item fields and workflow labels usually touch `index.php`, `lookup_preview.php`, `home.php`, and `schema.md`.

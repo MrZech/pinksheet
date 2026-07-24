@@ -203,6 +203,14 @@ The app uses this table for legacy history rows imported from CSV exports. It ex
 | `idx_archive_items_legacy_source` | Archive source filtering |
 | `idx_archive_items_legacy_identity` | Prevent duplicate imported legacy rows |
 
+## Square webhook tables
+
+`square_webhook_events` is the audit and deduplication ledger. Its `event_id` primary key stores the type, payload, timestamps, retry count, bounded error, and `received`, `processing`, `processed`, `ignored`, or `failed` status. It has status/received-time and type/received-time indexes.
+
+`square_sales` stores one row per Square payment, keyed by `square_payment_id`, with an order ID index. `square_sale_items` stores one row per payment/order line and has a unique `(square_payment_id, square_line_item_uid)` constraint plus payment, order, variation, and SKU indexes.
+
+`square_inventory_events` stores inbound counts for reconciliation only. Its unique key is `(event_id, square_variation_id, location_id, inventory_state)` and it never drives an automatic status update.
+
 ## Save Rules
 
 - Normalized SKU is the primary matching key for intake and draft records.
