@@ -78,3 +78,22 @@ php scripts/build_archive_db.php
 - Record any manual restore or repair work.
 - Record whether photos, archive rows, or drafts needed recovery.
 - If you changed retention or mirror settings, leave a note about why.
+
+## Square webhook setup and operation
+
+1. Run `php scripts/migrate.php`.
+2. Start the internal service at `http://10.42.0.112:8000`, then configure ngrok to forward there. The Square URL is `https://ASSIGNED-NAME.ngrok-free.app/square_webhook.php`.
+3. In Square Developer Console, select Sandbox first, open Webhooks, create a subscription at that URL, and select `payment.updated`, `refund.updated`, `inventory.count.updated`, and `order.updated`.
+4. Copy the subscription signature key into `.env`, set the exact URL in `SQUARE_WEBHOOK_NOTIFICATION_URL`, and set `SQUARE_WEBHOOK_ENABLED=1`. Sandbox and Production use separate keys and subscriptions.
+5. Send a Square test event and confirm HTTP 200 in Square's webhook log, then check `square_webhook_status.php` from the private network.
+
+```bash
+curl -i http://10.42.0.112:8000/square_webhook.php
+curl -i -X POST -H "Content-Type: application/json" -d '{"event_id":"local-test","type":"payment.updated"}' http://10.42.0.112:8000/square_webhook.php
+php scripts/test_square_webhook.php payment.updated
+php scripts/reconcile_square_sales.php --hours=24 --dry-run
+```
+
+The first request returns 405; the unsigned POST returns 403. For a failed event, inspect `logs/square_webhook.log` and the private status page, fix the cause, then run `php scripts/reprocess_square_webhook.php EVENT_ID`. Use the reconciliation command without `--dry-run` to recover a missed payment. Refunds move items to `RETURNED - NEEDS INSPECTION`; inspect electronics before making them sellable.
+
+Changing the public ngrok URL requires updating both `SQUARE_WEBHOOK_NOTIFICATION_URL` and the Square subscription. Forwarding the whole port exposes the entire app, so production should place a reverse proxy or dedicated listener in front of Pinksheet and expose only `square_webhook.php`. Rotate a signature key in Square, update `.env`, and restart PHP. Test a real low-value sale only after Sandbox succeeds.

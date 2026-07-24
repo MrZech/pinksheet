@@ -1,0 +1,44 @@
+[2026-07-24T16:25:19+00:00] event_id=evt-inv inventory warning=Square quantity is 0 but Pinksheet is not SOLD variation_id=var-1
+[2026-07-24T16:25:19+00:00] event_id=evt-inv type=inventory.count.updated status=processed
+[2026-07-24T16:25:19+00:00] refund payment_id=pay-2 sku=DT-2 status=RETURNED - NEEDS INSPECTION changed=1
+[2026-07-24T16:25:19+00:00] event_id=evt-refund type=refund.updated status=processed
+[2026-07-24T16:25:19+00:00] refund payment_id=pay-2 sku=DT-2 status=RETURNED - NEEDS INSPECTION changed=0
+[2026-07-24T16:25:19+00:00] event_id=evt-pay type=payment.updated status=failed error=Call to undefined function squareSyncConfig()
+[2026-07-24T16:25:51+00:00] event_id=evt-inv inventory warning=Square quantity is 0 but Pinksheet is not SOLD variation_id=var-1
+[2026-07-24T16:25:51+00:00] event_id=evt-inv type=inventory.count.updated status=processed
+[2026-07-24T16:25:51+00:00] payment_id=pay-1 variation_id=var-1 sku=DT-1 status=changed_to_sold
+[2026-07-24T16:25:51+00:00] payment_id=pay-1 variation_id=var-2 sku=DT-2 status=already_sold
+[2026-07-24T16:25:51+00:00] payment_id=pay-1 variation_id=missing unmapped
+[2026-07-24T16:25:51+00:00] event_id=evt-pay type=payment.updated status=processed
+[2026-07-24T16:25:51+00:00] payment_id=pay-1 variation_id=var-1 sku=DT-1 status=already_sold
+[2026-07-24T16:25:51+00:00] payment_id=pay-1 variation_id=var-2 sku=DT-2 status=already_sold
+[2026-07-24T16:25:51+00:00] payment_id=pay-1 variation_id=missing unmapped
+[2026-07-24T16:25:51+00:00] refund payment_id=pay-2 sku=DT-2 status=RETURNED - NEEDS INSPECTION changed=1
+[2026-07-24T16:25:51+00:00] event_id=evt-refund type=refund.updated status=processed
+[2026-07-24T16:25:51+00:00] refund payment_id=pay-2 sku=DT-2 status=RETURNED - NEEDS INSPECTION changed=0
+[2026-07-24T16:26:04+00:00] payment_id=pay-1 variation_id=var-1 sku=DT-1 status=changed_to_sold
+[2026-07-24T16:26:04+00:00] payment_id=pay-1 variation_id=var-2 sku=DT-2 status=already_sold
+[2026-07-24T16:26:04+00:00] payment_id=pay-1 variation_id=missing unmapped
+[2026-07-24T16:26:04+00:00] event_id=evt-pay type=payment.updated status=processed
+[2026-07-24T16:26:04+00:00] payment_id=pay-1 variation_id=var-1 sku=DT-1 status=already_sold
+[2026-07-24T16:26:04+00:00] payment_id=pay-1 variation_id=var-2 sku=DT-2 status=already_sold
+[2026-07-24T16:26:04+00:00] payment_id=pay-1 variation_id=missing unmapped
+[2026-07-24T16:26:04+00:00] refund payment_id=pay-2 sku=DT-2 status=RETURNED - NEEDS INSPECTION changed=1
+[2026-07-24T16:26:04+00:00] event_id=evt-refund type=refund.updated status=processed
+[2026-07-24T16:26:04+00:00] refund payment_id=pay-2 sku=DT-2 status=RETURNED - NEEDS INSPECTION changed=0
+[2026-07-24T16:26:04+00:00] event_id=evt-inv inventory warning=Square quantity is 0 but Pinksheet is not SOLD variation_id=var-1
+[2026-07-24T16:26:04+00:00] event_id=evt-inv type=inventory.count.updated status=processed
+[2026-07-24T16:27:46+00:00] event_id=evt-inv inventory warning=Square quantity is 0 but Pinksheet is not SOLD variation_id=var-1
+[2026-07-24T16:27:46+00:00] event_id=evt-inv type=inventory.count.updated status=processed
+[2026-07-24T16:27:46+00:00] payment_id=pay-1 variation_id=var-1 sku=DT-1 status=changed_to_sold
+[2026-07-24T16:27:46+00:00] payment_id=pay-1 variation_id=var-2 sku=DT-2 status=already_sold
+[2026-07-24T16:27:46+00:00] payment_id=pay-1 variation_id=missing unmapped
+[2026-07-24T16:27:46+00:00] event_id=evt-pay type=payment.updated status=processed
+[2026-07-24T16:27:46+00:00] payment_id=pay-1 variation_id=var-1 sku=DT-1 status=already_sold
+[2026-07-24T16:27:46+00:00] payment_id=pay-1 variation_id=var-2 sku=DT-2 status=already_sold
+[2026-07-24T16:27:46+00:00] payment_id=pay-1 variation_id=missing unmapped
+[2026-07-24T16:27:46+00:00] refund payment_id=pay-2 sku=DT-2 status=RETURNED - NEEDS INSPECTION changed=1
+[2026-07-24T16:27:46+00:00] event_id=evt-refund type=refund.updated status=processed
+[2026-07-24T16:27:46+00:00] refund payment_id=pay-2 sku=DT-2 status=RETURNED - NEEDS INSPECTION changed=0
+[2026-07-24T16:55:22+00:00] event_id=df5f3813-a913-45a1-94e9-fdc3f7d5e3b6 inventory warning=No Pinksheet mapping exists variation_id=FGQ5JJWT2PYTHF35CKZ2DSKP
+[2026-07-24T16:55:22+00:00] event_id=df5f3813-a913-45a1-94e9-fdc3f7d5e3b6 type=inventory.count.updated status=processed

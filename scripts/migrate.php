@@ -200,9 +200,6 @@ CREATE TABLE IF NOT EXISTS sku_photos (
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 SQL);
-$pdo->exec("CREATE INDEX IF NOT EXISTS idx_sku_photos_sku_normalized ON sku_photos (sku_normalized)");
-$pdo->exec("CREATE INDEX IF NOT EXISTS idx_sku_photos_sku_thumb ON sku_photos (sku_normalized, is_thumb, id)");
-
 $skuPhotoColumns = $pdo->query("PRAGMA table_info(sku_photos)")->fetchAll(PDO::FETCH_ASSOC);
 $skuPhotoNames = array_column($skuPhotoColumns, 'name');
 if (!in_array('sort_order', $skuPhotoNames, true)) {
@@ -211,6 +208,8 @@ if (!in_array('sort_order', $skuPhotoNames, true)) {
 if (!in_array('is_thumb', $skuPhotoNames, true)) {
     $pdo->exec("ALTER TABLE sku_photos ADD COLUMN is_thumb INTEGER NOT NULL DEFAULT 0");
 }
+$pdo->exec("CREATE INDEX IF NOT EXISTS idx_sku_photos_sku_normalized ON sku_photos (sku_normalized)");
+$pdo->exec("CREATE INDEX IF NOT EXISTS idx_sku_photos_sku_thumb ON sku_photos (sku_normalized, is_thumb, id)");
 
 $pdo->exec(<<<'SQL'
 CREATE TABLE IF NOT EXISTS square_catalog_sync (
@@ -227,6 +226,9 @@ CREATE TABLE IF NOT EXISTS square_catalog_sync (
     updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 SQL);
+
+require_once __DIR__ . '/../square_webhook_lib.php';
+squareWebhookEnsureSchema($pdo);
 
 $pdo->exec(<<<'SQL'
 CREATE TABLE IF NOT EXISTS script_cache (
