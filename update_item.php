@@ -6,12 +6,19 @@ require_once __DIR__ . '/square_sync.php';
 checkMaintenance(true);
 ensureStorageWritable();
 
-header('Content-Type: application/json; charset=utf-8');
+/**
+ * Return a flat JSON error so JS callers can check `data.ok` directly.
+ */
+function updateError(string $message, int $code = 400): never
+{
+    http_response_code($code);
+    header('Content-Type: application/json; charset=utf-8');
+    echo json_encode(['ok' => false, 'error' => $message]);
+    exit;
+}
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    http_response_code(405);
-    echo json_encode(['ok' => false, 'error' => 'Method not allowed']);
-    exit;
+    updateError('Method not allowed', 405);
 }
 
 require_csrf();
@@ -21,29 +28,23 @@ $field = trim((string)($_POST['field'] ?? ''));
 $value = $_POST['value'] ?? null;
 
 if ($sku === '') {
-    http_response_code(400);
-    echo json_encode(['ok' => false, 'error' => 'SKU is required']);
-    exit;
+    updateError('SKU is required');
 }
 
 $allowedFields = [
     'status' => true,
     'price' => true,
     'reviewed' => true,
-    // Back-compat: old clients/inputs may still send these.
+    'ready' => true,
     'dispotech_price' => true,
     'ebay_price' => true,
 ];
 if (!isset($allowedFields[$field])) {
-    http_response_code(400);
-    echo json_encode(['ok' => false, 'error' => 'Field not allowed']);
-    exit;
+    updateError('Field not allowed');
 }
 
 try {
-    $pdo = new PDO('sqlite:' . __DIR__ . '/data/intake.sqlite', null, null, [
-        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-    ]);
+    $pdo = pdoConnect(__DIR__ . '/data/intake.sqlite');
     $pdo->exec('PRAGMA foreign_keys = ON');
     squareSyncEnsureSchema($pdo);
 
@@ -54,13 +55,26 @@ try {
         ? '(UPPER(COALESCE(sku, \'\')) = :sku OR UPPER(COALESCE(sku_normalized, \'\')) = :sku)'
         : 'UPPER(COALESCE(sku, \'\')) = :sku';
 
+    if (!in_array('ready', $columnNames, true)) {
+        $pdo->exec("ALTER TABLE intake_items ADD COLUMN ready INTEGER NOT NULL DEFAULT 0");
+        $columnNames[] = 'ready';
+    }
+
     if ($field === 'status') {
         $stmt = $pdo->prepare('UPDATE intake_items SET status = :val, updated_at = datetime("now") WHERE ' . $skuWhere);
         $stmt->execute([':val' => (string)$value, ':sku' => $sku]);
     } elseif ($field === 'reviewed') {
-        $reviewed = $value === '1' || $value === 1 || $value === true ? 1 : 0;
+        $reviewed = match (true) {
+            $value === '2' || $value === 2 => 2,
+            $value === '1' || $value === 1 || $value === true => 1,
+            default => 0,
+        };
         $stmt = $pdo->prepare('UPDATE intake_items SET reviewed = :val, updated_at = datetime("now") WHERE ' . $skuWhere);
         $stmt->execute([':val' => $reviewed, ':sku' => $sku]);
+    } elseif ($field === 'ready') {
+        $ready = $value === '1' || $value === 1 || $value === true ? 1 : 0;
+        $stmt = $pdo->prepare('UPDATE intake_items SET ready = :val, updated_at = datetime("now") WHERE ' . $skuWhere);
+        $stmt->execute([':val' => $ready, ':sku' => $sku]);
     } else {
         $price = is_numeric($value) ? (float)$value : null;
         // Unify pricing: treat any price update as the single canonical price.
@@ -73,14 +87,40 @@ try {
         $existsStmt = $pdo->prepare('SELECT COUNT(*) FROM intake_items WHERE ' . $skuWhere);
         $existsStmt->execute([':sku' => $sku]);
         if ((int) $existsStmt->fetchColumn() === 0) {
-            http_response_code(404);
-            echo json_encode(['ok' => false, 'error' => 'SKU not found']);
-            exit;
+            updateError('SKU not found', 404);
         }
     }
+    $updatedStmt = $pdo->prepare('SELECT updated_at FROM intake_items WHERE ' . $skuWhere);
+    $updatedStmt->execute([':sku' => $sku]);
+    $updatedAt = (string)($updatedStmt->fetchColumn() ?? '');
+
+    header('Content-Type: application/json; charset=utf-8');
+    echo json_encode([
+        'ok'          => true,
+        'updated_at'  => $updatedAt,
+        'square_sync' => 'pending',
+    ]);
+
+    session_write_close();
+
+    if (function_exists('fastcgi_finish_request')) {
+        fastcgi_finish_request();
+    }
+
     $squareSync = squareSyncItemBySku($pdo, $sku);
-    echo json_encode(['ok' => true, 'square_sync' => $squareSync['status'] ?? 'skipped']);
+    $syncStatus = $squareSync['status'] ?? 'skipped';
+
+    if ($syncStatus === 'error') {
+        squareSyncLog('Background sync error for ' . $sku . ': ' . ($squareSync['message'] ?? 'unknown'));
+    }
+
+    exit;
 } catch (Throwable $e) {
     http_response_code(500);
-    echo json_encode(['ok' => false, 'error' => 'DB error']);
+    header('Content-Type: application/json; charset=utf-8');
+    echo json_encode([
+        'ok'    => false,
+        'error' => 'DB error',
+    ]);
+    exit;
 }

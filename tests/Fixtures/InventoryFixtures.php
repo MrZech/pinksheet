@@ -38,7 +38,7 @@ final class InventoryFixtures
             [
                 'sku'             => 'DT-1001',
                 'sku_normalized'  => 'DT-1001',
-                'status'          => 'Intake',
+                'status'          => 'intake',
                 'what_is_it'      => 'Dell Latitude 5420 Laptop',
                 'functional'      => 'Yes',
                 'condition'       => 'Good',
@@ -49,7 +49,7 @@ final class InventoryFixtures
             [
                 'sku'             => 'DT-1002',
                 'sku_normalized'  => 'DT-1002',
-                'status'          => 'Tested',
+                'status'          => 'ebay draft',
                 'what_is_it'      => 'HP EliteBook 840 G8',
                 'functional'      => 'Yes',
                 'condition'       => 'Fair',
@@ -60,7 +60,7 @@ final class InventoryFixtures
             [
                 'sku'             => 'DT-1003',
                 'sku_normalized'  => 'DT-1003',
-                'status'          => 'Ready for eBay Listing',
+                'status'          => 'ebay review',
                 'what_is_it'      => 'Lenovo ThinkPad X1 Carbon',
                 'functional'      => 'Yes',
                 'condition'       => 'Excellent',
@@ -71,7 +71,7 @@ final class InventoryFixtures
             [
                 'sku'             => 'DT-1004',
                 'sku_normalized'  => 'DT-1004',
-                'status'          => 'Dispo Tech Store',
+                'status'          => 'dispo tech store',
                 'what_is_it'      => 'MacBook Pro 14" M1 Pro',
                 'functional'      => 'Yes',
                 'condition'       => 'Excellent',
@@ -82,7 +82,7 @@ final class InventoryFixtures
             [
                 'sku'             => 'DT-1005',
                 'sku_normalized'  => 'DT-1005',
-                'status'          => 'eBay Listed',
+                'status'          => 'ebay listed',
                 'what_is_it'      => 'Dell UltraSharp U2719D Monitor',
                 'functional'      => 'Yes',
                 'condition'       => 'Good',
@@ -93,7 +93,7 @@ final class InventoryFixtures
             [
                 'sku'             => 'DT-1006',
                 'sku_normalized'  => 'DT-1006',
-                'status'          => 'SOLD',
+                'status'          => 'sold',
                 'what_is_it'      => 'Logitech MX Master 3 Mouse',
                 'functional'      => 'Yes',
                 'condition'       => 'Good',
@@ -104,7 +104,7 @@ final class InventoryFixtures
             [
                 'sku'             => 'DT-1007',
                 'sku_normalized'  => 'DT-1007',
-                'status'          => 'Intake',
+                'status'          => 'intake',
                 'what_is_it'      => 'Dell PowerEdge R740 Server',
                 'functional'      => 'Unknown',
                 'condition'       => 'For Parts',
@@ -126,7 +126,7 @@ final class InventoryFixtures
             [
                 'sku'             => 'DT-1009',
                 'sku_normalized'  => 'DT-1009',
-                'status'          => 'Ready for eBay Listing',
+                'status'          => 'ebay review',
                 'what_is_it'      => 'Apple Mac Mini M2',
                 'functional'      => 'Yes',
                 'condition'       => 'Excellent',
@@ -137,7 +137,7 @@ final class InventoryFixtures
             [
                 'sku'             => 'DT-1010',
                 'sku_normalized'  => 'DT-1010',
-                'status'          => 'eBay Listed',
+                'status'          => 'ebay listed',
                 'what_is_it'      => 'Samsung 27" Curved Monitor',
                 'functional'      => 'Yes',
                 'condition'       => 'Good',
@@ -148,7 +148,7 @@ final class InventoryFixtures
             [
                 'sku'             => 'DT-1011',
                 'sku_normalized'  => 'DT-1011',
-                'status'          => 'SOLD',
+                'status'          => 'sold',
                 'what_is_it'      => 'ThinkPad Docking Station',
                 'functional'      => 'Yes',
                 'condition'       => 'Fair',
@@ -159,7 +159,7 @@ final class InventoryFixtures
             [
                 'sku'             => 'DT-1012',
                 'sku_normalized'  => 'DT-1012',
-                'status'          => 'Dispo Tech Store',
+                'status'          => 'dispo tech store',
                 'what_is_it'      => 'HP ZBook Fury G9',
                 'functional'      => 'Yes',
                 'condition'       => 'Good',
@@ -206,14 +206,14 @@ final class InventoryFixtures
             [
                 'sku'            => 'DT-2001',
                 'sku_normalized' => 'DT-2001',
-                'status'         => 'Intake',
+                'status'         => 'intake',
                 'what_is_it'     => 'Original item',
                 'reviewed'       => 0,
             ],
             [
                 'sku'            => 'dt-2001',
                 'sku_normalized' => 'DT-2001',
-                'status'         => 'Intake',
+                'status'         => 'intake',
                 'what_is_it'     => 'Duplicate SKU entry',
                 'reviewed'       => 0,
             ],
@@ -241,7 +241,7 @@ final class InventoryFixtures
     {
         return [
             'update1' => [
-                'status'  => 'Tested',
+                'status'          => 'ebay draft',
                 'updated_at' => '2026-01-01 10:00:00',
             ],
             'update2' => [

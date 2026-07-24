@@ -169,8 +169,8 @@ final class UIRefactorRegressionTest extends TestCase
     public function test_app_js_has_reviewed_toggle_handler(): void
     {
         $html = file_get_contents($this->kanbanFile);
-        // reviewed-checkbox toggle moved inline to kanban.php
-        $this->assertStringContainsString('reviewed-checkbox', $html);
+        // status-badge toggle moved inline to kanban.php
+        $this->assertStringContainsString('status-badge-container', $html);
     }
 
     public function test_app_js_has_drag_drop_handler(): void

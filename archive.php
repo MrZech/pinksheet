@@ -9,11 +9,6 @@ const ARCHIVE_PAGE_SIZE = 50;
 
 $currentPage = 'archive';
 
-function h(string $value): string
-{
-    return htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
-}
-
 function resolveArchiveDbPath(): string
 {
     $preferred = __DIR__ . '/data/archive.sqlite';
@@ -57,9 +52,7 @@ if (!is_dir(__DIR__ . '/data')) {
 }
 
 $archiveDbPath = resolveArchiveDbPath();
-$pdo = new PDO('sqlite:' . $archiveDbPath, null, null, [
-    PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-]);
+$pdo = pdoConnect($archiveDbPath);
 ensureArchiveItemsTable($pdo);
 
 $q = trim((string)($_GET['q'] ?? ''));
@@ -76,8 +69,13 @@ $where = [];
 $params = [];
 
 if ($q !== '') {
-    $where[] = '(lower(COALESCE(sku, \'\')) LIKE :q OR lower(COALESCE(title, \'\')) LIKE :q OR lower(COALESCE(status, \'\')) LIKE :q OR lower(COALESCE(source, \'\')) LIKE :q OR lower(COALESCE(buyer, \'\')) LIKE :q OR lower(COALESCE(notes, \'\')) LIKE :q OR lower(COALESCE(legacy_source, \'\')) LIKE :q OR lower(COALESCE(legacy_table, \'\')) LIKE :q OR lower(COALESCE(legacy_id, \'\')) LIKE :q OR lower(COALESCE(legacy_payload, \'\')) LIKE :q)';
-    $params[':q'] = '%' . strtolower($q) . '%';
+    $prefix = str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], strtolower($q)) . '%';
+    $skuPrefix = str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], strtoupper($q)) . '%';
+    $any = '%' . str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], strtolower($q)) . '%';
+    $where[] = '(sku_normalized LIKE :sku_prefix OR lower(COALESCE(sku, \'\')) LIKE :q_prefix OR lower(COALESCE(title, \'\')) LIKE :q_prefix OR lower(COALESCE(status, \'\')) LIKE :q_prefix OR lower(COALESCE(source, \'\')) LIKE :q_prefix OR lower(COALESCE(buyer, \'\')) LIKE :q_prefix OR lower(COALESCE(legacy_source, \'\')) LIKE :q_prefix OR lower(COALESCE(legacy_table, \'\')) LIKE :q_prefix OR lower(COALESCE(legacy_id, \'\')) LIKE :q_prefix OR lower(COALESCE(notes, \'\')) LIKE :q_any)';
+    $params[':sku_prefix'] = $skuPrefix;
+    $params[':q_prefix'] = $prefix;
+    $params[':q_any'] = $any;
 }
 if ($statusFilter !== '') {
     $where[] = 'lower(COALESCE(status, \'\')) = lower(:status)';
@@ -111,7 +109,9 @@ if ($page > $totalPages) {
 }
 
 $sql = '
-    SELECT *
+    SELECT id, created_at, updated_at, sku, sku_normalized, title, status,
+           sold_at, sold_price, purchase_price, source, buyer, notes,
+           legacy_source, legacy_table, legacy_id
     FROM archive_items
     ' . $whereSql . '
     ORDER BY COALESCE(sold_at, updated_at, created_at) DESC, id DESC
@@ -126,13 +126,15 @@ $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
 $stmt->execute();
 $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-$statusOptions = $pdo->query("SELECT DISTINCT status FROM archive_items WHERE COALESCE(status, '') <> '' ORDER BY status")->fetchAll(PDO::FETCH_COLUMN);
-if (!$statusOptions) {
-    $statusOptions = ['Sold', 'SOLD', 'Archived', 'Closed', 'Listed', 'Open'];
+$distinctFilters = [];
+if ($q === '' && $statusFilter === '' && $sourceFilter === '' && $legacySourceFilter === '' && $soldFrom === '' && $soldTo === '') {
+    $distinctFilters['status'] = $pdo->query("SELECT DISTINCT status FROM archive_items WHERE status IS NOT NULL AND status != '' ORDER BY status")->fetchAll(PDO::FETCH_COLUMN);
+    $distinctFilters['legacy_source'] = $pdo->query("SELECT DISTINCT legacy_source FROM archive_items WHERE legacy_source IS NOT NULL AND legacy_source != '' ORDER BY legacy_source")->fetchAll(PDO::FETCH_COLUMN);
+    $distinctFilters['source'] = $pdo->query("SELECT DISTINCT source FROM archive_items WHERE source IS NOT NULL AND source != '' ORDER BY source")->fetchAll(PDO::FETCH_COLUMN);
 }
-$legacySources = $pdo->query("SELECT DISTINCT legacy_source FROM archive_items WHERE COALESCE(legacy_source, '') <> '' ORDER BY legacy_source")->fetchAll(PDO::FETCH_COLUMN);
-$sources = $pdo->query("SELECT DISTINCT source FROM archive_items WHERE COALESCE(source, '') <> '' ORDER BY source")->fetchAll(PDO::FETCH_COLUMN);
-$overallTotal = (int)$pdo->query('SELECT COUNT(*) FROM archive_items')->fetchColumn();
+$statusOptions = $distinctFilters['status'] ?? ['Sold', 'SOLD', 'Archived', 'Closed', 'Listed', 'Open'];
+$legacySources = $distinctFilters['legacy_source'] ?? [];
+$sources = $distinctFilters['source'] ?? [];
 $rangeStart = $totalRows > 0 ? ($offset + 1) : 0;
 $rangeEnd = min($offset + $limit, $totalRows);
 $queryLabel = $q !== '' ? ' results for "' . $q . '"' : ' archive items';
@@ -140,6 +142,7 @@ $queryLabel = $q !== '' ? ' results for "' . $q . '"' : ' archive items';
 function buildArchiveUrl(array $overrides = []): string
 {
     $query = array_merge($_GET, $overrides);
+    unset($query['partial']);
     foreach ($query as $key => $value) {
         if ($value === null || $value === '') {
             unset($query[$key]);
@@ -147,6 +150,12 @@ function buildArchiveUrl(array $overrides = []): string
     }
     return 'archive.php' . ($query ? '?' . http_build_query($query) : '');
 }
+
+$csrfToken = csrf_token();
+session_write_close();
+
+$isPartial = ($_GET['partial'] ?? '') === '1';
+if (!$isPartial):
 ?>
 <!doctype html>
 <html lang="en">
@@ -154,13 +163,14 @@ function buildArchiveUrl(array $overrides = []): string
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Archive - Dispo.Tech</title>
-  <link rel="stylesheet" href="assets/style.css?v=<?= filemtime('assets/style.css') ?>">
-  <script src="assets/menu.js?v=<?= filemtime('assets/menu.js') ?>" defer></script>
-  <link rel="stylesheet" media="print" href="assets/print.css?v=<?= filemtime('assets/print.css') ?>">
-  <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
-  <script>window.CSRF_TOKEN = <?= json_encode(csrf_token()) ?>;</script>
-  <script src="assets/theme.js?v=<?= filemtime('assets/theme.js') ?>"></script>
-  <script src="assets/app.js?v=<?= filemtime('assets/app.js') ?>"></script>
+  <link rel="stylesheet" href="assets/style.css?v=<?= getAssetVersion() ?>">
+  <script src="assets/menu.js?v=<?= getAssetVersion() ?>" defer></script>
+  <link rel="stylesheet" media="print" href="assets/print.css?v=<?= getAssetVersion() ?>">
+  <link rel="icon" type="image/svg+xml" href="assets/favicon.svg?v=2">
+  <script>window.CSRF_TOKEN = <?= json_encode($csrfToken) ?>;</script>
+  <script src="assets/theme.js?v=<?= getAssetVersion() ?>" defer></script>
+  <script src="assets/app.js?v=<?= getAssetVersion() ?>" defer></script>
+  <script src="assets/nav.js?v=<?= getAssetVersion() ?>" defer></script>
 </head>
 <body class="archive-page">
   <div class="layout-wrapper">
@@ -180,13 +190,14 @@ function buildArchiveUrl(array $overrides = []): string
         </ul>
       </nav>
     </div>
+  <div id="content-area">
+<?php endif; /* end outer shell */ ?>
   <main class="page">
     <section class="sheet archive-sheet">
       <header class="sheet-header">
         <div class="updated">Dispo.Tech Archive</div>
         <div class="sheet-header-right">
           <span class="autosave-status" id="autosave-status" hidden>Autosave ready</span>
-          <span class="badge subtle"><?php echo h((string)$overallTotal); ?> total</span>
           <a class="button-link new-intake-cta" href="intake.php?clear_draft=1" data-new-intake>New Intake</a>
           <button type="button" class="theme-toggle" id="theme-toggle">Dark mode</button>
         </div>
@@ -200,8 +211,7 @@ function buildArchiveUrl(array $overrides = []): string
       <p class="lead">Search old records here. This page is read-only and intended for legacy purchase history, sold inventory, and other historical references.</p>
       <section class="section archive-summary archive-pill-row">
         <div class="badge archive-db-path">Archive DB: <?php echo h($archiveDbPath); ?></div>
-        <div class="badge">Total rows: <?php echo h((string)$overallTotal); ?></div>
-        <div class="badge">Filtered rows: <?php echo h((string)$totalRows); ?></div>
+        <div class="badge">Rows: <?php echo h((string)$totalRows); ?></div>
       </section>
 
       <section class="section archive-summary archive-pill-row">
@@ -330,6 +340,9 @@ function buildArchiveUrl(array $overrides = []): string
       </section>
     </section>
   </main>
-
+<?php if (!$isPartial): ?>
+  </div> <!-- /content-area -->
+  </div> <!-- /layout-wrapper -->
 </body>
 </html>
+<?php endif; ?>

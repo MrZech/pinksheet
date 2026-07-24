@@ -7,8 +7,6 @@ ensureStorageWritable();
 
 const DB_PATH = __DIR__ . '/data/intake.sqlite';
 
-header('Content-Type: application/json; charset=utf-8');
-
 require_csrf();
 
 /**
@@ -40,10 +38,7 @@ function ensureArchiveTable(PDO $pdo): void
 }
 
 try {
-    $pdo = new PDO('sqlite:' . DB_PATH, null, null, [
-        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-    ]);
+    $pdo = pdoConnect(DB_PATH);
 
     ensureArchiveTable($pdo);
 
@@ -53,7 +48,8 @@ try {
     $deleted = $pdo->query("SELECT * FROM intake_deleted ORDER BY deleted_at DESC, rowid DESC LIMIT 1")->fetch(PDO::FETCH_ASSOC);
     if (!$deleted) {
         $pdo->rollBack();
-        echo json_encode(['status' => 'empty', 'message' => 'Nothing to undo']);
+        header('Content-Type: application/json; charset=utf-8');
+        echo json_encode(['status' => 'error', 'message' => 'Nothing to undo']);
         exit;
     }
 
@@ -76,6 +72,7 @@ try {
 
     $pdo->commit();
 
+    header('Content-Type: application/json; charset=utf-8');
     echo json_encode([
         'status' => 'ok',
         'restored_sku' => $restoredSku,
@@ -83,10 +80,13 @@ try {
         'original_id' => $originalId,
         'deleted_at' => $deletedAt,
     ]);
+    exit;
 } catch (Throwable $e) {
     if ($pdo && $pdo->inTransaction()) {
         $pdo->rollBack();
     }
     http_response_code(500);
+    header('Content-Type: application/json; charset=utf-8');
     echo json_encode(['status' => 'error', 'message' => 'Undo failed']);
+    exit;
 }

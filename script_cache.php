@@ -7,14 +7,7 @@ ensureStorageWritable();
 
 const DB_PATH = __DIR__ . '/data/intake.sqlite';
 
-header('Content-Type: application/json; charset=utf-8');
 
-function jsonResponse(array $data, int $status = 200): void
-{
-    http_response_code($status);
-    echo json_encode($data, JSON_THROW_ON_ERROR);
-    exit;
-}
 
 function readInput(): array
 {
@@ -27,12 +20,9 @@ function readInput(): array
 }
 
 try {
-    $pdo = new PDO('sqlite:' . DB_PATH, null, null, [
-        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-    ]);
+    $pdo = pdoConnect(DB_PATH);
 } catch (Throwable $e) {
-    jsonResponse(['status' => 'error', 'message' => 'Database connection failed'], 500);
+    errorResponse('Database connection failed', 500);
 }
 
 try {
@@ -48,7 +38,7 @@ try {
     SQL);
     $pdo->exec("CREATE INDEX IF NOT EXISTS idx_script_cache_updated_at ON script_cache (updated_at)");
 } catch (Throwable $e) {
-    jsonResponse(['status' => 'error', 'message' => 'Schema initialization failed'], 500);
+    errorResponse('Schema initialization failed', 500);
 }
 
 try {
@@ -57,15 +47,15 @@ try {
     if ($method === 'GET') {
         $sku = normalizeSku((string)($_GET['sku'] ?? ''));
         if ($sku === '') {
-            jsonResponse(['status' => 'ok', 'has_cache' => false]);
+            successResponse(['status' => 'ok', 'has_cache' => false]);
         }
         $stmt = $pdo->prepare('SELECT sku_normalized, sku_display, prompt_text, chatgpt_text, final_text, updated_at FROM script_cache WHERE sku_normalized = :sku LIMIT 1');
         $stmt->execute(['sku' => $sku]);
         $row = $stmt->fetch();
         if (!$row) {
-            jsonResponse(['status' => 'ok', 'has_cache' => false]);
+            successResponse(['status' => 'ok', 'has_cache' => false]);
         }
-        jsonResponse([
+        successResponse([
             'status' => 'ok',
             'has_cache' => true,
             'data' => $row,
@@ -73,7 +63,7 @@ try {
     }
 
     if ($method !== 'POST') {
-        jsonResponse(['status' => 'error', 'message' => 'Method not allowed'], 405);
+        errorResponse('Method not allowed', 405);
     }
 
     $input = readInput();
@@ -84,7 +74,7 @@ try {
     $finalText = (string)($input['final_text'] ?? '');
 
     if ($sku === '') {
-        jsonResponse(['status' => 'error', 'message' => 'SKU is required'], 400);
+        errorResponse('SKU is required', 400);
     }
     if ($skuDisplay === '') {
         $skuDisplay = $sku;
@@ -111,10 +101,10 @@ try {
         'updated_at' => $now,
     ]);
 
-    jsonResponse([
+    successResponse([
         'status' => 'ok',
         'saved_at' => $now,
     ]);
 } catch (Throwable $e) {
-    jsonResponse(['status' => 'error', 'message' => 'Internal server error'], 500);
+    errorResponse('Internal server error', 500);
 }

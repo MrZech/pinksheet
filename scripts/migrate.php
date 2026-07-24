@@ -1,6 +1,8 @@
 <?php
 declare(strict_types=1);
 
+require_once __DIR__ . '/../config.php';
+
 // Simple idempotent migration/repair helper for pinksheet.
 // Run with: php scripts/migrate.php
 
@@ -21,9 +23,7 @@ ensureDir(PHOTO_DIR);
 ensureDir(CHUNK_DIR);
 ensureDir(LOG_DIR);
 
-$pdo = new PDO('sqlite:' . DB_PATH, null, null, [
-    PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-]);
+$pdo = pdoConnect(DB_PATH);
 
 $pdo->exec("PRAGMA journal_mode=WAL");
 $pdo->exec("PRAGMA synchronous=NORMAL");
@@ -73,6 +73,18 @@ if (!in_array('sku_normalized', $names, true)) {
 }
 if (!in_array('os', $names, true)) {
     $pdo->exec("ALTER TABLE intake_items ADD COLUMN os TEXT");
+}
+if (!in_array('reviewed', $names, true)) {
+    $pdo->exec("ALTER TABLE intake_items ADD COLUMN reviewed INTEGER NOT NULL DEFAULT 0");
+}
+if (!in_array('diagnostics_test_ran', $names, true)) {
+    $pdo->exec("ALTER TABLE intake_items ADD COLUMN diagnostics_test_ran INTEGER NOT NULL DEFAULT 0");
+}
+if (!in_array('wifi_card_installed', $names, true)) {
+    $pdo->exec("ALTER TABLE intake_items ADD COLUMN wifi_card_installed INTEGER NOT NULL DEFAULT 0");
+}
+if (!in_array('compatible_os', $names, true)) {
+    $pdo->exec("ALTER TABLE intake_items ADD COLUMN compatible_os TEXT");
 }
 
 $pdo->exec("CREATE INDEX IF NOT EXISTS idx_intake_items_sku_normalized ON intake_items (sku_normalized)");
@@ -145,6 +157,11 @@ foreach ($duplicateSkus as $duplicateSku) {
 }
 $pdo->exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_intake_items_sku_normalized_unique ON intake_items (sku_normalized) WHERE sku_normalized IS NOT NULL AND TRIM(sku_normalized) <> ''");
 $pdo->exec("CREATE INDEX IF NOT EXISTS idx_intake_items_status_updated ON intake_items (status, updated_at)");
+$pdo->exec("CREATE INDEX IF NOT EXISTS idx_intake_items_status ON intake_items (status)");
+$pdo->exec("CREATE INDEX IF NOT EXISTS idx_intake_items_updated_at ON intake_items (updated_at)");
+$pdo->exec("CREATE INDEX IF NOT EXISTS idx_intake_items_what_is_it ON intake_items (what_is_it)");
+$pdo->exec("CREATE INDEX IF NOT EXISTS idx_intake_items_updated_id ON intake_items (updated_at, id)");
+$pdo->exec("CREATE INDEX IF NOT EXISTS idx_intake_items_created_at ON intake_items (created_at)");
 $pdo->exec(<<<'SQL'
 CREATE TABLE IF NOT EXISTS archive_items (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -184,6 +201,16 @@ CREATE TABLE IF NOT EXISTS sku_photos (
 );
 SQL);
 $pdo->exec("CREATE INDEX IF NOT EXISTS idx_sku_photos_sku_normalized ON sku_photos (sku_normalized)");
+$pdo->exec("CREATE INDEX IF NOT EXISTS idx_sku_photos_sku_thumb ON sku_photos (sku_normalized, is_thumb, id)");
+
+$skuPhotoColumns = $pdo->query("PRAGMA table_info(sku_photos)")->fetchAll(PDO::FETCH_ASSOC);
+$skuPhotoNames = array_column($skuPhotoColumns, 'name');
+if (!in_array('sort_order', $skuPhotoNames, true)) {
+    $pdo->exec("ALTER TABLE sku_photos ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0");
+}
+if (!in_array('is_thumb', $skuPhotoNames, true)) {
+    $pdo->exec("ALTER TABLE sku_photos ADD COLUMN is_thumb INTEGER NOT NULL DEFAULT 0");
+}
 
 $pdo->exec(<<<'SQL'
 CREATE TABLE IF NOT EXISTS square_catalog_sync (
@@ -212,5 +239,16 @@ CREATE TABLE IF NOT EXISTS script_cache (
 );
 SQL);
 $pdo->exec("CREATE INDEX IF NOT EXISTS idx_script_cache_updated_at ON script_cache (updated_at)");
+
+$pdo->exec(<<<'SQL'
+CREATE TABLE IF NOT EXISTS intake_drafts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    sku_normalized TEXT NOT NULL,
+    payload TEXT NOT NULL,
+    version INTEGER NOT NULL DEFAULT 1,
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+SQL);
+$pdo->exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_intake_drafts_sku ON intake_drafts (sku_normalized)");
 
 echo "Migration completed. Directories ensured and schema normalized.\n";

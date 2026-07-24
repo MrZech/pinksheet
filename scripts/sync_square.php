@@ -16,9 +16,7 @@ if ($arg === '') {
 }
 
 ensureStorageWritable();
-$pdo = new PDO('sqlite:' . __DIR__ . '/../data/intake.sqlite', null, null, [
-    PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-]);
+$pdo = pdoConnect(__DIR__ . '/../data/intake.sqlite');
 squareSyncEnsureSchema($pdo);
 
 if ($arg === '--all') {

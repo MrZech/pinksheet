@@ -20,8 +20,8 @@ const LOOKUP_LOG_DIR = __DIR__ . '/logs';
 const LOOKUP_LOG_PATH = LOOKUP_LOG_DIR . '/lookup.csv';
 const CLEAR_DRAFT_PARAM = 'clear_draft';
 const PHOTO_UPLOAD_DIR = DB_DIR . '/sku_photos';
-const MAX_SKU_PHOTOS_PER_UPLOAD = 100;
-const MAX_SKU_PHOTO_BYTES = 50 * 1024 * 1024;
+const MAX_SKU_PHOTOS_PER_UPLOAD = 200;
+const MAX_SKU_PHOTO_BYTES = 100 * 1024 * 1024;
 const ALLOWED_PHOTO_MIME_TYPES = [
     'image/jpeg' => 'jpg',
     'image/png' => 'png',
@@ -38,9 +38,7 @@ if (!is_dir(PHOTO_UPLOAD_DIR)) {
 }
 
 try {
-    $pdo = new PDO('sqlite:' . DB_PATH, null, null, [
-        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-    ]);
+    $pdo = pdoConnect(DB_PATH);
 } catch (Throwable $e) {
     http_response_code(500);
     header('Content-Type: text/plain; charset=utf-8');
@@ -94,58 +92,26 @@ CREATE TABLE IF NOT EXISTS sku_photos (
     stored_name TEXT NOT NULL,
     mime_type TEXT NOT NULL,
     file_size INTEGER NOT NULL DEFAULT 0,
-    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    is_thumb INTEGER NOT NULL DEFAULT 0,
+    sort_order INTEGER NOT NULL DEFAULT 0
 );
 SQL);
 $pdo->exec("CREATE INDEX IF NOT EXISTS idx_sku_photos_sku_normalized ON sku_photos (sku_normalized)");
 
-$columns = $pdo->query("PRAGMA table_info(intake_items)")->fetchAll(PDO::FETCH_ASSOC);
-$columnNames = array_map(static fn(array $column): string => (string)$column['name'], $columns);
-if (!in_array('sku_normalized', $columnNames, true)) {
-    $pdo->exec('ALTER TABLE intake_items ADD COLUMN sku_normalized TEXT');
-}
-if (!in_array('os', $columnNames, true)) {
-    $pdo->exec('ALTER TABLE intake_items ADD COLUMN os TEXT');
-}
-if (!in_array('diagnostics_test_ran', $columnNames, true)) {
-    $pdo->exec('ALTER TABLE intake_items ADD COLUMN diagnostics_test_ran INTEGER NOT NULL DEFAULT 0');
-}
-if (!in_array('wifi_card_installed', $columnNames, true)) {
-    $pdo->exec('ALTER TABLE intake_items ADD COLUMN wifi_card_installed INTEGER NOT NULL DEFAULT 0');
-}
-if (!in_array('compatible_os', $columnNames, true)) {
-    $pdo->exec('ALTER TABLE intake_items ADD COLUMN compatible_os TEXT');
-}
 $pdo->exec("CREATE INDEX IF NOT EXISTS idx_intake_items_sku_normalized ON intake_items (sku_normalized)");
 $pdo->exec("CREATE INDEX IF NOT EXISTS idx_intake_items_status ON intake_items (status)");
 $pdo->exec("CREATE INDEX IF NOT EXISTS idx_intake_items_updated_at ON intake_items (updated_at)");
 $pdo->exec("CREATE INDEX IF NOT EXISTS idx_intake_items_what_is_it ON intake_items (what_is_it)");
+$pdo->exec("CREATE INDEX IF NOT EXISTS idx_intake_items_updated_id ON intake_items (updated_at, id)");
+$pdo->exec("CREATE INDEX IF NOT EXISTS idx_intake_items_created_at ON intake_items (created_at)");
+$pdo->exec("CREATE INDEX IF NOT EXISTS idx_sku_photos_sku_thumb ON sku_photos (sku_normalized, is_thumb, id)");
 $schemaVersion = (int)$pdo->query('PRAGMA user_version')->fetchColumn();
 if ($schemaVersion < 1) {
     $pdo->exec("UPDATE intake_items SET sku_normalized = UPPER(TRIM(COALESCE(sku, ''))) WHERE sku_normalized IS NULL OR sku_normalized = ''");
     $pdo->exec('PRAGMA user_version = 1');
 }
 $pdo->exec("CREATE TABLE IF NOT EXISTS intake_deleted AS SELECT * FROM intake_items WHERE 0");
-$archiveColumns = [];
-foreach ($pdo->query("PRAGMA table_info(intake_deleted)") as $col) {
-    $archiveColumns[(string)$col['name']] = true;
-}
-foreach ($pdo->query("PRAGMA table_info(intake_items)") as $col) {
-    $name = (string)$col['name'];
-    if ($name === 'id' || isset($archiveColumns[$name])) {
-        continue;
-    }
-    $type = trim((string)($col['type'] ?? ''));
-    $definition = 'ALTER TABLE intake_deleted ADD COLUMN ' . $name;
-    if ($type !== '') {
-        $definition .= ' ' . $type;
-    }
-    $pdo->exec($definition);
-    $archiveColumns[$name] = true;
-}
-if (!isset($archiveColumns['deleted_at'])) {
-    $pdo->exec("ALTER TABLE intake_deleted ADD COLUMN deleted_at TEXT");
-}
 $schemaVersion = (int)$pdo->query('PRAGMA user_version')->fetchColumn();
 if ($schemaVersion < 2) {
 $dupStmt = $pdo->query("
@@ -221,92 +187,6 @@ squareSyncEnsureSchema($pdo);
 function ensureArchiveTable(PDO $pdo): void
 {
     $pdo->exec("CREATE TABLE IF NOT EXISTS intake_deleted AS SELECT * FROM intake_items WHERE 0");
-    $archiveColumns = [];
-    foreach ($pdo->query("PRAGMA table_info(intake_deleted)") as $col) {
-        $archiveColumns[(string)$col['name']] = true;
-    }
-    foreach ($pdo->query("PRAGMA table_info(intake_items)") as $col) {
-        $name = (string)$col['name'];
-        if ($name === 'id' || isset($archiveColumns[$name])) {
-            continue;
-        }
-        $type = trim((string)($col['type'] ?? ''));
-        $definition = 'ALTER TABLE intake_deleted ADD COLUMN ' . $name;
-        if ($type !== '') {
-            $definition .= ' ' . $type;
-        }
-        $pdo->exec($definition);
-        $archiveColumns[$name] = true;
-    }
-    if (!isset($archiveColumns['deleted_at'])) {
-        $pdo->exec("ALTER TABLE intake_deleted ADD COLUMN deleted_at TEXT");
-    }
-}
-
-function iniBytes(string $value): int
-{
-    $value = trim($value);
-    if ($value === '') {
-        return 0;
-    }
-    $last = strtolower(substr($value, -1));
-    $num = (float)$value;
-    switch ($last) {
-        case 'g':
-            $num *= 1024;
-            // no break
-        case 'm':
-            $num *= 1024;
-            // no break
-        case 'k':
-            $num *= 1024;
-    }
-    return (int)$num;
-}
-
-function humanBytes(int $bytes): string
-{
-    if ($bytes >= 1024 * 1024) {
-        return round($bytes / (1024 * 1024), 1) . ' MB';
-    }
-    if ($bytes >= 1024) {
-        return round($bytes / 1024, 1) . ' KB';
-    }
-    return $bytes . ' B';
-}
-
-function normalizeUploadedFiles(array $uploaded): array
-{
-    if (!isset($uploaded['name']) || !is_array($uploaded['name'])) {
-        return [];
-    }
-    $files = [];
-    foreach ($uploaded['name'] as $index => $name) {
-        $files[] = [
-            'name' => (string)$name,
-            'type' => (string)($uploaded['type'][$index] ?? ''),
-            'tmp_name' => (string)($uploaded['tmp_name'][$index] ?? ''),
-            'error' => (int)($uploaded['error'][$index] ?? UPLOAD_ERR_NO_FILE),
-            'size' => (int)($uploaded['size'][$index] ?? 0),
-        ];
-    }
-    return $files;
-}
-
-function sanitizeFilename(string $name): string
-{
-    $name = trim($name);
-    if ($name === '') {
-        return 'photo';
-    }
-    $clean = preg_replace('/[^A-Za-z0-9._-]+/', '_', $name);
-    return trim((string)$clean, '._-') ?: 'photo';
-}
-
-function normalizedSkuDirectory(string $skuNormalized): string
-{
-    $dir = preg_replace('/[^A-Z0-9_-]+/', '_', $skuNormalized);
-    return trim((string)$dir, '_') ?: 'UNASSIGNED';
 }
 
 function loadSkuPhotos(PDO $pdo, string $skuNormalized): array
@@ -314,7 +194,7 @@ function loadSkuPhotos(PDO $pdo, string $skuNormalized): array
     if ($skuNormalized === '') {
         return [];
     }
-    $stmt = $pdo->prepare('SELECT id, original_name, mime_type, file_size, created_at FROM sku_photos WHERE sku_normalized = :sku_normalized ORDER BY id DESC');
+    $stmt = $pdo->prepare('SELECT id, original_name, mime_type, file_size, created_at FROM sku_photos WHERE sku_normalized = :sku_normalized ORDER BY sort_order ASC, id ASC');
     $stmt->execute(['sku_normalized' => $skuNormalized]);
     return $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
@@ -323,11 +203,6 @@ function loadLatestPhotoId(PDO $pdo, string $skuNormalized): ?int
 {
     if ($skuNormalized === '') {
         return null;
-    }
-    try {
-        $pdo->exec("ALTER TABLE sku_photos ADD COLUMN is_thumb INTEGER NOT NULL DEFAULT 0");
-    } catch (Throwable $e) {
-        // ignore if exists
     }
     $stmt = $pdo->prepare('SELECT id FROM sku_photos WHERE sku_normalized = :sku_normalized ORDER BY is_thumb DESC, id DESC LIMIT 1');
     $stmt->execute(['sku_normalized' => $skuNormalized]);
@@ -356,7 +231,7 @@ function logLookup(string $sku, string $status): void
 
 function statusOptions(): array
 {
-    return ['Intake', 'Tested', 'Ready for eBay Listing', 'Dispo Tech Store', 'eBay Listed', 'SOLD'];
+    return ['intake', 'ebay draft', 'ebay review', 'ebay listed', 'dispo tech store', 'sold'];
 }
 
 function baseWhatIsItOptions(): array
@@ -388,8 +263,6 @@ $copySkuPrefill = trim($_GET['copy_sku'] ?? '');
 if ($lookupStatus !== '' && !in_array($lookupStatus, $statusOptions, true)) {
     $lookupStatus = '';
 }
-$bulkErrors = [];
-$bulkMessage = '';
 $deleteMessage = isset($_GET['deleted']) ? (int)$_GET['deleted'] : null;
 $clearDraft = isset($_GET[CLEAR_DRAFT_PARAM]);
 logLookup($lookupSku, $lookupStatus);
@@ -448,64 +321,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit;
     }
 
-    if (!empty($_POST['bulk_delete'])) {
-        $bulkIds = array_values(array_unique(array_map('intval', (array)($_POST['bulk_ids'] ?? []))));
-        $bulkIds = array_filter($bulkIds, static fn ($id): bool => $id > 0);
-        if (!$bulkIds) {
-            $bulkErrors[] = 'Select at least one SKU from the table.';
-        }
-        if (!$bulkErrors) {
-            $placeholders = implode(',', array_fill(0, count($bulkIds), '?'));
-            $pdo->beginTransaction();
-            ensureArchiveTable($pdo);
-            // Archive rows first
-            $fetch = $pdo->prepare("SELECT * FROM intake_items WHERE id IN ($placeholders)");
-            $fetch->execute($bulkIds);
-            $rows = $fetch->fetchAll(PDO::FETCH_ASSOC);
-            if ($rows) {
-                $now = (new DateTime('now'))->format('c');
-                foreach ($rows as $row) {
-                    $row['deleted_at'] = $now;
-                    $cols = array_keys($row);
-                    $placeVals = array_map(static fn($c) => ':' . $c, $cols);
-                    $sql = 'INSERT INTO intake_deleted (' . implode(',', $cols) . ') VALUES (' . implode(',', $placeVals) . ')';
-                    $insert = $pdo->prepare($sql);
-                    $insert->execute($row);
-                }
-            }
-            $stmt = $pdo->prepare("DELETE FROM intake_items WHERE id IN ($placeholders)");
-            $stmt->execute($bulkIds);
-            $pdo->commit();
-            $bulkMessage = 'Deleted ' . $stmt->rowCount() . ' record' . ($stmt->rowCount() === 1 ? '' : 's') . ' (archived for undo).';
-        }
-        $saved = false;
-        $errors = [];
-    } elseif (!empty($_POST['bulk_update'])) {
-        $bulkStatus = trim($_POST['bulk_status'] ?? '');
-        $bulkIds = array_values(array_unique(array_map('intval', (array)($_POST['bulk_ids'] ?? []))));
-        $bulkIds = array_filter($bulkIds, static fn ($id): bool => $id > 0);
-        if ($bulkStatus === '' || !in_array($bulkStatus, $statusOptions, true)) {
-            $bulkErrors[] = 'Please pick a valid status for the bulk update.';
-        }
-        if (!$bulkIds) {
-            $bulkErrors[] = 'Select at least one SKU from the table.';
-        }
-        if (!$bulkErrors) {
-            $placeholders = implode(',', array_fill(0, count($bulkIds), '?'));
-            $skuFetch = $pdo->prepare("SELECT sku_normalized FROM intake_items WHERE id IN ($placeholders)");
-            $skuFetch->execute($bulkIds);
-            $bulkSkus = array_filter(array_map('strval', $skuFetch->fetchAll(PDO::FETCH_COLUMN)));
-            $stmt = $pdo->prepare("UPDATE intake_items SET status = ?, updated_at = datetime('now') WHERE id IN ($placeholders)");
-            $params = array_merge([$bulkStatus], $bulkIds);
-            $stmt->execute($params);
-            foreach ($bulkSkus as $bulkSku) {
-                squareSyncItemBySku($pdo, $bulkSku);
-            }
-            $bulkMessage = 'Updated ' . count($bulkIds) . ' SKU' . (count($bulkIds) === 1 ? '' : 's') . ' to ' . $bulkStatus . '.';
-        }
-        $saved = false;
-        $errors = [];
-    } else {
         $id = isset($_POST['id']) ? (int)$_POST['id'] : null;
         $sku = trim($_POST['sku'] ?? '');
         $priceRaw = $_POST['price'] ?? ($_POST['dispotech_price'] ?? ($_POST['ebay_price'] ?? ''));
@@ -575,18 +390,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $photoWarnings[] = $originalDisplayName . ' looked invalid and was skipped.';
                     continue;
                 }
-                $mimeType = detectUploadMimeType((string)$upload['tmp_name'], $originalDisplayName);
-                $extension = ALLOWED_PHOTO_MIME_TYPES[$mimeType] ?? null;
-                if ($extension === null) {
-                    $photoWarnings[] = $originalDisplayName . ' is not JPG/PNG/WEBP/GIF and was skipped.';
-                    continue;
-                }
                 $pendingPhotoUploads[] = [
+                    'name'     => sanitizeFilename($originalDisplayName),
                     'tmp_name' => (string)$upload['tmp_name'],
-                    'mime_type' => $mimeType,
-                    'extension' => $extension,
-                    'original_name' => sanitizeFilename($originalDisplayName),
-                    'file_size' => (int)$upload['size'],
+                    'size'     => (int)$upload['size'],
+                    'error'    => UPLOAD_ERR_OK,
                 ];
             }
         }
@@ -667,29 +475,30 @@ SQL);
             }
 
             if ($pendingPhotoUploads) {
-                $skuPhotoDir = PHOTO_UPLOAD_DIR . '/' . normalizedSkuDirectory($data['sku_normalized']);
-                if (!is_dir($skuPhotoDir) && !mkdir($skuPhotoDir, 0777, true) && !is_dir($skuPhotoDir)) {
-                    $photoWarnings[] = 'Could not create the photo folder for this SKU; item saved without photos.';
-                } else {
-                    $insertPhotoStmt = $pdo->prepare(<<<'SQL'
-INSERT INTO sku_photos (sku_normalized, original_name, stored_name, mime_type, file_size, created_at)
-VALUES (:sku_normalized, :original_name, :stored_name, :mime_type, :file_size, datetime('now'));
+                $maxSort = $pdo->prepare('SELECT COALESCE(MAX(sort_order), 0) FROM sku_photos WHERE sku_normalized = :sku');
+                $maxSort->execute(['sku' => $data['sku_normalized']]);
+                $nextSort = (int)$maxSort->fetchColumn() + 1;
+                $insertPhotoStmt = $pdo->prepare(<<<'SQL'
+INSERT INTO sku_photos (sku_normalized, original_name, stored_name, mime_type, file_size, created_at, sort_order)
+VALUES (:sku_normalized, :original_name, :stored_name, :mime_type, :file_size, datetime('now'), :sort_order);
 SQL);
-                    foreach ($pendingPhotoUploads as $upload) {
-                        $storedName = bin2hex(random_bytes(16)) . '.' . $upload['extension'];
-                        $destination = $skuPhotoDir . '/' . $storedName;
-                        if (!move_uploaded_file($upload['tmp_name'], $destination)) {
-                            $photoWarnings[] = 'A photo could not be saved and was skipped; the item was saved.';
-                            continue;
-                        }
-                        $insertPhotoStmt->execute([
-                            'sku_normalized' => $data['sku_normalized'],
-                            'original_name' => $upload['original_name'],
-                            'stored_name' => $storedName,
-                            'mime_type' => $upload['mime_type'],
-                            'file_size' => $upload['file_size'],
-                        ]);
+                foreach ($pendingPhotoUploads as $upload) {
+                    $result = processUploadedPhoto(
+                        $upload,
+                        $data['sku_normalized']
+                    );
+                    if (!$result['ok']) {
+                        $photoWarnings[] = ($result['message'] ?? 'A photo could not be processed') . '; item was saved.';
+                        continue;
                     }
+                    $insertPhotoStmt->execute([
+                        'sku_normalized' => $data['sku_normalized'],
+                        'original_name' => $upload['name'],
+                        'stored_name' => $result['stored_name'],
+                        'mime_type' => $result['mime_type'],
+                        'file_size' => $result['file_size'],
+                        'sort_order' => $nextSort++,
+                    ]);
                 }
             }
 
@@ -709,67 +518,8 @@ SQL);
                 exit;
             }
         }
-    }
 }
 
-$recent = [];
-if ($lookupStatus !== '') {
-    $recentStmt = $pdo->prepare('SELECT * FROM intake_items WHERE status = :status ORDER BY updated_at DESC, id DESC LIMIT 100');
-    $recentStmt->execute(['status' => $lookupStatus]);
-    $recent = $recentStmt->fetchAll(PDO::FETCH_ASSOC);
-} else {
-    $recent = $pdo->query('SELECT * FROM intake_items ORDER BY id DESC LIMIT 25')->fetchAll(PDO::FETCH_ASSOC);
-}
-$recentThumbnails = [];
-$recentSkuNorms = array_values(array_unique(array_filter(array_map(
-    static fn($i) => normalizeSku(trim((string)($i['sku'] ?? ''))),
-    $recent
-), static fn($s) => $s !== '')));
-if ($recentSkuNorms) {
-    $placeholders = implode(',', array_fill(0, count($recentSkuNorms), '?'));
-    $photoStmt = $pdo->prepare("
-        SELECT sku_normalized, id
-        FROM sku_photos
-        WHERE sku_normalized IN ($placeholders)
-        ORDER BY is_thumb DESC, id DESC
-    ");
-    $photoStmt->execute($recentSkuNorms);
-    foreach ($photoStmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
-        $sn = (string)$row['sku_normalized'];
-        if ($sn && !isset($recentThumbnails[$sn])) {
-            $recentThumbnails[$sn] = (int)$row['id'];
-        }
-    }
-}
-
-// Build a map of sku_normalized => script status for the recent items table.
-// Possible values: 'final' (full script), 'draft' (chatgpt text only), 'prompt' (prompt only), '' (none).
-$recentScriptStatus = [];
-if ($recent) {
-    $recentSkuNorms = array_values(array_filter(array_unique(array_map(
-        static fn($i) => normalizeSku(trim((string)($i['sku'] ?? ''))),
-        $recent
-    )), static fn($s) => $s !== ''));
-    if ($recentSkuNorms) {
-        $placeholders = implode(',', array_fill(0, count($recentSkuNorms), '?'));
-        $draftStmt = $pdo->prepare("SELECT sku_normalized, payload FROM intake_drafts WHERE sku_normalized IN ($placeholders)");
-        $draftStmt->execute($recentSkuNorms);
-        foreach ($draftStmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
-            $sn = (string)$row['sku_normalized'];
-            $payload = json_decode((string)$row['payload'], true);
-            if (!is_array($payload)) {
-                continue;
-            }
-            if (!empty($payload['final_output'])) {
-                $recentScriptStatus[$sn] = 'final';
-            } elseif (!empty($payload['chatgpt_output'])) {
-                $recentScriptStatus[$sn] = 'draft';
-            } elseif (!empty($payload['prompt_output'])) {
-                $recentScriptStatus[$sn] = 'prompt';
-            }
-        }
-    }
-}
 $formData = $_POST;
 if (!$formData && $currentItem) {
     $formData = $currentItem;
@@ -802,15 +552,13 @@ if (isset($_GET['photo_notice']) && trim((string)$_GET['photo_notice']) !== '') 
     $photoWarnings[] = trim((string)$_GET['photo_notice']);
 }
 
-function h(?string $value): string
-{
-    return htmlspecialchars($value ?? '', ENT_QUOTES, 'UTF-8');
-}
-
 function checked(string $name, string $value, array $formData): string
 {
     return (($formData[$name] ?? '') === $value) ? 'checked' : '';
 }
+$isPartial = ($_GET['partial'] ?? '') === '1';
+$currentPage = 'intake';
+if (!$isPartial):
 ?>
 <!doctype html>
 <html lang="en">
@@ -818,14 +566,184 @@ function checked(string $name, string $value, array $formData): string
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Dispo.Tech Intake Sheet</title>
-  <link rel="stylesheet" href="assets/style.css?v=<?= filemtime('assets/style.css') ?>">
-  <script src="assets/menu.js?v=<?= filemtime('assets/menu.js') ?>" defer></script>
-  <link rel="stylesheet" media="print" href="assets/print.css?v=<?= filemtime('assets/print.css') ?>">
+  <link rel="stylesheet" href="assets/style.css?v=<?= getAssetVersion() ?>">
+  <script src="assets/menu.js?v=<?= getAssetVersion() ?>" defer></script>
+  <link rel="stylesheet" media="print" href="assets/print.css?v=<?= getAssetVersion() ?>">
   <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
-  <script src="assets/qz-tray.js?v=<?= filemtime('assets/qz-tray.js') ?>"></script>
   <script>window.CSRF_TOKEN = <?= json_encode(csrf_token()) ?>;</script>
-  <script src="assets/theme.js?v=<?= filemtime('assets/theme.js') ?>"></script>
-  <script src="assets/app.js?v=<?= filemtime('assets/app.js') ?>"></script>
+  <script src="assets/theme.js?v=<?= getAssetVersion() ?>" defer></script>
+  <script src="assets/app.js?v=<?= getAssetVersion() ?>" defer></script>
+  <script src="assets/nav.js?v=<?= getAssetVersion() ?>" defer></script>
+  <script src="assets/qz-tray.js?v=<?= getAssetVersion() ?>" defer></script>
+  <style>
+    :root {
+      --mobile-tap: 44px;
+      --gap-mobile: 12px;
+      --gap-tablet: 16px;
+    }
+    /* Mobile-first: single column, stacked layout */
+    .sheet.intake .form-columns {
+      grid-template-columns: 1fr !important;
+    }
+    .form-col-left,
+    .form-col-right {
+      grid-column: 1 / -1 !important;
+    }
+    .row {
+      grid-template-columns: 1fr !important;
+    }
+    .sheet-header {
+      flex-direction: column;
+      gap: var(--gap-mobile);
+    }
+    .sheet-header-right {
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    input,
+    select,
+    textarea,
+    button,
+    .button-link {
+      min-height: var(--mobile-tap);
+      box-sizing: border-box;
+    }
+    input[type="checkbox"],
+    input[type="radio"] {
+      min-height: auto;
+    }
+    input[type="text"],
+    input[type="date"],
+    input[type="number"],
+    select,
+    textarea {
+      width: 100%;
+    }
+    .conjoined {
+      grid-template-columns: 1fr;
+    }
+    .conjoined .segment {
+      border-right: none;
+      border-bottom: 1px solid var(--border-color, #d5dce6);
+    }
+    .conjoined .segment:last-child {
+      border-bottom: none;
+    }
+    .actions {
+      justify-content: stretch;
+    }
+    .actions button,
+    .actions .button-link {
+      flex: 1;
+      text-align: center;
+    }
+    /* Tablet breakpoint */
+    @media (min-width: 640px) {
+      .row {
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)) !important;
+      }
+      .sheet-header {
+        flex-direction: row;
+        align-items: flex-start;
+      }
+      .conjoined {
+        grid-template-columns: repeat(2, 1fr);
+      }
+      .conjoined .segment {
+        border-right: 1px solid var(--border-color, #d5dce6);
+        border-bottom: none;
+      }
+      .conjoined .segment:last-child {
+        border-right: none;
+      }
+    }
+    /* Desktop breakpoint */
+    @media (min-width: 1024px) {
+      .sheet.intake .form-columns {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+      }
+      .form-col-left {
+        grid-column: 1 !important;
+      }
+      .form-col-right {
+        grid-column: 2 !important;
+      }
+      .page {
+        max-width: 1400px;
+        margin-left: auto;
+        margin-right: auto;
+      }
+    }
+    /* Mobile mode toggle: force single-column at any viewport */
+    .sheet.intake.mobile-mode .form-columns {
+      grid-template-columns: 1fr !important;
+    }
+    .sheet.intake.mobile-mode .form-col-left,
+    .sheet.intake.mobile-mode .form-col-right {
+      grid-column: 1 / -1 !important;
+    }
+    .sheet.intake.mobile-mode .row {
+      grid-template-columns: 1fr !important;
+    }
+    .sheet.intake.mobile-mode .sheet-header {
+      flex-direction: column;
+      gap: var(--gap-mobile);
+    }
+    .sheet.intake.mobile-mode .conjoined {
+      grid-template-columns: 1fr;
+    }
+    .sheet.intake.mobile-mode .conjoined .segment {
+      border-right: none;
+      border-bottom: 1px solid var(--border-color, #d5dce6);
+    }
+    .sheet.intake.mobile-mode .conjoined .segment:last-child {
+      border-bottom: none;
+    }
+    .sheet.intake.mobile-mode input,
+    .sheet.intake.mobile-mode select,
+    .sheet.intake.mobile-mode textarea,
+    .sheet.intake.mobile-mode button,
+    .sheet.intake.mobile-mode .button-link {
+      min-height: var(--mobile-tap);
+      box-sizing: border-box;
+    }
+    .sheet.intake.mobile-mode input[type="checkbox"],
+    .sheet.intake.mobile-mode input[type="radio"] {
+      min-height: auto;
+    }
+    .sheet.intake.mobile-mode input[type="text"],
+    .sheet.intake.mobile-mode input[type="date"],
+    .sheet.intake.mobile-mode input[type="number"],
+    .sheet.intake.mobile-mode select,
+    .sheet.intake.mobile-mode textarea {
+      width: 100%;
+    }
+    .sheet.intake.mobile-mode .actions {
+      justify-content: stretch;
+    }
+    .sheet.intake.mobile-mode .actions button,
+    .sheet.intake.mobile-mode .actions .button-link {
+      flex: 1;
+      text-align: center;
+    }
+    /* Hide clutter in mobile mode */
+    .sheet.intake.mobile-mode .breadcrumbs,
+    .sheet.intake.mobile-mode .print-toggle,
+    .sheet.intake.mobile-mode .print-summary,
+    .sheet.intake.mobile-mode .updated,
+    .sheet.intake.mobile-mode .copy-sku,
+    .sheet.intake.mobile-mode .intake-qr-wrap,
+    .sheet.intake.mobile-mode .form-col-right,
+    .sheet.intake.mobile-mode .draft-restore-wrap,
+    .sheet.intake.mobile-mode #print-sticker-btn,
+    .sheet.intake.mobile-mode .row:has([name="date_received"]) {
+      display: none !important;
+    }
+    /* Location field visible on desktop and mobile */
+    .mobile-location {
+      display: block;
+    }
+  </style>
 </head>
 <body>
   <div class="layout-wrapper">
@@ -845,18 +763,14 @@ function checked(string $name, string $value, array $formData): string
         </ul>
       </nav>
     </div>
+    <div id="content-area">
+<?php endif; /* end outer shell */ ?>
   <main class="page">
     <div id="save-toast" class="toast" role="status" aria-live="polite"
       data-active="<?php echo $saved ? '1' : '0'; ?>"
       data-message="<?php echo h($toastMessage); ?>">
     </div>
 
-    <!-- Undo toast for item deletes -->
-    <div id="intake-undo-toast" class="intake-undo-toast" role="status" aria-live="polite">
-      <span id="intake-undo-msg">Item deleted</span>
-      <button type="button" id="intake-undo-btn">Undo</button>
-      <div class="intake-undo-progress" id="intake-undo-progress"></div>
-    </div>
     <section class="sheet intake">
       <div class="sheet-scale" id="sheet-scale">
         <div class="sheet-content" id="sheet-content">
@@ -871,6 +785,7 @@ function checked(string $name, string $value, array $formData): string
         <div class="sheet-header-right">
           <button type="button" class="print-button" id="print-button">Print</button>
           <button type="button" class="theme-toggle" id="theme-toggle">Dark mode</button>
+          <button type="button" class="button-link" id="mobile-mode-toggle">Mobile</button>
           <a class="button-link new-intake-cta" href="intake.php?clear_draft=1" data-new-intake>New Intake</a>
         </div>
         <div class="status">
@@ -907,11 +822,6 @@ function checked(string $name, string $value, array $formData): string
           <div class="print-summary-label">Price</div>
           <div class="print-summary-value"><?php echo $printPrice !== null ? '$' . number_format((float)$printPrice, 2) : '—'; ?></div>
         </div>
-        <?php if ($printThumbId): ?>
-          <div class="print-thumb-wrap" aria-hidden="true">
-            <img src="photo.php?id=<?php echo $printThumbId; ?>" alt="Thumbnail for <?php echo h($activeSkuNormalized); ?>">
-          </div>
-        <?php endif; ?>
       </header>
       <nav class="breadcrumbs" aria-label="Breadcrumb">
         <a href="home.php">Home</a>
@@ -999,6 +909,13 @@ function checked(string $name, string $value, array $formData): string
                   </div>
                   <span class="hint" id="copy-sku-status" hidden></span>
                 </div>
+                <div class="intake-qr-wrap" id="intake-qr-wrap"<?= $activeSkuNormalized === '' ? ' hidden' : '' ?>>
+                  <div class="intake-qr-render" id="intake-qr-render"
+                       data-sku="<?php echo h($activeSkuNormalized); ?>"
+                       data-url="<?php $isHttps = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https') || (isset($_SERVER['HTTP_CF_VISITOR']) && str_contains($_SERVER['HTTP_CF_VISITOR'], '"scheme":"https"')); $protocol = $isHttps ? 'https' : 'http'; $host = $_SERVER['HTTP_HOST'] ?? 'localhost'; echo h($protocol . '://' . $host . '/intake.php?sku=' . urlencode($activeSkuNormalized)); ?>">
+                  </div>
+                  <span class="intake-qr-label">QR code</span>
+                </div>
               <?php
             $currentWhat = trim((string)($formData['what_is_it'] ?? ''));
             $whatOptionsList = $whatIsItOptions;
@@ -1007,15 +924,21 @@ function checked(string $name, string $value, array $formData): string
             }
           ?>
               <label>What is it?
-                <select id="what-is-it-input" name="what_is_it" required>
-                  <option value="" <?php echo $currentWhat === '' ? 'selected' : ''; ?>>Select item type</option>
+                <input type="text" id="what-is-it-input" name="what_is_it"
+                       value="<?php echo h($currentWhat); ?>"
+                       list="what-is-it-datalist" required
+                       placeholder="Type or select an item type">
+                <datalist id="what-is-it-datalist">
                   <?php foreach ($whatOptionsList as $opt): ?>
-                    <option value="<?php echo h($opt); ?>" <?php echo $currentWhat === $opt ? 'selected' : ''; ?>>
-                      <?php echo h($opt); ?>
-                    </option>
+                    <option value="<?php echo h($opt); ?>">
                   <?php endforeach; ?>
-                </select>
+                </datalist>
           </label>
+            </div>
+            <div class="row mobile-location">
+              <label>Location / Where it goes
+                <input type="text" name="where_it_goes" value="<?php echo h($formData['where_it_goes'] ?? ''); ?>">
+              </label>
             </div>
             <p class="error client-error" id="what-error" hidden>Please enter a value for "What is it?".</p>
 
@@ -1049,11 +972,11 @@ function checked(string $name, string $value, array $formData): string
               <p class="hint">No photos saved for SKU <?php echo h($activeSkuNormalized); ?> yet.</p>
             <?php else: ?>
               <div class="inline-actions">
-                <a class="ghost button" href="download_photos.php?sku=<?php echo urlencode($activeSkuNormalized); ?>">Download all as ZIP</a>
+                <button type="button" class="ghost button" id="download-all-btn">Download all as PNG</button>
               </div>
               <div class="sku-photo-grid">
                 <?php foreach ($skuPhotos as $photo): ?>
-                  <div class="sku-photo-item">
+                  <div class="sku-photo-item" draggable="true" data-photo-id="<?php echo isset($photo['id']) ? (int)$photo['id'] : 0; ?>">
                     <a class="sku-photo-link" href="photo.php?id=<?php echo isset($photo['id']) ? (int)$photo['id'] : 0; ?>" target="_blank" rel="noopener" title="Open photo in new tab">
                       <span class="sku-photo-badge">SKU <?php echo h($activeSkuNormalized); ?></span>
                       <img src="photo.php?id=<?php echo isset($photo['id']) ? (int)$photo['id'] : 0; ?>"
@@ -1227,302 +1150,63 @@ function checked(string $name, string $value, array $formData): string
           </div><!-- end .form-columns -->
         </form>
 
-      <section class="section recent-items">
-        <h2><?php echo $lookupStatus !== '' ? 'Status Results' : 'Recent SKUs'; ?></h2>
-        <form class="form-grid" method="get" action="intake.php">
-          <div class="row">
-            <label>SKU
-              <input type="text" name="sku" value="<?php echo h($lookupSku); ?>">
-            </label>
-            <label>Status
-              <select name="status">
-                <option value="">Any status</option>
-                <?php foreach ($statusOptions as $opt): ?>
-                  <option value="<?php echo $opt; ?>" <?php echo $lookupStatus === $opt ? 'selected' : ''; ?>><?php echo $opt; ?></option>
-                <?php endforeach; ?>
-              </select>
-            </label>
+      <!-- PRINT LAYOUT: four rigid horizontal rows (visible only in @media print) -->
+      <div class="print-grid" aria-hidden="true">
+
+        <!-- Row 1: Accent Header Block -->
+        <div class="print-row print-header-row">
+          <div class="print-header-left">
+            <div class="print-thumb-cell">
+              <?php if ($printThumbId): ?>
+                <img src="photo.php?id=<?php echo $printThumbId; ?>" alt="">
+              <?php endif; ?>
+            </div>
+            <div class="print-sku-stack">
+              <div class="print-row-item">
+                <span class="print-label">SKU</span>
+                <span class="print-value"><?php echo h($printSku !== '' ? $printSku : '—'); ?></span>
+              </div>
+              <div class="print-row-item">
+                <span class="print-label">Price</span>
+                <span class="print-value"><?php echo $printPrice !== null ? '$' . number_format((float)$printPrice, 2) : '—'; ?></span>
+              </div>
+              <div class="print-row-item">
+                <span class="print-label">Status</span>
+                <span class="print-value"><?php echo h($printStatus !== '' ? $printStatus : 'Select'); ?></span>
+              </div>
+            </div>
           </div>
-            <div class="actions">
-            <button type="submit">Search</button>
-            <a class="button-link" href="intake.php?clear_draft=1" data-new-intake>Clear</a>
+          <div class="print-header-right">
+            <div class="print-qr-cell" data-sku="<?php echo h($activeSkuNormalized); ?>"></div>
           </div>
-        </form>
-        <?php if ($bulkErrors): ?>
-          <div class="error-box">
-            <?php foreach ($bulkErrors as $error): ?>
-              <p class="error"><?php echo h($error); ?></p>
-            <?php endforeach; ?>
-          </div>
-        <?php elseif ($bulkMessage): ?>
-          <p class="success"><?php echo h($bulkMessage); ?></p>
-        <?php endif; ?>
-        <form id="undo-delete-form" method="post" action="undo_delete.php" class="visually-hidden"><?= csrf_field() ?></form>
-        <form id="bulk-form" method="post"><?= csrf_field() ?>
-          <div class="bulk-actions">
-            <label>
-              Set selected to
-              <select name="bulk_status">
-                <option value="">Choose status</option>
-                <?php foreach ($statusOptions as $opt): ?>
-                  <option value="<?php echo $opt; ?>"><?php echo $opt; ?></option>
-                <?php endforeach; ?>
-              </select>
-            </label>
-            <button type="submit" name="bulk_update" value="1">Apply to selected</button>
-            <input type="hidden" name="bulk_delete" id="bulk-delete-flag" value="">
-            <button type="button" class="ghost danger" id="bulk-delete-button">Delete selected</button>
-            <button type="submit" form="undo-delete-form" class="ghost">Undo last delete</button>
-            <span class="hint">Check boxes in the table, then update that status in bulk. You can undo the most recent delete.</span>
-          </div>
-            <div class="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Select</th>
-                  <th>Photo</th>
-                  <th>SKU</th>
-                  <th>Status</th>
-                  <th>What is it?</th>
-                  <th>Price</th>
-                  <th>Updated</th>
-                  <th>Open</th>
-                  <th>Prompt</th>
-                  <th>Delete</th>
-                </tr>
-              </thead>
-              <tbody>
-                <?php if (!$recent): ?>
-                  <tr>
-                    <td colspan="10">No items found for this lookup.</td>
-                  </tr>
-                <?php else: ?>
-                  <?php foreach ($recent as $item): ?>
-                    <tr>
-                      <td class="bulk-checkbox-cell">
-                        <label class="bulk-checkbox">
-                          <input type="checkbox" name="bulk_ids[]" value="<?php echo isset($item['id']) ? (int)$item['id'] : 0; ?>">
-                          <span></span>
-                        </label>
-                      </td>
-                      <td class="thumb-cell">
-                        <?php
-                          $skuNormRow = normalizeSku(trim((string)($item['sku'] ?? '')));
-                          $thumbId = $recentThumbnails[$skuNormRow] ?? null;
-                        ?>
-                        <?php if ($thumbId): ?>
-                          <a class="thumb" href="photo.php?id=<?php echo $thumbId; ?>" target="_blank" rel="noopener">
-                            <img src="photo.php?id=<?php echo $thumbId; ?>" alt="Photo for <?php echo h($item['sku'] ?? 'SKU'); ?>">
-                          </a>
-                        <?php else: ?>
-                          <span class="thumb placeholder" title="No photo added">No photo</span>
-                        <?php endif; ?>
-                      </td>
-                      <td><?php echo h($item['sku'] ?? ''); ?></td>
-                      <td>
-                        <select class="js-inline-status" data-sku="<?php echo h($item['sku'] ?? ''); ?>">
-                          <option value="">Set status</option>
-                          <?php foreach ($statusOptions as $opt): ?>
-                            <option value="<?php echo $opt; ?>" <?php echo (($item['status'] ?? '') === $opt) ? 'selected' : ''; ?>><?php echo $opt; ?></option>
-                          <?php endforeach; ?>
-                        </select>
-                      </td>
-                      <td><?php echo h($item['what_is_it'] ?? ''); ?></td>
-                      <?php $rowPrice = isset($item['dispotech_price']) ? $item['dispotech_price'] : ($item['ebay_price'] ?? null); ?>
-                      <td><input type="number" step="0.01" class="js-inline-price" data-field="price" data-sku="<?php echo h($item['sku'] ?? ''); ?>" value="<?php echo isset($rowPrice) ? h((string)$rowPrice) : ''; ?>" placeholder="—"></td>
-                      <td><?php echo h($item['updated_at'] ?? ''); ?></td>
-                      <td><a class="open-link" href="intake.php?sku=<?php echo urlencode((string)($item['sku'] ?? '')); ?>">Open</a></td>
-                      <td>
-                        <?php
-                          $rowSkuNorm = normalizeSku(trim((string)($item['sku'] ?? '')));
-                          $scriptState = $recentScriptStatus[$rowSkuNorm] ?? '';
-                          if ($scriptState === 'final') {
-                              $scriptDot   = '🟢';
-                              $scriptLabel = 'Script ready';
-                              $scriptTitle = 'Final eBay script saved';
-                          } elseif ($scriptState === 'draft') {
-                              $scriptDot   = '🟡';
-                              $scriptLabel = 'Draft';
-                              $scriptTitle = 'ChatGPT draft saved, no final script yet';
-                          } elseif ($scriptState === 'prompt') {
-                              $scriptDot   = '🔵';
-                              $scriptLabel = 'Prompt only';
-                              $scriptTitle = 'Prompt saved, no ChatGPT response yet';
-                          } else {
-                              $scriptDot   = '⚪';
-                              $scriptLabel = 'No script';
-                              $scriptTitle = 'No script started yet';
-                          }
-                        ?>
-                        <a class="open-link script-status-link" href="prompt_builder.php?sku=<?php echo urlencode((string)($item['sku'] ?? '')); ?>" title="<?php echo h($scriptTitle); ?>">
-                          <span aria-hidden="true"><?php echo $scriptDot; ?></span> <?php echo h($scriptLabel); ?>
-                        </a>
-                      </td>
-                      <td>
-                        <button type="button"
-                                class="ghost danger js-delete-item"
-                                data-sku="<?php echo h($item['sku'] ?? ''); ?>"
-                                data-id="<?php echo isset($item['id']) ? (int)$item['id'] : 0; ?>">
-                          Delete
-                        </button>
-                      </td>
-                    </tr>
-                  <?php endforeach; ?>
-                <?php endif; ?>
-              </tbody>
-            </table>
-          </div>
-        </form>
-      </section>
+        </div>
+
+        <!-- Row 2: D1 / D2 Split Panels (populated by JS at print time) -->
+        <div class="print-row print-fields-row">
+          <div class="print-d1-panel" id="print-d1-panel"></div>
+          <div class="print-d2-panel" id="print-d2-panel"></div>
+        </div>
+
+        <!-- Row 3: Notes Panel (populated by JS at print time) -->
+        <div class="print-row print-notes-row">
+          <h2>Notes</h2>
+          <div class="print-notes-content" id="print-notes-content"></div>
+        </div>
+
+        <!-- Row 4: Asset Snapshot Gallery (populated by JS at print time) -->
+        <div class="print-row print-gallery-row" id="print-gallery-row"></div>
+
+      </div>
+
         </div>
       </div>
     </section>
   </main>
   <script>
     (function () {
-      var PRINT_MARGIN_IN = 0.18;
-      var PRINT_PAGE_WIDTH_IN = 8.5;
-      var PRINT_PAGE_HEIGHT_IN = 11;
-      var PRINT_DPI = 96;
-      var MIN_PRINT_SCALE = 0.98;
-      var resizeTextareas = function (root) {
-        (root || document).querySelectorAll('textarea').forEach(function (ta) {
-          ta.style.height = 'auto';
-          ta.style.minHeight = '0';
-          ta.style.overflow = 'visible';
-          ta.style.height = (ta.scrollHeight + 8) + 'px';
-        });
-      };
-      var copyFormValues = function (srcRoot, destRoot) {
-        var sourceFieldsByName = {};
-        srcRoot.querySelectorAll('input[name], textarea[name], select[name]').forEach(function (field) {
-          var name = field.getAttribute('name');
-          if (!name) return;
-          if (!sourceFieldsByName[name]) {
-            sourceFieldsByName[name] = [];
-          }
-          sourceFieldsByName[name].push(field);
-        });
-
-        destRoot.querySelectorAll('input[name], textarea[name], select[name]').forEach(function (dest) {
-          var name = dest.getAttribute('name');
-          if (!name || !sourceFieldsByName[name] || !sourceFieldsByName[name].length) return;
-
-          var sources = sourceFieldsByName[name];
-          if (dest.tagName === 'INPUT') {
-            if (dest.type === 'checkbox') {
-              dest.checked = sources.some(function (src) {
-                return src.checked;
-              });
-              return;
-            }
-
-            if (dest.type === 'radio') {
-              dest.checked = sources.some(function (src) {
-                return src.checked && src.value === dest.value;
-              });
-              return;
-            }
-
-            dest.value = sources[0].value;
-            return;
-          }
-
-          if (dest.tagName === 'TEXTAREA') {
-            dest.value = sources[0].value;
-            return;
-          }
-
-          if (dest.tagName === 'SELECT') {
-            dest.value = sources[0].value;
-          }
-        });
-      };
-      var removePrintableNodes = function (root, selectors) {
-        selectors.forEach(function (selector) {
-          root.querySelectorAll(selector).forEach(function (node) {
-            node.parentNode.removeChild(node);
-          });
-        });
-      };
       var extractPhotoIdFromSrc = function (src) {
         var match = String(src || '').match(/[?&]id=(\d+)/);
         return match ? match[1] : '';
-      };
-      var buildPrintNotesBlock = function (doc, sourceForm, formClone) {
-        var notesSource = sourceForm.querySelector('textarea[name="notes"]');
-        var notesClone = formClone.querySelector('textarea[name="notes"]');
-        if (!notesClone) return;
-
-        var notesSection = notesClone.closest('.section.notes');
-        if (!notesSection) return;
-
-        var notesValue = notesSource ? notesSource.value : notesClone.value;
-        var notesBlock = doc.createElement('div');
-        notesBlock.className = 'print-notes-value';
-        notesBlock.textContent = notesValue && notesValue.trim() ? notesValue : ' ';
-
-        notesSection.insertBefore(notesBlock, notesClone);
-        notesClone.parentNode.removeChild(notesClone);
-      };
-      var buildPrintPhotoGallery = function (doc, sourceSheet, thumbId) {
-        var photoNodes = sourceSheet.querySelectorAll('.section.sku-photos .sku-photo-item');
-        var photos = [];
-
-        photoNodes.forEach(function (node) {
-          if (node.classList.contains('is-preview')) return;
-
-          var linkImg = node.querySelector('.sku-photo-link img');
-          if (!linkImg) return;
-
-          var src = linkImg.getAttribute('src') || '';
-          if (!src) return;
-
-          var photoId = extractPhotoIdFromSrc(src);
-          if (thumbId && photoId && String(photoId) === String(thumbId)) return;
-
-          photos.push({
-            src: src,
-            alt: linkImg.getAttribute('alt') || 'Additional photo',
-            label: (node.querySelector('.sku-photo-name') || {}).textContent || ''
-          });
-        });
-
-        photos = photos.slice(0, 4);
-        if (!photos.length) return null;
-
-        var section = doc.createElement('section');
-        section.className = 'section print-photo-section';
-        section.style.setProperty('--print-photo-size', '0.9in');
-
-        var heading = doc.createElement('h2');
-        heading.textContent = photos.length === 1 ? 'Additional Photo' : 'Additional Photos (first 4)';
-        section.appendChild(heading);
-
-        var grid = doc.createElement('div');
-        grid.className = 'print-photo-grid';
-
-        photos.forEach(function (photo) {
-          var figure = doc.createElement('figure');
-          figure.className = 'print-photo-item';
-
-          var img = doc.createElement('img');
-          img.src = photo.src;
-          img.alt = photo.alt;
-          figure.appendChild(img);
-
-          if (photo.label && photo.label.trim()) {
-            var caption = doc.createElement('figcaption');
-            caption.className = 'print-photo-label';
-            caption.textContent = photo.label.trim();
-            figure.appendChild(caption);
-          }
-
-          grid.appendChild(figure);
-        });
-
-        section.appendChild(grid);
-        return section;
       };
       var waitForImages = function (root, callback) {
         var images = Array.prototype.slice.call(root.querySelectorAll('img'));
@@ -1556,17 +1240,10 @@ function checked(string $name, string $value, array $formData): string
 
         setTimeout(finish, 1800);
       };
-      var fitPrintToSinglePage = function (doc, root) {
-        // Layout is handled entirely by print.css — no JS zoom needed.
-        // Removing zoom prevents the half-page shrink issue.
-        if (root) { root.style.zoom = ''; }
-        if (doc && doc.body) { doc.body.style.zoom = ''; }
-        if (doc && doc.documentElement) { doc.documentElement.style.zoom = ''; }
-        return 1;
-      };
       var buildPrintIframe = function () {
-        var sheet = document.querySelector('.sheet.intake');
-        if (!sheet) return null;
+        var sourceGrid = document.querySelector('.print-grid');
+        if (!sourceGrid) return null;
+
         var iframe = document.createElement('iframe');
         iframe.id = 'print-frame';
         iframe.style.position = 'fixed';
@@ -1578,142 +1255,137 @@ function checked(string $name, string $value, array $formData): string
         iframe.style.background = '#ffffff';
         iframe.setAttribute('aria-hidden', 'true');
         document.body.appendChild(iframe);
+
         var doc = iframe.contentDocument || iframe.contentWindow.document;
         doc.open();
         doc.write(
           '<!doctype html><html><head><title>Print</title>' +
           '<base href="' + window.location.origin + window.location.pathname.replace(/[^/]*$/, '') + '">' +
           '<link rel="stylesheet" href="assets/style.css">' +
-          '<link rel="stylesheet" href="assets/print.css">' +
-          '</head><body' + (document.body.classList.contains('print-pink') ? ' class=\"print-pink\"' : '') + '>' +
-          '<div class="page"><section class="sheet intake" id="print-root"></section></div>' +
+          '<link rel="stylesheet" media="print" href="assets/print.css">' +
+          '<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" integrity="sha512-CNgIRecGo7nphbeZ04Sc13ka07paqdeTu0WR1IM4kNcpmBAUSHSQX0FslNhTDadL4O5SAGapGt4FodqL8My0mA==" crossorigin="anonymous" referrerpolicy="no-referrer"><\/script>' +
+          '</head><body' + (document.body.classList.contains('print-pink') ? ' class="print-pink"' : '') + '>' +
+          '<div class="page"><div class="print-grid" id="print-root"></div></div>' +
           '</body></html>'
         );
         doc.close();
 
-        // Build a clean print document from only the pieces we need:
-        // 1. The sheet header (title, date, status/price, thumbnail)
-        // 2. The intake form fields only (not recent-items, not search)
-        var printRoot = null;
         var attachAndPrint = function () {
-          printRoot = doc.getElementById('print-root');
+          var printRoot = doc.getElementById('print-root');
           if (!printRoot) return;
 
-          // Clone the sheet-header
-          var header = sheet.querySelector('.sheet-content .sheet-header') ||
-                       sheet.querySelector('.sheet-header');
-          if (header) {
-            var headerClone = header.cloneNode(true);
-            // Remove the header-right buttons (print, theme, new intake)
-            var headerRight = headerClone.querySelector('.sheet-header-right');
-            if (headerRight) headerRight.parentNode.removeChild(headerRight);
-            var headerStatus = headerClone.querySelector('.status');
-            if (headerStatus) headerStatus.parentNode.removeChild(headerStatus);
-            printRoot.appendChild(headerClone);
-          }
+          var clone = sourceGrid.cloneNode(true);
 
-          // Clone the h1 title
-          var h1 = sheet.querySelector('h1');
-          if (h1) {
-            printRoot.appendChild(h1.cloneNode(true));
-          }
-
-          // Clone the print thumbnail reference from the header.
-          var thumb = sheet.querySelector('.print-thumb-wrap');
-          var thumbImg = thumb ? thumb.querySelector('img') : null;
-          var thumbId = thumbImg ? extractPhotoIdFromSrc(thumbImg.getAttribute('src')) : '';
-
-          // Clone only the intake form — not the recent-items section
-          var intakeForm = sheet.querySelector('#intake-form');
-          if (intakeForm) {
-            var formClone = intakeForm.cloneNode(true);
-
-            // Remove interactive and non-essential UI from the print clone.
-            removePrintableNodes(formClone, [
-              '.draft-restore-wrap',
-              '.copy-sku',
-              '.copy-actions',
-              '.what-menu',
-              '.what-counter',
-              '.sku-photo-dropzone',
-              '.sku-photo-preview',
-              '.upload-messages',
-              '.section.sku-photos',
-              '.inline-actions',
-              '.sku-photo-actions',
-              '.actions',
-              '.recent-items',
-              'input[type="file"]',
-              'input[type="hidden"]#clear-draft',
-              'input[type="hidden"]#draft-dismiss',
-              'input[type="hidden"]#has-server-record',
-              'input[type="hidden"]#has-lookup-sku'
-            ]);
-
-            // Convert the printable clone into a read-only snapshot while
-            // preserving the actual field values from the live form.
-            copyFormValues(intakeForm, formClone);
-            buildPrintNotesBlock(doc, intakeForm, formClone);
-            var compatGroup = formClone.querySelector('.compat-os-group');
-            if (compatGroup) {
-              var compatValue = formClone.querySelector('#compatible-os-input');
-              var compatButtons = compatGroup.querySelector('.compat-os-buttons');
-              if (compatButtons) compatButtons.parentNode.removeChild(compatButtons);
-              if (compatValue && compatValue.value) {
-                var compatText = doc.createElement('div');
-                compatText.className = 'compat-os-print-value';
-                compatText.textContent = compatValue.value;
-                compatGroup.appendChild(compatText);
-              }
-            }
-
-            var leftCol = formClone.querySelector('.form-col-left');
-            var rightCol = formClone.querySelector('.form-col-right');
-            var notesSection = formClone.querySelector('.section.notes');
-            var rightSections = rightCol ? Array.prototype.slice.call(rightCol.querySelectorAll('.section')) : [];
-            var d1Section = rightSections.length ? rightSections[0] : null;
-            var d2Section = rightSections.length > 1 ? rightSections[1] : null;
-
-            formClone.querySelectorAll('input, textarea, select').forEach(function (field) {
-              field.setAttribute('readonly', 'readonly');
-              if (field.tagName === 'INPUT' && field.type !== 'checkbox' && field.type !== 'radio') {
-                field.setAttribute('tabindex', '-1');
+          // Populate D1 panel from live form
+          var d1Panel = clone.querySelector('#print-d1-panel');
+          var liveD1 = document.querySelector('.form-col-right .section:first-child');
+          if (d1Panel && liveD1) {
+            var d1Clone = liveD1.cloneNode(true);
+            d1Clone.querySelectorAll('input, textarea, select').forEach(function (f) {
+              f.setAttribute('readonly', 'readonly');
+              if (f.tagName === 'INPUT' && f.type !== 'checkbox' && f.type !== 'radio') {
+                f.setAttribute('tabindex', '-1');
               }
             });
-
-            var gallery = buildPrintPhotoGallery(doc, sheet, thumbId);
-            if (leftCol) {
-              var printSideRow = doc.createElement('div');
-              printSideRow.className = 'print-side-row';
-
-              if (d1Section) {
-                printSideRow.appendChild(d1Section);
-              }
-              if (gallery) {
-                printSideRow.appendChild(gallery);
-              }
-              if (printSideRow.childNodes.length) {
-                leftCol.appendChild(printSideRow);
-              }
-
-              if (d2Section) {
-                leftCol.appendChild(d2Section);
-              }
-
-              if (notesSection) {
-                leftCol.appendChild(notesSection);
-              }
-            } else if (gallery) {
-              formClone.appendChild(gallery);
-            }
-
-            printRoot.appendChild(formClone);
+            var compatButtons = d1Clone.querySelector('.compat-os-buttons');
+            if (compatButtons) compatButtons.parentNode.removeChild(compatButtons);
+            d1Panel.innerHTML = '';
+            d1Panel.appendChild(d1Clone);
           }
 
-          resizeTextareas(doc);
+          // Populate D2 panel from live form
+          var d2Panel = clone.querySelector('#print-d2-panel');
+          var liveD2 = document.querySelector('.form-col-right .section:nth-child(2)');
+          if (d2Panel && liveD2) {
+            var d2Clone = liveD2.cloneNode(true);
+            d2Clone.querySelectorAll('input, textarea, select').forEach(function (f) {
+              f.setAttribute('readonly', 'readonly');
+              if (f.tagName === 'INPUT' && f.type !== 'checkbox' && f.type !== 'radio') {
+                f.setAttribute('tabindex', '-1');
+              }
+            });
+            d2Panel.innerHTML = '';
+            d2Panel.appendChild(d2Clone);
+          }
+
+          // Populate notes
+          var notesContent = clone.querySelector('#print-notes-content');
+          var liveNotes = document.querySelector('textarea[name="notes"]');
+          if (notesContent && liveNotes) {
+            notesContent.textContent = liveNotes.value && liveNotes.value.trim() ? liveNotes.value : ' ';
+          }
+
+          // Copy field values from live form into cloned panels
+          var liveForm = document.getElementById('intake-form');
+          if (liveForm) {
+            clone.querySelectorAll('input[name], textarea[name], select[name]').forEach(function (dest) {
+              var name = dest.getAttribute('name');
+              if (!name) return;
+              var src = liveForm.querySelector('[name="' + name + '"]');
+              if (!src) return;
+              if (dest.tagName === 'INPUT') {
+                if (dest.type === 'checkbox') {
+                  dest.checked = src.checked;
+                } else if (dest.type === 'radio') {
+                  dest.checked = src.checked && dest.value === src.value;
+                } else {
+                  dest.value = src.value;
+                }
+              } else {
+                dest.value = src.value;
+              }
+            });
+          }
+
+          // Build gallery from first 4 supplementary photos (skip thumbnail)
+          var galleryRow = clone.querySelector('#print-gallery-row');
+          var thumbImgEl = document.querySelector('.print-thumb-cell img');
+          var thumbId = thumbImgEl ? extractPhotoIdFromSrc(thumbImgEl.getAttribute('src')) : '';
+          var photoItems = document.querySelectorAll('.section.sku-photos .sku-photo-item');
+          var count = 0;
+          photoItems.forEach(function (item) {
+            if (count >= 4) return;
+            if (item.classList.contains('is-preview')) return;
+            var img = item.querySelector('.sku-photo-link img');
+            if (!img) return;
+            var src = img.getAttribute('src') || '';
+            if (!src) return;
+            var photoId = extractPhotoIdFromSrc(src);
+            if (thumbId && photoId && String(photoId) === String(thumbId)) return;
+            var figure = doc.createElement('figure');
+            figure.className = 'print-gallery-item';
+            var gi = doc.createElement('img');
+            gi.src = src;
+            gi.alt = '';
+            figure.appendChild(gi);
+            galleryRow.appendChild(figure);
+            count++;
+          });
+
+          // Generate QR code in the iframe
+          var qrCell = clone.querySelector('.print-qr-cell');
+          if (qrCell) {
+            var sku = qrCell.getAttribute('data-sku') || '';
+            if (sku) {
+              var protocol = window.location.protocol === 'https:' ? 'https' : 'http';
+              var host = window.location.host;
+              var url = protocol + '://' + host + '/intake.php?sku=' + encodeURIComponent(sku);
+              try {
+                new QRCode(qrCell, {
+                  text: url,
+                  width: 120,
+                  height: 120,
+                  colorDark: '#0f172a',
+                  colorLight: '#ffffff',
+                  correctLevel: QRCode.CorrectLevel.H
+                });
+              } catch (e) {}
+            }
+          }
+
+          printRoot.appendChild(clone);
+
           waitForImages(doc, function () {
-            resizeTextareas(doc);
-            fitPrintToSinglePage(doc, printRoot);
             setTimeout(function () {
               try { iframe.contentWindow.focus(); } catch (e) {}
               iframe.contentWindow.print();
@@ -1783,71 +1455,6 @@ function checked(string $name, string $value, array $formData): string
       var findSkuQuery = document.getElementById('find-sku-query');
       var findSkuResults = document.getElementById('find-sku-results');
       var copySkuPrefill = '<?php echo h($copySkuPrefill); ?>';
-      var inlineStatuses = document.querySelectorAll('.js-inline-status');
-      var inlinePrices = document.querySelectorAll('.js-inline-price');
-      var deleteForm = null;
-      var deleteInputId = null;
-      var deleteInputSku = null;
-      var recentDeleteForm = document.createElement('form');
-      recentDeleteForm.method = 'post';
-      recentDeleteForm.action = 'delete_item.php';
-      recentDeleteForm.className = 'visually-hidden';
-      deleteInputId = document.createElement('input');
-      deleteInputId.type = 'hidden';
-      deleteInputId.name = 'id';
-      deleteInputSku = document.createElement('input');
-      deleteInputSku.type = 'hidden';
-      deleteInputSku.name = 'sku';
-      var deleteConfirm = document.createElement('input');
-      deleteConfirm.type = 'hidden';
-      deleteConfirm.name = 'confirm';
-      deleteConfirm.value = 'DELETE';
-      recentDeleteForm.appendChild(deleteInputId);
-      recentDeleteForm.appendChild(deleteInputSku);
-      recentDeleteForm.appendChild(deleteConfirm);
-      document.body.appendChild(recentDeleteForm);
-      var bulkDeleteBtn = document.getElementById('bulk-delete-button');
-      var bulkDeleteFlag = document.getElementById('bulk-delete-flag');
-      var bulkForm = document.getElementById('bulk-form');
-      var undoDeleteForm = document.getElementById('undo-delete-form');
-      var restoreDeletedRow = function (newId) {
-        if (!lastDeletedRowHTML || !recentTableBody) return;
-        var temp = document.createElement('tbody');
-        temp.innerHTML = lastDeletedRowHTML;
-        var tr = temp.firstElementChild;
-        if (tr) {
-          if (newId) {
-            tr.querySelectorAll('[data-id]').forEach(function (el) {
-              el.setAttribute('data-id', String(newId));
-            });
-          }
-          recentTableBody.insertBefore(tr, recentTableBody.firstChild);
-          tr.style.transition = 'opacity 200ms ease';
-          tr.style.opacity = '0';
-          requestAnimationFrame(function () { tr.style.opacity = '1'; });
-        }
-      };
-
-      if (undoDeleteForm) {
-        undoDeleteForm.addEventListener('submit', function (evt) {
-          evt.preventDefault();
-          fetch('undo_delete.php', { method: 'POST', body: 'csrf_token=' + encodeURIComponent(window.CSRF_TOKEN) })
-            .then(function (r) { return r.json(); })
-            .then(function (data) {
-              if (data && data.status === 'ok') {
-                restoreDeletedRow(data.new_id);
-                showToast('Restored ' + (data.restored_sku || 'item'));
-              } else if (data && data.status === 'empty') {
-                alert('Nothing to undo.');
-              } else {
-                alert('Undo failed. Please retry.');
-              }
-            })
-            .catch(function () {
-              alert('Undo failed. Please retry.');
-            });
-        });
-      }
         var applyDraftObject = function (draft) {
           if (!draft) return;
           Object.keys(draft).forEach(function (name) {
@@ -1898,13 +1505,13 @@ function checked(string $name, string $value, array $formData): string
           copySkuStatus.textContent = 'Loading...';
           copySkuStatus.className = 'hint';
           fetchSkuData(sku, function (err, data) {
-            if (err || !data || !data.ok || !data.item) {
+            if (err || !data || data.status !== 'ok' || !data.data) {
               copySkuStatus.hidden = false;
-              copySkuStatus.textContent = data && data.error ? data.error : 'Could not load that SKU.';
+              copySkuStatus.textContent = data && data.message ? data.message : 'Could not load that SKU.';
               copySkuStatus.className = 'hint error';
               return;
             }
-            applyDataFiltered(data.item);
+            applyDataFiltered(data.data);
             copySkuStatus.hidden = false;
             copySkuStatus.textContent = 'Copied fields; SKU and photos left blank.';
             copySkuStatus.className = 'hint ok';
@@ -2035,65 +1642,6 @@ function checked(string $name, string $value, array $formData): string
           copySkuStatus.classList.remove('ok', 'warn', 'err');
           if (tone) copySkuStatus.classList.add(tone);
         };
-        var lastDeletedRowHTML = null;
-        var recentTableBody = document.querySelector('.section.recent-items table tbody');
-        if (recentTableBody) {
-          recentTableBody.addEventListener('click', function (e) {
-            var btn = e.target.closest('.js-delete-item');
-            if (!btn) return;
-            var id = btn.getAttribute('data-id');
-            var sku = (btn.getAttribute('data-sku') || '').toUpperCase();
-            if (!id || !sku) return;
-            if (!confirm('Delete SKU ' + sku + '? You can undo immediately after.')) return;
-
-            var row = btn.closest('tr');
-            if (row) lastDeletedRowHTML = row.outerHTML;
-
-            fetch('delete_item.php', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-                'X-Requested-With': 'XMLHttpRequest'
-              },
-              body: 'id=' + encodeURIComponent(id) + '&sku=' + encodeURIComponent(sku) + '&confirm=DELETE&csrf_token=' + encodeURIComponent(window.CSRF_TOKEN)
-            })
-              .then(function (r) { return r.json(); })
-              .then(function (data) {
-                if (data.status === 'ok') {
-                  if (row) {
-                    row.style.transition = 'opacity 180ms ease';
-                    row.style.opacity = '0';
-                    setTimeout(function () { if (row.parentNode) row.parentNode.removeChild(row); }, 190);
-                  }
-                  showIntakeUndoToast(sku);
-                } else {
-                  alert('Delete failed: ' + (data.message || 'unknown error'));
-                }
-              })
-              .catch(function () {
-                alert('Delete failed — please reload.');
-              });
-          });
-        }
-
-        if (bulkDeleteBtn && bulkDeleteFlag && bulkForm) {
-          bulkDeleteBtn.addEventListener('click', function () {
-            var checked = bulkForm.querySelectorAll('input[name="bulk_ids[]"]:checked');
-            if (!checked.length) {
-              alert('Select at least one row to delete.');
-              return;
-            }
-            var first = confirm('Delete ' + checked.length + ' record(s)? This will not delete photos.');
-            if (!first) return;
-            var second = prompt('Type DELETE to confirm bulk delete');
-            if (!second || second.toUpperCase() !== 'DELETE') {
-              alert('Bulk delete canceled.');
-              return;
-            }
-            bulkDeleteFlag.value = '1';
-            bulkForm.submit();
-          });
-        }
         form.addEventListener('submit', function (event) {
           var skuField = form.querySelector('[name="sku"]');
           var sku = ((skuField || {}).value || '').trim().toUpperCase();
@@ -2145,7 +1693,16 @@ function checked(string $name, string $value, array $formData): string
       var deleteSku = document.getElementById('delete-photo-sku');
       var skuField = document.querySelector('input[name="sku"]');
       var isUploading = false;
+      var intakeForm = document.getElementById('intake-form');
       var submitButton = document.querySelector('button[type="submit"]');
+      if (intakeForm) {
+        intakeForm.addEventListener('submit', function (e) {
+          if (isUploading) {
+            e.preventDefault();
+            pushUploadMessage('Please wait for photo uploads to complete before saving.', 'error');
+          }
+        });
+      }
       var uploadMessages = document.getElementById('photo-upload-messages');
       var pushUploadMessage = function (text, type) {
         if (!uploadMessages) return;
@@ -2270,8 +1827,19 @@ function checked(string $name, string $value, array $formData): string
         });
         previewContainer.hidden = previewList.children.length === 0;
       };
+      var clearFileInput = function () {
+        if (!photoInput) return;
+        // Clear the file input so that photos uploaded via AJAX
+        // do NOT also get re-submitted with the main form.
+        if (window.DataTransfer) {
+          photoInput.files = (new DataTransfer()).files;
+        }
+        // Fallback for environments without full DataTransfer support.
+        try { photoInput.value = ''; } catch (_) {}
+      };
       var syncInputFromQueue = function () {
         if (!photoInput || !window.DataTransfer) {
+          clearFileInput();
           return;
         }
         var dt = new DataTransfer();
@@ -2411,8 +1979,10 @@ function checked(string $name, string $value, array $formData): string
           var sku = (skuField && skuField.value || '').trim() || 'SKU';
           var item = document.createElement('div');
           item.className = 'sku-photo-item';
+          item.draggable = true;
+          item.setAttribute('data-photo-id', photoId);
           item.innerHTML = '<a class="sku-photo-link" href="photo.php?id=' + photoId + '" target="_blank" rel="noopener" title="Open photo in new tab"><span class="sku-photo-badge">SKU ' + escapeHtml(sku) + '</span><img src="photo.php?id=' + photoId + '" alt="Photo for SKU ' + escapeHtml(sku) + ' — ' + escapeHtml(fileName) + '"></a><div class="sku-photo-meta"><span class="sku-photo-name">' + escapeHtml(fileName) + '</span></div><div class="sku-photo-actions"><button type="button" class="ghost danger js-delete-photo" data-photo-id="' + photoId + '">Delete</button><button type="button" class="ghost js-set-thumb" data-photo-id="' + photoId + '" data-photo-sku="' + escapeHtml(sku) + '">Set thumbnail</button></div>';
-          grid.insertBefore(item, grid.firstChild);
+          grid.appendChild(item);
         };
 
         var idx = 0;
@@ -2426,6 +1996,7 @@ function checked(string $name, string $value, array $formData): string
             }
             photoQueue.length = 0;
             syncInputFromQueue();
+            clearFileInput();
             renderPreview();
             return;
           }
@@ -2474,6 +2045,9 @@ function checked(string $name, string $value, array $formData): string
           dz.addEventListener(evtName, function (evt) {
             evt.preventDefault();
             dz.classList.add('is-hover');
+            if (evt.dataTransfer) {
+              evt.dataTransfer.dropEffect = evt.dataTransfer.files && evt.dataTransfer.files.length > 0 ? 'copy' : 'move';
+            }
           });
         });
         ['dragleave', 'drop'].forEach(function (evtName) {
@@ -2483,7 +2057,16 @@ function checked(string $name, string $value, array $formData): string
           });
         });
         dz.addEventListener('drop', function (evt) {
-          addFilesToQueue(evt.dataTransfer ? evt.dataTransfer.files : []);
+          if (evt.dataTransfer && evt.dataTransfer.files && evt.dataTransfer.files.length > 0) {
+            addFilesToQueue(evt.dataTransfer.files);
+            return;
+          }
+          var photoId = evt.dataTransfer && evt.dataTransfer.getData('text/plain');
+          if (photoId && confirm('Delete this photo?')) {
+            if (deleteInput) deleteInput.value = photoId;
+            if (skuField && deleteSku) deleteSku.value = skuField.value;
+            if (deleteForm) deleteForm.submit();
+          }
         });
         dz.addEventListener('paste', function (evt) {
           if (!evt.clipboardData) return;
@@ -2491,51 +2074,133 @@ function checked(string $name, string $value, array $formData): string
           addFilesToQueue(items);
         });
       }
-      var deleteButtons = document.querySelectorAll('.js-delete-photo');
-      if (deleteButtons.length && deleteForm && deleteInput) {
-        deleteButtons.forEach(function (btn) {
-          btn.addEventListener('click', function () {
-            var id = btn.getAttribute('data-photo-id');
-            if (!id) return;
-            var ok = confirm('Delete this photo?');
-            if (!ok) return;
-            deleteInput.value = id;
-            if (skuField) {
-              deleteSku.value = skuField.value;
+      // Drag-and-drop reordering + drag-out-to-delete for saved photos
+      (function () {
+        var dragSrc = null;
+        var dragPhotoId = null;
+        var droppedInGrid = false;
+        var photosSection = document.getElementById('sku-photos');
+
+        document.addEventListener('dragstart', function (e) {
+          var item = e.target.closest('.sku-photo-item');
+          if (!item) return;
+          if (!item.closest('.sku-photos')) return;
+          if (item.classList.contains('is-preview')) return;
+          if (e.target.tagName === 'A' || e.target.tagName === 'IMG' || e.target.closest('button')) return;
+          dragSrc = item;
+          dragPhotoId = item.getAttribute('data-photo-id');
+          droppedInGrid = false;
+          e.dataTransfer.effectAllowed = 'move';
+          e.dataTransfer.setData('text/plain', dragPhotoId || '');
+          item.classList.add('is-dragging');
+        });
+
+        document.addEventListener('dragend', function (e) {
+          var item = e.target.closest('.sku-photo-item');
+          if (item) {
+            item.classList.remove('is-dragging');
+          }
+          if (dragSrc && !droppedInGrid && dragPhotoId) {
+            if (confirm('Delete this photo?')) {
+              if (deleteInput) deleteInput.value = dragPhotoId;
+              if (skuField && deleteSku) deleteSku.value = skuField.value;
+              if (deleteForm) deleteForm.submit();
             }
-            deleteForm.submit();
+          }
+          dragSrc = null;
+          dragPhotoId = null;
+        });
+
+        function getGrid() {
+          return photosSection ? photosSection.querySelector('.sku-photo-grid') : null;
+        }
+
+        if (photosSection) {
+          photosSection.addEventListener('dragover', function (e) {
+            var grid = getGrid();
+            if (!grid) return;
+            var item = e.target.closest('.sku-photo-item');
+            if (item && grid.contains(item)) {
+              e.preventDefault();
+              e.dataTransfer.dropEffect = 'move';
+              droppedInGrid = true;
+              var rect = item.getBoundingClientRect();
+              var midY = rect.top + rect.height / 2;
+              var items = grid.querySelectorAll('.sku-photo-item');
+              Array.prototype.forEach.call(items, function (el) {
+                el.classList.remove('drop-before', 'drop-after');
+              });
+              if (e.clientY < midY) {
+                item.classList.add('drop-before');
+              } else {
+                item.classList.add('drop-after');
+              }
+            } else if (e.dataTransfer.types && Array.prototype.indexOf.call(e.dataTransfer.types, 'Files') !== -1) {
+              e.preventDefault();
+              e.dataTransfer.dropEffect = 'copy';
+              if (grid) grid.classList.add('is-drag-over');
+            }
           });
-        });
-      }
-      var inlineUpdate = function (sku, field, value) {
-        fetch('update_item.php', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-          body: 'sku=' + encodeURIComponent(sku) + '&field=' + encodeURIComponent(field) + '&value=' + encodeURIComponent(value) + '&csrf_token=' + encodeURIComponent(window.CSRF_TOKEN)
-        })
-          .then(function (r) { return r.json(); })
-          .then(function (data) {
-            if (data.ok) {
-              showToast('Updated ' + field);
-            } else {
-              showToast('Update failed: ' + (data.error || 'error'));
+
+          photosSection.addEventListener('dragleave', function (e) {
+            var grid = getGrid();
+            if (!grid) return;
+            if (grid.contains(e.relatedTarget)) return;
+            var items = grid.querySelectorAll('.sku-photo-item.drop-before, .sku-photo-item.drop-after');
+            Array.prototype.forEach.call(items, function (el) {
+              el.classList.remove('drop-before', 'drop-after');
+            });
+            grid.classList.remove('is-drag-over');
+          });
+
+          photosSection.addEventListener('drop', function (e) {
+            var grid = getGrid();
+            if (!grid) return;
+            e.preventDefault();
+            grid.classList.remove('is-drag-over');
+            var items = grid.querySelectorAll('.sku-photo-item.drop-before, .sku-photo-item.drop-after');
+            Array.prototype.forEach.call(items, function (el) {
+              el.classList.remove('drop-before', 'drop-after');
+            });
+
+            var files = e.dataTransfer.files;
+            if (files && files.length > 0) {
+              addFilesToQueue(files);
+              return;
             }
-          })
-          .catch(function () { showToast('Update failed'); });
-      };
-      inlineStatuses.forEach(function (sel) {
-        sel.addEventListener('change', function () {
-          var sku = sel.getAttribute('data-sku') || '';
-          inlineUpdate(sku, 'status', sel.value);
-        });
-      });
-      inlinePrices.forEach(function (input) {
-        input.addEventListener('change', function () {
-          var sku = input.getAttribute('data-sku') || '';
-          var field = input.getAttribute('data-field') || '';
-          inlineUpdate(sku, field, input.value);
-        });
-      });
+
+            droppedInGrid = true;
+            var target = e.target.closest('.sku-photo-item');
+            if (target && grid.contains(target) && dragSrc && target !== dragSrc) {
+              var rect = target.getBoundingClientRect();
+              var midY = rect.top + rect.height / 2;
+              if (e.clientY < midY) {
+                target.parentNode.insertBefore(dragSrc, target);
+              } else {
+                target.parentNode.insertBefore(dragSrc, target.nextSibling);
+              }
+              savePhotoOrder();
+            }
+          });
+        }
+
+        function savePhotoOrder() {
+          var grid = getGrid();
+          if (!grid) return;
+          var ids = [];
+          var items = grid.querySelectorAll('.sku-photo-item');
+          Array.prototype.forEach.call(items, function (item) {
+            var pid = item.getAttribute('data-photo-id');
+            if (pid) ids.push(pid);
+          });
+          if (ids.length < 2) return;
+          fetch('reorder_photos.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: 'photo_ids=' + encodeURIComponent(ids.join(',')) + '&csrf_token=' + encodeURIComponent(window.CSRF_TOKEN)
+          });
+        }
+      })();
 
       // Compatible OS quick-select buttons
       var compatOsInput = document.getElementById('compatible-os-input');
@@ -2565,10 +2230,20 @@ function checked(string $name, string $value, array $formData): string
         });
       }
       document.addEventListener('click', function (e) {
-        var btn = e.target.closest('.js-set-thumb');
-        if (!btn) return;
-        var id = btn.getAttribute('data-photo-id');
-        var skuVal = btn.getAttribute('data-photo-sku');
+        var delBtn = e.target.closest('.js-delete-photo');
+        if (delBtn) {
+          var pid = delBtn.getAttribute('data-photo-id');
+          if (!pid) return;
+          if (!confirm('Delete this photo?')) return;
+          if (deleteInput) deleteInput.value = pid;
+          if (skuField) deleteSku.value = skuField.value;
+          if (deleteForm) deleteForm.submit();
+          return;
+        }
+        var thumbBtn = e.target.closest('.js-set-thumb');
+        if (!thumbBtn) return;
+        var id = thumbBtn.getAttribute('data-photo-id');
+        var skuVal = thumbBtn.getAttribute('data-photo-sku');
         if (!id || !skuVal) return;
         fetch('set_thumbnail.php', {
           method: 'POST',
@@ -2590,6 +2265,63 @@ function checked(string $name, string $value, array $formData): string
           })
           .catch(function () { alert('Set thumbnail failed.'); });
       });
+
+      /* ── Sequential individual photo downloads (replaces ZIP) ── */
+      var downloadAllBtn = document.getElementById('download-all-btn');
+      if (downloadAllBtn) {
+        downloadAllBtn.addEventListener('click', function () {
+          var items = document.querySelectorAll('.sku-photo-item[data-photo-id]');
+          var ids = [];
+          items.forEach(function (item) {
+            var id = item.getAttribute('data-photo-id');
+            if (id) ids.push(id);
+          });
+          if (!ids.length) return;
+          var total = ids.length;
+          var origText = downloadAllBtn.textContent;
+          downloadAllBtn.textContent = 'Downloading 0 / ' + total + '...';
+          downloadAllBtn.disabled = true;
+          var completed = 0;
+          var downloadOne = function (idx) {
+            if (idx >= ids.length) {
+              setTimeout(function () {
+                downloadAllBtn.textContent = origText;
+                downloadAllBtn.disabled = false;
+              }, 800);
+              return;
+            }
+            fetch('photo.php?id=' + encodeURIComponent(ids[idx]) + '&download=1')
+              .then(function (r) {
+                if (!r.ok) throw new Error('HTTP ' + r.status);
+                var disposition = r.headers.get('Content-Disposition') || '';
+                var match = disposition.match(/filename\*?=(?:UTF-8'')?["']?([^;"'\s]+)/i);
+                var filename = match ? match[1] : ('photo_' + ids[idx] + '.png');
+                return r.blob().then(function (blob) { return { blob: blob, filename: filename }; });
+              })
+              .then(function (result) {
+                var url = URL.createObjectURL(result.blob);
+                var a = document.createElement('a');
+                a.href = url;
+                a.download = result.filename;
+                a.style.display = 'none';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                setTimeout(function () { URL.revokeObjectURL(url); }, 5000);
+                completed++;
+                downloadAllBtn.textContent = 'Downloading ' + completed + ' / ' + total + '...';
+                setTimeout(function () { downloadOne(idx + 1); }, 300);
+              })
+              .catch(function () {
+                completed++;
+                downloadAllBtn.textContent = 'Downloading ' + completed + ' / ' + total + '...';
+                setTimeout(function () { downloadOne(idx + 1); }, 300);
+              });
+          };
+          downloadOne(0);
+        });
+      }
+
       window.addEventListener('beforeunload', clearPreview);
 
       var checkbox = document.getElementById('print-pink');
@@ -2605,6 +2337,25 @@ function checked(string $name, string $value, array $formData): string
         checkbox.addEventListener('change', function () {
           apply(checkbox.checked);
           localStorage.setItem(storageKey, checkbox.checked ? '1' : '0');
+        });
+      }
+
+      // Mobile mode toggle
+      var mobileToggle = document.getElementById('mobile-mode-toggle');
+      var intakeSheet = document.querySelector('.sheet.intake');
+      if (mobileToggle && intakeSheet) {
+        var mobileStorageKey = 'intakeMobileMode';
+        var applyMobile = function (enabled) {
+          intakeSheet.classList.toggle('mobile-mode', enabled);
+          mobileToggle.textContent = enabled ? 'Desktop' : 'Mobile';
+        };
+        if (localStorage.getItem(mobileStorageKey) === '1') {
+          applyMobile(true);
+        }
+        mobileToggle.addEventListener('click', function () {
+          var enabled = !intakeSheet.classList.contains('mobile-mode');
+          applyMobile(enabled);
+          localStorage.setItem(mobileStorageKey, enabled ? '1' : '0');
         });
       }
 
@@ -2624,50 +2375,6 @@ function checked(string $name, string $value, array $formData): string
         }, 4200);
       };
 
-      // Undo toast for intake page deletes
-      var intakeUndoToast = document.getElementById('intake-undo-toast');
-      var intakeUndoMsg = document.getElementById('intake-undo-msg');
-      var intakeUndoBtn = document.getElementById('intake-undo-btn');
-      var intakeUndoProgress = document.getElementById('intake-undo-progress');
-      var intakeUndoTimer = null;
-      var INTAKE_UNDO_DURATION = 6000;
-
-      var hideIntakeUndoToast = function () {
-        if (intakeUndoToast) intakeUndoToast.classList.remove('toast-visible');
-        clearTimeout(intakeUndoTimer);
-      };
-
-      var showIntakeUndoToast = function (skuLabel) {
-        if (!intakeUndoToast) return;
-        if (intakeUndoMsg) intakeUndoMsg.textContent = 'Deleted ' + skuLabel;
-        intakeUndoToast.classList.add('toast-visible');
-        if (intakeUndoProgress) {
-          intakeUndoProgress.style.transition = 'none';
-          intakeUndoProgress.style.transform = 'scaleX(1)';
-          intakeUndoProgress.getBoundingClientRect();
-          intakeUndoProgress.style.transition = 'transform ' + INTAKE_UNDO_DURATION + 'ms linear';
-          intakeUndoProgress.style.transform = 'scaleX(0)';
-        }
-        clearTimeout(intakeUndoTimer);
-        intakeUndoTimer = setTimeout(hideIntakeUndoToast, INTAKE_UNDO_DURATION);
-      };
-
-      if (intakeUndoBtn) {
-        intakeUndoBtn.addEventListener('click', function () {
-          hideIntakeUndoToast();
-          fetch('undo_delete.php', { method: 'POST', body: 'csrf_token=' + encodeURIComponent(window.CSRF_TOKEN) })
-            .then(function (r) { return r.json(); })
-            .then(function (data) {
-              if (data.status === 'ok') {
-                restoreDeletedRow(data.new_id);
-                showToast('Restored ' + (data.restored_sku || 'item'));
-              } else {
-                alert('Nothing to undo.');
-              }
-            })
-            .catch(function () { alert('Undo failed.'); });
-        });
-      }
       if (toastElement && toastElement.dataset.active === '1') {
         var toastMessage = (toastElement.dataset.message || '').trim();
         if (toastMessage !== '') {
@@ -2678,6 +2385,80 @@ function checked(string $name, string $value, array $formData): string
 
       // Keep screen view at full readable size; print layout is handled by CSS.
     })();
+  </script>
+
+  <script>
+  (function () {
+    var qrInstance = null;
+    var qrWrap = document.getElementById('intake-qr-wrap');
+    var qrRender = document.getElementById('intake-qr-render');
+    var skuInput = document.querySelector('input[name="sku"]');
+    var qrLibPromise = null;
+
+    var loadQrLibrary = function () {
+      if (window.QRCode) {
+        return Promise.resolve();
+      }
+      if (qrLibPromise) {
+        return qrLibPromise;
+      }
+      qrLibPromise = new Promise(function (resolve, reject) {
+        var existing = document.querySelector('script[data-qrcode-lib="1"]');
+        if (existing) {
+          existing.addEventListener('load', function () { resolve(); }, { once: true });
+          existing.addEventListener('error', function () { reject(new Error('QR library failed to load')); }, { once: true });
+          return;
+        }
+        var script = document.createElement('script');
+        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js';
+        script.integrity = 'sha512-CNgIRecGo7nphbeZ04Sc13ka07paqdeTu0WR1IM4kNcpmBAUSHSQX0FslNhTDadL4O5SAGapGt4FodqL8My0mA==';
+        script.crossOrigin = 'anonymous';
+        script.referrerPolicy = 'no-referrer';
+        script.dataset.qrcodeLib = '1';
+        script.onload = function () { resolve(); };
+        script.onerror = function () { reject(new Error('QR library failed to load')); };
+        document.body.appendChild(script);
+      });
+      return qrLibPromise;
+    };
+
+    var updateQrCode = function () {
+      if (!qrRender || !qrWrap) return;
+      var sku = skuInput ? skuInput.value.trim().toUpperCase() : '';
+      if (!sku) {
+        qrWrap.hidden = true;
+        return;
+      }
+      if (typeof QRCode === 'undefined') {
+        qrWrap.hidden = true;
+        loadQrLibrary().then(updateQrCode).catch(function () {
+          qrWrap.hidden = true;
+        });
+        return;
+      }
+      var isHttps = window.location.protocol === 'https:';
+      var host = window.location.host;
+      var url = (isHttps ? 'https' : 'http') + '://' + host + '/intake.php?sku=' + encodeURIComponent(sku);
+      qrRender.innerHTML = '';
+      qrInstance = null;
+      try {
+        qrInstance = new QRCode(qrRender, {
+          text: url,
+          width: 90,
+          height: 90,
+          colorDark: '#0f172a',
+          colorLight: '#ffffff',
+          correctLevel: QRCode.CorrectLevel.H
+        });
+        qrWrap.hidden = false;
+      } catch (e) {}
+    };
+
+    if (skuInput) {
+      skuInput.addEventListener('input', updateQrCode);
+    }
+    updateQrCode();
+  })();
   </script>
 
   <div class="modal" id="find-sku-modal" hidden>
@@ -2693,6 +2474,9 @@ function checked(string $name, string $value, array $formData): string
       </div>
     </div>
   </div>
-  </div>
+<?php if (!$isPartial): ?>
+  </div> <!-- /content-area -->
+  </div> <!-- /layout-wrapper -->
 </body>
 </html>
+<?php endif; ?>

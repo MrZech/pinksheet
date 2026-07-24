@@ -4,7 +4,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/config.php';
 checkMaintenance(true);
 
-header('Content-Type: application/json; charset=utf-8');
+
 
 require_csrf();
 
@@ -24,9 +24,7 @@ if (!$isPrivate && $remote === '') {
         || str_starts_with($host, '[::1]:');
 }
 if (!$isPrivate) {
-    http_response_code(403);
-    echo json_encode(['ok' => false, 'error' => 'Forbidden']);
-    exit;
+    errorResponse('Forbidden', 403);
 }
 
 $repoRoot = __DIR__;
@@ -72,9 +70,7 @@ $ok = true;
 $messages = [];
 
 if (!is_file($dbPath)) {
-    http_response_code(500);
-    echo json_encode(['ok' => false, 'error' => 'Primary DB missing']);
-    exit;
+    errorResponse('Primary DB missing', 500);
 }
 
 if (!checkDb($dbPath)) {
@@ -96,7 +92,7 @@ if ($latestBackupPath) {
 }
 
 http_response_code($ok ? 200 : 500);
-echo json_encode([
+successResponse([
     'ok' => $ok,
     'latest_backup' => $latestBackup,
     'messages' => $messages,
