@@ -84,6 +84,16 @@ CREATE TABLE IF NOT EXISTS intake_items (
     notes TEXT
 );
 SQL);
+$intakeColumnNames = array_column($pdo->query('PRAGMA table_info(intake_items)')->fetchAll(PDO::FETCH_ASSOC), 'name');
+foreach ([
+    'sku_normalized' => 'TEXT',
+    'wifi_card_installed' => 'INTEGER NOT NULL DEFAULT 0',
+    'compatible_os' => 'TEXT',
+] as $column => $definition) {
+    if (!in_array($column, $intakeColumnNames, true)) {
+        $pdo->exec("ALTER TABLE intake_items ADD COLUMN $column $definition");
+    }
+}
 $pdo->exec(<<<'SQL'
 CREATE TABLE IF NOT EXISTS sku_photos (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -97,6 +107,15 @@ CREATE TABLE IF NOT EXISTS sku_photos (
     sort_order INTEGER NOT NULL DEFAULT 0
 );
 SQL);
+$photoColumnNames = array_column($pdo->query('PRAGMA table_info(sku_photos)')->fetchAll(PDO::FETCH_ASSOC), 'name');
+foreach ([
+    'sort_order' => 'INTEGER NOT NULL DEFAULT 0',
+    'is_thumb' => 'INTEGER NOT NULL DEFAULT 0',
+] as $column => $definition) {
+    if (!in_array($column, $photoColumnNames, true)) {
+        $pdo->exec("ALTER TABLE sku_photos ADD COLUMN $column $definition");
+    }
+}
 $pdo->exec("CREATE INDEX IF NOT EXISTS idx_sku_photos_sku_normalized ON sku_photos (sku_normalized)");
 
 $pdo->exec("CREATE INDEX IF NOT EXISTS idx_intake_items_sku_normalized ON intake_items (sku_normalized)");

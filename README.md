@@ -85,6 +85,20 @@ PowerShell backup and verify helpers live in `scripts/`.
 - Square sync metadata and last errors are stored in `square_catalog_sync`.
 - Detailed sync errors are appended to `logs/square_sync.log`.
 
+## Square webhooks
+
+Inbound Square sales are optional and disabled by default. Add these local-only `.env` values (never commit the signature key):
+
+```dotenv
+SQUARE_WEBHOOK_ENABLED=0
+SQUARE_WEBHOOK_SIGNATURE_KEY=
+SQUARE_WEBHOOK_NOTIFICATION_URL=
+SQUARE_WEBHOOK_MAX_BODY_BYTES=1048576
+SQUARE_WEBHOOK_REFUND_STATUS="RETURNED - NEEDS INSPECTION"
+```
+
+The exact subscription URL is `https://ASSIGNED-NAME.ngrok-free.app/square_webhook.php`; it must exactly match `SQUARE_WEBHOOK_NOTIFICATION_URL`. The endpoint verifies Square's HMAC signature before parsing the request. Completed payments mark mapped Pinksheet items `SOLD`; refunds move them to the inspection status. See [operations](docs/ops.md) for setup, testing, and recovery.
+
 ## Docs
 
 - `docs/graysons-guide.md` - the friendly handoff guide for future maintainers.
