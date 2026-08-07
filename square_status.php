@@ -18,7 +18,7 @@ $connected = $config['enabled'];
 $lastSyncStmt = $pdo->query("SELECT MAX(last_synced_at) FROM square_catalog_sync WHERE last_synced_at IS NOT NULL");
 $lastSyncAt = (string)($lastSyncStmt->fetchColumn() ?: '');
 
-$lastErrorStmt = $pdo->query("SELECT last_error, updated_at FROM square_catalog_sync WHERE last_error IS NOT NULL AND last_error <> '' ORDER BY updated_at DESC LIMIT 1");
+$lastErrorStmt = $pdo->query("SELECT s.last_error, s.updated_at FROM square_catalog_sync s JOIN intake_items i ON i.sku_normalized = s.sku_normalized WHERE s.last_error IS NOT NULL AND s.last_error <> '' ORDER BY s.updated_at DESC LIMIT 1");
 $lastErrorRow = $lastErrorStmt->fetch(PDO::FETCH_ASSOC);
 $lastError = $lastErrorRow ? (string)($lastErrorRow['last_error'] ?? '') : null;
 $lastErrorSince = $lastErrorRow ? (string)($lastErrorRow['updated_at'] ?? '') : null;
