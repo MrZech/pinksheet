@@ -57,7 +57,11 @@ do {
 
         $durationMs = (int)((microtime(true) - $start) * 1000);
 
-        if ($result['status'] === 'ok') {
+        // Treat both 'ok' and 'skipped' as success: a queued job for an item
+        // that is already current in Square (status 'skipped') is not a
+        // failure — it must not be recorded as failed or it will linger in
+        // the queue forever.
+        if (in_array($result['status'], ['ok', 'skipped'], true)) {
             squareQueueMarkCompleted($pdo, $jobId);
             echo '[OK] ' . $skuNormalized . ' [' . $operation . '] ' . ($result['message'] ?? '') . ' (' . $durationMs . 'ms)' . PHP_EOL;
             squareAuditLog($pdo, [
