@@ -38,7 +38,8 @@ The intake sheet lives in `index.php`, with `intake.php` as a thin wrapper.
 ### Drafts And Autosave
 
 - Drafts are saved to `autosave.php` as versioned JSON keyed by normalized SKU.
-- Autosave happens while you type.
+- Autosave happens while you type and flushes immediately when you click away
+  from a field, so anything you entered is saved the moment you move on.
 - If the form is cleared, the app can offer `Restore last draft`.
 - If the server has a newer draft than the browser, the app shows a conflict instead of silently overwriting it.
 
