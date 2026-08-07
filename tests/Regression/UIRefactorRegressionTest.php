@@ -198,4 +198,25 @@ final class UIRefactorRegressionTest extends TestCase
         $this->assertStringContainsString('syncNeedsAnother', $appJs);
         $this->assertStringContainsString('.finally(', $appJs);
     }
+
+    // ── Save-handler SQL integrity (merge-artifact guard) ─────────────
+
+    public function test_index_php_save_update_heredoc_is_not_doubled(): void
+    {
+        // Normalize line endings: repo files are CRLF, tests run cross-platform.
+        $index = str_replace("\r\n", "\n", (string)file_get_contents(TESTING_ROOT . '/index.php'));
+        // A branch merge once duplicated the heredoc opener *inside* the
+        // UPDATE statement, so the SQL string contained PHP code and every
+        // form save threw "near \"$updateStmt\": syntax error" (HTTP 500)
+        // on production. The test suite never executed this handler, so it
+        // slipped through — guard against the corruption recurring.
+        $this->assertStringNotContainsString(
+            "UPDATE intake_items SET\n            \$updateStmt = \$pdo->prepare(<<<'SQL'",
+            $index
+        );
+        $this->assertSame(
+            1,
+            substr_count($index, "UPDATE intake_items SET\n    sku = :sku,")
+        );
+    }
 }

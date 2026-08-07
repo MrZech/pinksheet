@@ -438,8 +438,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (!$errors) {
             $updateStmt = $pdo->prepare(<<<'SQL'
 UPDATE intake_items SET
-            $updateStmt = $pdo->prepare(<<<'SQL'
-UPDATE intake_items SET
     sku = :sku,
     sku_normalized = :sku_normalized,
     status = :status,
