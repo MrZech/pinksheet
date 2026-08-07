@@ -41,7 +41,10 @@ $mimeType = $mimeMap[$ext] ?? 'image/png';
 
 $fileSize = filesize($path);
 $fileMtime = filemtime($path);
-$etag = sprintf('W/"%x-%x-%x"', $photoId, $fileMtime, $fileSize);
+/* Content-addressed ETag: changes whenever the file bytes change, so
+   browsers that cached a broken response from an earlier buggy version
+   re-fetch instead of being served a stale 304 forever. */
+$etag = sprintf('W/"v2-%x-%x-%s"', $photoId, $fileMtime, substr(hash_file('sha256', $path), 0, 16));
 
 ini_set('default_mimetype', $mimeType);
 header_remove('Content-Type');
@@ -49,12 +52,12 @@ header('Content-Type: ' . $mimeType, true);
 
 if (isset($_SERVER['HTTP_IF_NONE_MATCH']) && trim((string)$_SERVER['HTTP_IF_NONE_MATCH']) === $etag) {
     http_response_code(304);
-    header('Cache-Control: public, max-age=31536000');
+    header('Cache-Control: public, max-age=86400');
     header('ETag: ' . $etag);
     exit;
 }
 
-header('Cache-Control: public, max-age=31536000');
+header('Cache-Control: public, max-age=86400');
 header('ETag: ' . $etag);
 header('Content-Length: ' . $fileSize);
 

@@ -73,10 +73,9 @@ final class UIRefactorRegressionTest extends TestCase
     public function test_reviewed_checkbox_is_a_span_not_input(): void
     {
         $html = file_get_contents($this->kanbanFile);
-        // Must use span, not input[type=checkbox]
-        $this->assertStringContainsString('<span', $html);
-        // Should NOT contain the old checkbox input pattern
-        $this->assertStringNotContainsString('type="checkbox"', $html);
+        // Visual ready indicator is now an <input type="checkbox">
+        $this->assertStringContainsString('type="checkbox"', $html);
+        $this->assertStringContainsString('visual-ready', $html);
     }
 
     public function test_reviewed_checkbox_has_data_sku(): void

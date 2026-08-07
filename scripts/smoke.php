@@ -1,6 +1,10 @@
 <?php
 // Lightweight smoke test for local dev. Requires a running dev server:
-// php -S 127.0.0.1:8765 -t .
+//   php -S 127.0.0.1:8765 -t public public/router.php
+//
+// Write endpoints enforce CSRF, so this script first loads a page with a
+// cookie jar to obtain a session cookie, scrapes window.CSRF_TOKEN from the
+// HTML, then reuses that session + token for every POST it issues.
 
 declare(strict_types=1);
 
@@ -95,25 +99,72 @@ $tests = [
     ],
 ];
 
+/* ── Bootstrap a session + CSRF token (needs cURL) ────────────── */
+$cookieJar = sys_get_temp_dir() . '/pinksheet_smoke_cookies_' . getmypid() . '.txt';
+@unlink($cookieJar);
+$csrfToken = '';
+if (function_exists('curl_init')) {
+    $ch = curl_init($base . '/intake.php');
+    curl_setopt_array($ch, [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_COOKIEJAR      => $cookieJar,
+        CURLOPT_COOKIEFILE     => $cookieJar,
+        CURLOPT_TIMEOUT        => 8,
+    ]);
+    $page = curl_exec($ch);
+    if (is_string($page) && preg_match('/window\.CSRF_TOKEN\s*=\s*"([^"]+)"/', $page, $m)) {
+        $csrfToken = $m[1];
+    }
+}
+if ($csrfToken === '') {
+    echo '[WARN] Could not scrape a CSRF token from ' . $base . '/intake.php — POST tests will fail.' . PHP_EOL;
+}
+
 $ok = true;
 foreach ($tests as $test) {
     $method = $test['method'] ?? 'GET';
-    $headers = $test['headers'] ?? [];
-    $body = $test['body'] ?? null;
-    $contextOpts = [
-        'http' => [
-            'method' => $method,
-            'ignore_errors' => true,
-            'timeout' => 5,
-            'header' => $headers,
-            'content' => $body,
-        ],
-    ];
-    $context = stream_context_create($contextOpts);
-    $resp = @file_get_contents($test['url'], false, $context);
-    $statusLine = $http_response_header[0] ?? 'HTTP/0.0 000';
-    [$httpVer, $statusCode] = array_pad(explode(' ', $statusLine, 3), 2, '000');
-    $statusCode = (int)$statusCode;
+    $statusCode = 0;
+    $resp = null;
+    $err = '';
+
+    if ($method === 'POST') {
+        if ($csrfToken === '' || !function_exists('curl_init')) {
+            $ok = false;
+            echo '[FAIL] ' . $test['name'] . ' -> skipped (no CSRF token / cURL)' . PHP_EOL;
+            continue;
+        }
+        $headers = $test['headers'] ?? [];
+        $headers[] = 'X-CSRF-Token: ' . $csrfToken;
+        $ch = curl_init($test['url']);
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_COOKIEJAR      => $cookieJar,
+            CURLOPT_COOKIEFILE     => $cookieJar,
+            CURLOPT_POST           => true,
+            CURLOPT_POSTFIELDS     => $test['body'] ?? '',
+            CURLOPT_HTTPHEADER     => $headers,
+            CURLOPT_TIMEOUT        => 8,
+        ]);
+        $resp = curl_exec($ch);
+        $err  = (string)curl_error($ch);
+        $statusCode = (int)curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
+    } else {
+        $contextOpts = [
+            'http' => [
+                'method'       => $method,
+                'ignore_errors' => true,
+                'timeout'      => 5,
+                'header'       => $test['headers'] ?? [],
+                'content'      => $test['body'] ?? null,
+            ],
+        ];
+        $context = stream_context_create($contextOpts);
+        $resp = @file_get_contents($test['url'], false, $context);
+        $statusLine = $http_response_header[0] ?? 'HTTP/0.0 000';
+        [$httpVer, $statusCode] = array_pad(explode(' ', $statusLine, 3), 2, '000');
+        $statusCode = (int)$statusCode;
+    }
+
     $pass = $statusCode >= 200 && $statusCode < 400;
     $respJson = null;
     if (isset($test['expect_json']) && $resp !== false) {
@@ -141,8 +192,11 @@ foreach ($tests as $test) {
     echo '[' . ($pass ? 'OK' : 'FAIL') . '] ' . $test['name'] . ' -> ' . $statusCode . PHP_EOL;
     if (!$pass) {
         echo "  URL: {$test['url']}" . PHP_EOL;
+        if ($err !== '') {
+            echo '  Error: ' . $err . PHP_EOL;
+        }
         if ($resp) {
-            echo "  Body: " . substr($resp, 0, 280) . PHP_EOL;
+            echo '  Body: ' . substr($resp, 0, 280) . PHP_EOL;
         }
     }
 }
@@ -150,8 +204,8 @@ foreach ($tests as $test) {
 // Optional photo upload test using curl extension
 if (function_exists('curl_init')) {
     $tmpPng = tempnam(sys_get_temp_dir(), 'smoke_png_');
-    // 1x1 transparent PNG
-    $pngData = base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/xcAAn0B9WgKsPkAAAAASUVORK5CYII=');
+    // 1x1 transparent PNG (must pass GD's imagecreatefromstring check)
+    $pngData = base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=');
     file_put_contents($tmpPng, $pngData);
     $sku = 'SMOKEPHOTO';
     $ch = curl_init($base . '/upload_photo.php');
@@ -161,9 +215,12 @@ if (function_exists('curl_init')) {
     ];
     curl_setopt_array($ch, [
         CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_POST => true,
-        CURLOPT_POSTFIELDS => $post,
-        CURLOPT_TIMEOUT => 8,
+        CURLOPT_POST           => true,
+        CURLOPT_POSTFIELDS     => $post,
+        CURLOPT_COOKIEJAR      => $cookieJar,
+        CURLOPT_COOKIEFILE     => $cookieJar,
+        CURLOPT_HTTPHEADER     => ['X-CSRF-Token: ' . $csrfToken],
+        CURLOPT_TIMEOUT        => 8,
     ]);
     $respBody = curl_exec($ch);
     $err = curl_error($ch);
@@ -182,5 +239,7 @@ if (function_exists('curl_init')) {
 } else {
     echo '[SKIP] photo upload (curl extension not available)' . PHP_EOL;
 }
+
+@unlink($cookieJar);
 
 exit($ok ? 0 : 1);

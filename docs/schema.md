@@ -135,6 +135,11 @@ This table stores Square catalog IDs and the last sync state for each SKU.
 | `payload_hash` | TEXT | Hash of synced item and photo fields |
 | `last_synced_at` | TEXT | Timestamp of last successful Square sync |
 | `last_error` | TEXT | Last Square API error, if any |
+| `last_sale_sync_at` | TEXT | Last Square-origin sale webhook update for this SKU |
+| `last_inventory_sync` | TEXT | Last queued inventory-only sync for this SKU |
+| `sync_enabled` | INTEGER | Per-SKU sync flag for future-safe disablement |
+| `last_origin` | TEXT | Last sync writer origin, such as `local` or `square` |
+| `last_correlation_id` | TEXT | Correlation ID tying the row to logs/audit records |
 | `updated_at` | TEXT | Local sync metadata update time |
 
 ### How `square_catalog_sync` is used

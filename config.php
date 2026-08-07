@@ -19,6 +19,14 @@ if ($env === 'development') {
 
 /* ── Session ─────────────────────────────────────────────────── */
 if (session_status() === PHP_SESSION_NONE && php_sapi_name() !== 'cli') {
+    $sessionSecure = !empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off';
+    session_set_cookie_params([
+        'lifetime' => 0,
+        'path'     => '/',
+        'secure'   => $sessionSecure,
+        'httponly' => true,
+        'samesite' => 'Lax',
+    ]);
     session_start();
 }
 
@@ -262,27 +270,13 @@ function storageFatal(string $message): void
  * Tries finfo (native), then mime_content_type, then extension-based guess.
  * Returns a string MIME type (e.g. "image/jpeg") or "application/octet-stream".
  */
-function detectUploadMimeType(string $filePath, string $originalName): string
+function detectUploadMimeType(string $filePath, string $originalName = ''): string
 {
     if ($filePath === '' || !is_file($filePath)) {
         return 'application/octet-stream';
     }
-    if (function_exists('finfo_open')) {
-        $finfo = @finfo_open(FILEINFO_MIME_TYPE);
-        if ($finfo !== false) {
-            $mime = @finfo_file($finfo, $filePath);
-            @finfo_close($finfo);
-            if ($mime !== false && $mime !== '') {
-                return (string)$mime;
-            }
-        }
-    }
-    if (function_exists('mime_content_type')) {
-        $mime = @mime_content_type($filePath);
-        if ($mime !== false && $mime !== '') {
-            return (string)$mime;
-        }
-    }
+
+    $originalName = $originalName !== '' ? $originalName : basename($filePath);
     $extension = strtolower(pathinfo($originalName, PATHINFO_EXTENSION));
     $extensionMap = [
         'jpg' => 'image/jpeg',
@@ -291,6 +285,28 @@ function detectUploadMimeType(string $filePath, string $originalName): string
         'webp' => 'image/webp',
         'gif' => 'image/gif',
     ];
+
+    // Try finfo first (best detection for known types)
+    if (function_exists('finfo_open')) {
+        $finfo = @finfo_open(FILEINFO_MIME_TYPE);
+        if ($finfo !== false) {
+            $mime = @finfo_file($finfo, $filePath);
+            @finfo_close($finfo);
+            if ($mime !== false && $mime !== '' && $mime !== 'application/octet-stream') {
+                return (string)$mime;
+            }
+        }
+    }
+
+    // Try mime_content_type next
+    if (function_exists('mime_content_type')) {
+        $mime = @mime_content_type($filePath);
+        if ($mime !== false && $mime !== '' && $mime !== 'application/octet-stream') {
+            return (string)$mime;
+        }
+    }
+
+    // Fall back to extension mapping
     return $extensionMap[$extension] ?? 'application/octet-stream';
 }
 
@@ -342,6 +358,8 @@ function getAssetVersion(): int
         'assets/print.css',
         'assets/theme.js',
         'assets/app.js',
+        'assets/nav.js',
+        'assets/command-palette.js',
         'assets/qz-tray.js',
     ];
     $latest = 0;
@@ -360,6 +378,27 @@ function getAssetVersion(): int
 function normalizeSku(string $sku): string
 {
     return strtoupper(trim($sku));
+}
+
+/**
+ * Human-friendly display label for a status value.
+ *
+ * Status values are stored lowercase; this maps them to the label the
+ * operator sees (kanban lanes, selects, recent lists) without touching
+ * stored data.
+ */
+function statusLabel(string $status): string
+{
+    static $map = [
+        'intake'             => 'Intake',
+        'ebay draft'         => 'eBay Draft',
+        'ebay review'        => 'eBay Review',
+        'ebay listed'        => 'eBay Listed',
+        'dispo tech store'   => 'Dispo Tech Store',
+        'sold'               => 'SOLD',
+    ];
+    $key = strtolower(trim($status));
+    return $map[$key] ?? ucwords($key !== '' ? $key : $status);
 }
 
 /* ── Centralised PDO connection factory ──────────────────────── */

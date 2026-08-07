@@ -40,7 +40,7 @@ if (is_readable(HOME_DB_PATH)) {
 
         // Single fetch for all listings (replaces 3 redundant queries)
         $stmtAll = $pdo->query("
-            SELECT sku, status, what_is_it, updated_at, dispotech_price, ebay_price
+            SELECT sku, status, what_is_it, updated_at, dispotech_price, ebay_price, quantity
             FROM intake_items
             WHERE sku IS NOT NULL AND TRIM(sku) <> ''
             ORDER BY updated_at DESC, id DESC
@@ -140,6 +140,7 @@ if (!$isPartial):
   <script src="assets/theme.js?v=<?= getAssetVersion() ?>" defer></script>
   <script src="assets/app.js?v=<?= getAssetVersion() ?>" defer></script>
   <script src="assets/nav.js?v=<?= getAssetVersion() ?>" defer></script>
+  <script src="assets/command-palette.js?v=<?= getAssetVersion() ?>" defer></script>
 </head>
 <body class="home<?php echo $isLookupPage ? ' lookup-page' : ''; ?>">
   <div class="layout-wrapper">
@@ -252,21 +253,52 @@ if (!$isPartial):
               <?php else: ?>
                 Backups will display here once created.
               <?php endif; ?>
-            </p>
-            <p class="dash-sub">
-              <button type="button" class="button-link ghost" data-run-square-sync>Sync Square now</button>
-              <span class="hint">Local only; pushes current intake inventory to Square.</span>
-            </p>
-            <p class="dash-sub">
               <button type="button" class="button-link ghost" data-run-backup>
                 Run backup now<?php if ($latestBackup): ?> (<?php echo htmlspecialchars($backupSummary, ENT_QUOTES, 'UTF-8'); ?>)<?php endif; ?>
               </button>
-              <span class="hint">Local only; saves to data/backups/</span>
               <?php if ($backupFreePct !== null): ?>
-                <span class="hint"><?php echo 'Free space: ' . number_format($backupFreePct, 1) . '%'; ?></span>
+                <span class="hint">Free space: <?php echo number_format($backupFreePct, 1); ?>%</span>
               <?php endif; ?>
               <button type="button" class="button-link subtle" data-verify-backup>Verify latest backup</button>
               <span class="hint">Runs checksum + integrity check</span>
+            </p>
+          </div>
+          <div class="dash-card dash-wide" id="square-status-card">
+            <p class="dash-label">Square Sync</p>
+            <p class="dash-value" id="square-status-value">—</p>
+            <p class="dash-sub" id="square-status-sub">
+              <span id="square-sync-indicator" class="status-chip" data-status="">Loading...</span>
+              <span id="square-last-sync" class="hint"></span>
+            </p>
+            <p class="dash-sub" id="square-status-details" style="display:none;">
+              <span id="square-queue-count"></span>
+              <span id="square-webhook-count"></span>
+              <span id="square-sold-count"></span>
+            </p>
+            <p class="dash-sub" id="square-status-error" style="display:none;"></p>
+            <p class="dash-sub">
+              <button type="button" class="button-link ghost" data-run-square-sync>Sync Square now</button>
+              <button type="button" class="button-link ghost" id="square-queue-btn" style="display:none;">View queue</button>
+              <span class="hint">Pushes inventory changes. Sales sync automatically via webhook.</span>
+            </p>
+          </div>
+          <div class="dash-card dash-wide" id="recon-status-card">
+            <p class="dash-label">Inventory Reconciliation</p>
+            <p class="dash-value" id="recon-status-value">—</p>
+            <p class="dash-sub" id="recon-status-sub">
+              <span id="recon-indicator" class="status-chip" data-status="">Loading...</span>
+              <span id="recon-last-run" class="hint"></span>
+            </p>
+            <p class="dash-sub" id="recon-status-details" style="display:none;"></p>
+            <p class="dash-sub" id="recon-alerts" style="display:none;">
+              <span id="recon-alert-count" class="badge" style="background:#EF4444;color:#fff;"></span>
+              <span id="recon-alert-text"></span>
+            </p>
+            <p class="dash-sub" id="recon-recent-issues" style="display:none;"></p>
+            <p class="dash-sub">
+              <button type="button" class="button-link ghost" id="recon-run-btn">Run reconciliation</button>
+              <button type="button" class="button-link ghost" id="recon-view-issues-btn" style="display:none;">View issues</button>
+              <span class="hint">Detects and auto-repairs sync issues.</span>
             </p>
           </div>
         </div>
@@ -286,18 +318,17 @@ if (!$isPartial):
                     $rowPrice = isset($row['dispotech_price']) && $row['dispotech_price'] !== '' ? $row['dispotech_price'] : ($row['ebay_price'] ?? null);
                   ?>
                   <?php if ($thumbId): ?>
-                    <a class="thumb" href="photo.php?id=<?php echo $thumbId; ?>" target="_blank" rel="noopener">
-                      <picture>
-                        <source srcset="photo.php?id=<?php echo $thumbId; ?>&format=webp" type="image/webp">
+                    <button type="button" class="thumb-btn" data-photo-src="photo.php?id=<?php echo $thumbId; ?>" title="View photo for <?php echo htmlspecialchars($skuVal ?: 'SKU', ENT_QUOTES, 'UTF-8'); ?>" aria-label="View photo for <?php echo htmlspecialchars($skuVal ?: 'SKU', ENT_QUOTES, 'UTF-8'); ?>">
+                      <span class="thumb">
                         <img src="photo.php?id=<?php echo $thumbId; ?>" alt="Photo for <?php echo htmlspecialchars($skuVal ?: 'SKU', ENT_QUOTES, 'UTF-8'); ?>" width="52" height="52" loading="lazy">
-                      </picture>
-                    </a>
+                      </span>
+                    </button>
                   <?php else: ?>
                     <span class="thumb placeholder" title="No photo added">No photo</span>
                   <?php endif; ?>
-                  <span class="sku"><?php echo htmlspecialchars($skuVal ?: 'Unknown', ENT_QUOTES, 'UTF-8'); ?></span>
+                  <a class="sku-link" href="intake.php?sku=<?php echo urlencode($skuVal); ?>" title="Open <?php echo htmlspecialchars($skuVal ?: 'SKU', ENT_QUOTES, 'UTF-8'); ?> in intake"><?php echo htmlspecialchars($skuVal ?: 'Unknown', ENT_QUOTES, 'UTF-8'); ?><?php $rowQty = max(1, (int)($row['quantity'] ?? 1)); if ($rowQty > 1): ?> <span class="badge qty-badge">x<?php echo $rowQty; ?></span><?php endif; ?></a>
                   <span class="status-price-stack">
-                    <span class="status-chip" data-status="<?php echo htmlspecialchars($row['status'] ?: '', ENT_QUOTES, 'UTF-8'); ?>"><?php echo htmlspecialchars($row['status'] ?: '—', ENT_QUOTES, 'UTF-8'); ?></span>
+                    <span class="status-chip" data-status="<?php echo htmlspecialchars($row['status'] ?: '', ENT_QUOTES, 'UTF-8'); ?>"><?php echo htmlspecialchars((string)($row['status'] ?? '') !== '' ? statusLabel((string)$row['status']) : '—', ENT_QUOTES, 'UTF-8'); ?></span>
                     <?php if ($rowPrice !== null && $rowPrice !== ''): ?>
                       <span class="status-price"><?php echo '$' . number_format((float)$rowPrice, 2); ?></span>
                     <?php endif; ?>
@@ -306,6 +337,9 @@ if (!$isPartial):
                 </div>
                 <div class="activity-meta">
                   <span><?php echo htmlspecialchars($row['updated_at'] ?: '', ENT_QUOTES, 'UTF-8'); ?></span>
+                  <?php $rowQty = max(1, (int)($row['quantity'] ?? 1)); if ($rowQty > 1): ?>
+                    <span class="qty-badge">x<?php echo $rowQty; ?></span>
+                  <?php endif; ?>
                 </div>
               </li>
             <?php endforeach; ?>
@@ -340,8 +374,23 @@ if (!$isPartial):
                 <select name="status">
                   <option value="">Any status</option>
                   <?php foreach ($statusOptions as $opt): ?>
-                    <option value="<?php echo htmlspecialchars($opt, ENT_QUOTES, 'UTF-8'); ?>"><?php echo htmlspecialchars($opt, ENT_QUOTES, 'UTF-8'); ?></option>
+                    <option value="<?php echo htmlspecialchars($opt, ENT_QUOTES, 'UTF-8'); ?>"><?php echo htmlspecialchars(statusLabel($opt), ENT_QUOTES, 'UTF-8'); ?></option>
                   <?php endforeach; ?>
+                </select>
+              </label>
+            </div>
+            <div class="row price-sort-row">
+              <label>Min Price
+                <input type="number" name="min_price" step="0.01" min="0" placeholder="0.00">
+              </label>
+              <label>Max Price
+                <input type="number" name="max_price" step="0.01" min="0" placeholder="9999.99">
+              </label>
+              <label class="sort-label">Sort by
+                <select name="sort">
+                  <option value="updated_at">Recently Updated</option>
+                  <option value="price_asc">Price: Low to High</option>
+                  <option value="price_desc">Price: High to Low</option>
                 </select>
               </label>
             </div>
@@ -369,6 +418,7 @@ if (!$isPartial):
             </div>
             <div class="lookup-results-actions">
               <span class="badge subtle" id="inventory-badge"><?php echo count($listedItems); ?> items</span>
+              <span class="badge subtle" id="total-value-badge">Total: $0.00</span>
             </div>
           </div>
           <div class="table-wrap">
@@ -379,6 +429,7 @@ if (!$isPartial):
                   <th>Status</th>
                   <th>What is it?</th>
                   <th>Updated</th>
+                  <th>Qty</th>
                 </tr>
               </thead>
               <tbody id="lookup-listing-body">
@@ -396,27 +447,29 @@ if (!$isPartial):
                       $missingPrice = ($dispotechPrice === null || $dispotechPrice === '') && ($ebayPrice === null || $ebayPrice === '');
                       $rowPrice = $dispotechPrice !== null && $dispotechPrice !== '' ? $dispotechPrice : $ebayPrice;
                     ?>
+                    <?php $effectiveRowPrice = $rowPrice !== null && $rowPrice !== '' ? (float)$rowPrice : 0; ?>
                     <tr data-lookup-row="1"
                         data-sku="<?php echo htmlspecialchars($skuVal, ENT_QUOTES, 'UTF-8'); ?>"
                         data-status="<?php echo htmlspecialchars($statusVal, ENT_QUOTES, 'UTF-8'); ?>"
                         data-what-is-it="<?php echo htmlspecialchars($whatVal, ENT_QUOTES, 'UTF-8'); ?>"
                         data-updated-at="<?php echo htmlspecialchars($updatedVal, ENT_QUOTES, 'UTF-8'); ?>"
                         data-photo-count="<?php echo $thumbId ? 1 : 0; ?>"
-                        data-missing-price="<?php echo $missingPrice ? '1' : '0'; ?>">
+                        data-missing-price="<?php echo $missingPrice ? '1' : '0'; ?>"
+                        data-price="<?php echo $effectiveRowPrice; ?>"
+                        data-qty="<?php echo max(1, (int)($row['quantity'] ?? 1)); ?>">
                       <td>
-                        <?php echo htmlspecialchars($skuVal ?: 'Unknown', ENT_QUOTES, 'UTF-8'); ?>
+                        <a class="sku-link" href="intake.php?sku=<?php echo urlencode($skuVal); ?>" title="Open <?php echo htmlspecialchars($skuVal ?: 'SKU', ENT_QUOTES, 'UTF-8'); ?> in intake"><?php echo htmlspecialchars($skuVal ?: 'Unknown', ENT_QUOTES, 'UTF-8'); ?></a>
                         <?php if ($thumbId): ?>
-                          <span class="thumb-wrap">
-                            <picture>
-                              <source srcset="photo.php?id=<?php echo $thumbId; ?>&format=webp" type="image/webp">
+                          <button type="button" class="thumb-btn" data-photo-src="photo.php?id=<?php echo $thumbId; ?>" title="View photo for <?php echo htmlspecialchars($skuVal ?: 'SKU', ENT_QUOTES, 'UTF-8'); ?>" aria-label="View photo for <?php echo htmlspecialchars($skuVal ?: 'SKU', ENT_QUOTES, 'UTF-8'); ?>">
+                            <span class="thumb-wrap">
                               <img class="preview-thumb" src="photo.php?id=<?php echo $thumbId; ?>" alt="Photo for <?php echo htmlspecialchars($skuVal ?: 'SKU', ENT_QUOTES, 'UTF-8'); ?>" width="34" height="34" loading="lazy">
-                            </picture>
-                          </span>
+                            </span>
+                          </button>
                         <?php endif; ?>
                       </td>
                       <td>
                         <span class="status-price-stack">
-                          <span class="status-chip" data-status="<?php echo htmlspecialchars($row['status'] ?: 'Intake', ENT_QUOTES, 'UTF-8'); ?>"><?php echo htmlspecialchars($row['status'] ?: 'Intake', ENT_QUOTES, 'UTF-8'); ?></span>
+                          <span class="status-chip" data-status="<?php echo htmlspecialchars($row['status'] ?: 'Intake', ENT_QUOTES, 'UTF-8'); ?>"><?php echo htmlspecialchars((string)($row['status'] ?? '') !== '' ? statusLabel((string)$row['status']) : 'Intake', ENT_QUOTES, 'UTF-8'); ?></span>
                           <?php if ($rowPrice !== null && $rowPrice !== ''): ?>
                             <span class="status-price"><?php echo '$' . number_format((float)$rowPrice, 2); ?></span>
                           <?php elseif ($missingPrice): ?>
@@ -426,11 +479,12 @@ if (!$isPartial):
                       </td>
                       <td><?php echo htmlspecialchars($row['what_is_it'] ?: '—', ENT_QUOTES, 'UTF-8'); ?></td>
                       <td><?php echo htmlspecialchars($row['updated_at'] ?: '', ENT_QUOTES, 'UTF-8'); ?></td>
+                      <td><?php echo max(1, (int)($row['quantity'] ?? 1)); ?></td>
                     </tr>
                   <?php endforeach; ?>
                 <?php else: ?>
                   <tr>
-                    <td colspan="4">No listed items yet.</td>
+                    <td colspan="5">No listed items yet.</td>
                   </tr>
                 <?php endif; ?>
               </tbody>
@@ -447,6 +501,15 @@ if (!$isPartial):
     </section>
       <?php endif; ?>
   </main>
+  <!-- Photo lightbox: click any thumbnail to view the full image -->
+  <div class="photo-lightbox" id="photo-lightbox" hidden aria-hidden="true">
+    <div class="photo-lightbox-backdrop" id="photo-lightbox-backdrop"></div>
+    <figure class="photo-lightbox-figure">
+      <img id="photo-lightbox-img" src="" alt="Photo preview">
+      <figcaption class="photo-lightbox-caption" id="photo-lightbox-caption"></figcaption>
+      <button type="button" class="photo-lightbox-close" id="photo-lightbox-close" aria-label="Close photo viewer">✕</button>
+    </figure>
+  </div>
   <div class="backup-indicator" id="backup-indicator" aria-live="polite" aria-hidden="true" hidden>
     <div class="backup-indicator-card" role="status" aria-label="Backup status">
       <div class="backup-indicator-title" id="backup-indicator-title">Backup running…</div>
@@ -458,6 +521,45 @@ if (!$isPartial):
   </div>
   <script>
     (function () {
+      /* ── Photo lightbox: click any .thumb-btn to view the real image ── */
+      var lightbox = document.getElementById('photo-lightbox');
+      var lightboxImg = document.getElementById('photo-lightbox-img');
+      var lightboxCaption = document.getElementById('photo-lightbox-caption');
+      var lightboxClose = document.getElementById('photo-lightbox-close');
+      var lightboxBackdrop = document.getElementById('photo-lightbox-backdrop');
+      var lastLightboxTrigger = null;
+      var closeLightbox = function () {
+        if (!lightbox) return;
+        lightbox.hidden = true;
+        lightbox.setAttribute('aria-hidden', 'true');
+        document.body.classList.remove('lightbox-open');
+        if (lastLightboxTrigger && typeof lastLightboxTrigger.focus === 'function') {
+          lastLightboxTrigger.focus();
+        }
+        lastLightboxTrigger = null;
+      };
+      var openLightbox = function (src, caption) {
+        if (!lightbox || !lightboxImg) return;
+        lightboxImg.src = src;
+        if (lightboxCaption) lightboxCaption.textContent = caption || '';
+        lightbox.hidden = false;
+        lightbox.setAttribute('aria-hidden', 'false');
+        document.body.classList.add('lightbox-open');
+        if (lightboxClose) lightboxClose.focus();
+      };
+      document.addEventListener('click', function (e) {
+        var btn = e.target.closest('.thumb-btn');
+        if (!btn) return;
+        e.preventDefault();
+        lastLightboxTrigger = btn;
+        openLightbox(btn.getAttribute('data-photo-src') || '', btn.title || '');
+      });
+      if (lightboxClose) lightboxClose.addEventListener('click', closeLightbox);
+      if (lightboxBackdrop) lightboxBackdrop.addEventListener('click', closeLightbox);
+      document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape' && lightbox && !lightbox.hidden) closeLightbox();
+      });
+
       var printButton = document.getElementById('print-button');
       if (printButton) {
         printButton.addEventListener('click', function () {
@@ -642,6 +744,225 @@ if (!$isPartial):
           });
         }
 
+        /* ── Square status polling ────────────────────────── */
+        var squareCard = document.getElementById('square-status-card');
+        var squareValue = document.getElementById('square-status-value');
+        var squareSub = document.getElementById('square-status-sub');
+        var squareIndicator = document.getElementById('square-sync-indicator');
+        var squareLastSync = document.getElementById('square-last-sync');
+        var squareDetails = document.getElementById('square-status-details');
+        var squareQueueCount = document.getElementById('square-queue-count');
+        var squareWebhookCount = document.getElementById('square-webhook-count');
+        var squareSoldCount = document.getElementById('square-sold-count');
+        var squareError = document.getElementById('square-status-error');
+        var squareQueueBtn = document.getElementById('square-queue-btn');
+
+        var updateSquareStatus = function () {
+          fetch('square_status.php', { cache: 'no-store' })
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+              if (!data.ok) return;
+              var d = data.data || data;
+                if (d.connected) {
+                    squareIndicator.textContent = 'Connected';
+                    squareIndicator.setAttribute('data-status', 'connected');
+                    squareValue.textContent = 'Live';
+                    if (d.last_sync_at) {
+                        squareLastSync.textContent = 'Last sync: ' + d.last_sync_at;
+                    } else {
+                        squareLastSync.textContent = 'Not yet synced';
+                    }
+                    var queueTotal = (d.queue_waiting || 0) + (d.queue_dead_letter || 0);
+                    var detailsParts = [];
+                    if (queueTotal > 0) detailsParts.push('Queue: ' + queueTotal + ' waiting');
+                    detailsParts.push('Webhooks today: ' + (d.webhooks_today || 0));
+                    if (d.sold_today > 0) detailsParts.push('Sold today: ' + d.sold_today);
+                    if (d.recent_sale && d.recent_sale.sku) {
+                        detailsParts.push('Last sale: ' + d.recent_sale.sku + ' $' + (d.recent_sale.price || 0).toFixed(2));
+                    }
+                    if (detailsParts.length) {
+                        squareDetails.style.display = '';
+                        squareQueueCount.textContent = detailsParts[0] || '';
+                        squareWebhookCount.textContent = detailsParts[1] || '';
+                        squareSoldCount.textContent = detailsParts[2] || '';
+                    } else {
+                        squareDetails.style.display = 'none';
+                    }
+                if (d.queue_dead_letter > 0 || d.last_error) {
+                  squareError.style.display = '';
+                  squareError.textContent = '⚠ ' + (d.last_error || d.queue_dead_letter + ' dead letter(s)');
+                } else {
+                  squareError.style.display = 'none';
+                }
+                if (queueTotal > 0 && squareQueueBtn) {
+                  squareQueueBtn.style.display = '';
+                } else if (squareQueueBtn) {
+                  squareQueueBtn.style.display = 'none';
+                }
+              } else {
+                squareIndicator.textContent = 'Not configured';
+                squareIndicator.setAttribute('data-status', '');
+                squareValue.textContent = 'Off';
+                squareLastSync.textContent = 'Set SQUARE_ACCESS_TOKEN in .env';
+              }
+            })
+            .catch(function () {
+              squareIndicator.textContent = 'Offline';
+              squareIndicator.setAttribute('data-status', '');
+            });
+        };
+        if (squareCard) {
+          updateSquareStatus();
+          setInterval(updateSquareStatus, 30000);
+        }
+
+        if (squareQueueBtn) {
+          squareQueueBtn.addEventListener('click', function () {
+            appNavigate('square_queue.php', true);
+          });
+        }
+
+        /* ── Reconciliation status polling ──────────────────── */
+        var reconCard = document.getElementById('recon-status-card');
+        var reconValue = document.getElementById('recon-status-value');
+        var reconIndicator = document.getElementById('recon-indicator');
+        var reconLastRun = document.getElementById('recon-last-run');
+        var reconDetails = document.getElementById('recon-status-details');
+        var reconAlerts = document.getElementById('recon-alerts');
+        var reconAlertCount = document.getElementById('recon-alert-count');
+        var reconAlertText = document.getElementById('recon-alert-text');
+        var reconRecentIssues = document.getElementById('recon-recent-issues');
+        var reconRunBtn = document.getElementById('recon-run-btn');
+        var reconViewIssuesBtn = document.getElementById('recon-view-issues-btn');
+
+        var updateReconStatus = function () {
+          fetch('reconciliation_status.php', { cache: 'no-store' })
+            .then(function (r) { return r.json(); })
+            .then(function (resp) {
+              if (!resp.ok || !resp.data) return;
+              var d = resp.data;
+              var s = d.status || {};
+              var issues = d.issues || [];
+              var alerts = d.alerts || [];
+              var report = d.latest_report || null;
+
+              if (s.is_running) {
+                reconIndicator.textContent = 'Running';
+                reconIndicator.setAttribute('data-status', 'recon-running');
+                reconValue.textContent = 'Running…';
+                if (reconRunBtn) reconRunBtn.disabled = true;
+                return;
+              }
+              if (reconRunBtn) reconRunBtn.disabled = false;
+
+              if (s.last_run) {
+                var lr = s.last_run;
+                var completed = lr.status === 'completed';
+                var failed = lr.status === 'failed';
+                var cls = failed ? 'recon-failed' : (completed ? (lr.issues_detected > 0 ? 'recon-issues' : 'recon-ok') : '');
+                reconIndicator.textContent = failed ? 'Failed' : (completed ? (lr.issues_detected > 0 ? 'Issues found' : 'Healthy') : 'Unknown');
+                reconIndicator.setAttribute('data-status', cls);
+
+                var runtimeStr = lr.runtime_seconds ? ' (' + lr.runtime_seconds.toFixed(1) + 's)' : '';
+                reconLastRun.textContent = 'Last run: ' + (lr.completed_at || lr.started_at || '') + runtimeStr;
+
+                var det = lr.issues_detected || 0;
+                var rep = lr.issues_repaired || 0;
+                var man = s.pending_issues || 0;
+                var detailsParts = [];
+                if (det > 0) detailsParts.push(det + ' issue' + (det !== 1 ? 's' : '') + ' detected');
+                if (rep > 0) detailsParts.push(rep + ' repaired');
+                if (man > 0) detailsParts.push(man + ' pending');
+                if (detailsParts.length) {
+                  reconDetails.style.display = '';
+                  reconDetails.textContent = detailsParts.join(' · ');
+                } else {
+                  reconDetails.style.display = 'none';
+                }
+
+                reconValue.textContent = det > 0 ? det + ' issues' : 'Healthy';
+              } else {
+                reconIndicator.textContent = 'Never run';
+                reconValue.textContent = '—';
+                reconLastRun.textContent = 'Run reconciliation to check inventory health.';
+              }
+
+              if (s.alerts_critical > 0) {
+                reconAlerts.style.display = '';
+                reconAlertCount.textContent = s.alerts_critical + ' critical';
+                reconAlertText.textContent = 'alert' + (s.alerts_critical !== 1 ? 's' : '') + ' require attention';
+              } else if (s.alerts_total > 0) {
+                reconAlerts.style.display = '';
+                reconAlertCount.textContent = s.alerts_total;
+                reconAlertText.textContent = 'alert' + (s.alerts_total !== 1 ? 's' : '');
+              } else {
+                reconAlerts.style.display = 'none';
+              }
+
+              if (issues.length > 0) {
+                var issueList = issues.slice(0, 3);
+                var html = '';
+                issueList.forEach(function (iss) {
+                  var sev = (iss.severity || 'info').charAt(0).toUpperCase() + (iss.severity || 'info').slice(0, 1);
+                  html += '<div class="hint" style="color:' + (iss.severity === 'critical' ? '#EF4444' : iss.severity === 'warning' ? '#F59E0B' : '') + '">' + sev + ': ' + (iss.sku_normalized || '') + ' — ' + (iss.description || '').substring(0, 80) + '</div>';
+                });
+                if (issues.length > 3) html += '<div class="hint">…and ' + (issues.length - 3) + ' more</div>';
+                reconRecentIssues.style.display = '';
+                reconRecentIssues.innerHTML = html;
+                if (reconViewIssuesBtn) reconViewIssuesBtn.style.display = '';
+              } else {
+                reconRecentIssues.style.display = 'none';
+                if (reconViewIssuesBtn) reconViewIssuesBtn.style.display = 'none';
+              }
+            })
+            .catch(function () {
+              reconIndicator.textContent = 'Offline';
+            });
+        };
+        if (reconCard) {
+          updateReconStatus();
+          setInterval(updateReconStatus, 30000);
+        }
+
+        if (reconRunBtn) {
+          reconRunBtn.addEventListener('click', function () {
+            reconRunBtn.disabled = true;
+            reconRunBtn.textContent = 'Running...';
+            reconIndicator.textContent = 'Running';
+            reconIndicator.setAttribute('data-status', 'recon-running');
+            reconValue.textContent = 'Running…';
+            fetch('reconcile_now.php', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+              body: 'csrf_token=' + encodeURIComponent(window.CSRF_TOKEN) + '&dry_run=0&fetch_catalog=1'
+            })
+              .then(function (r) { return r.json(); })
+              .then(function (data) {
+                reconRunBtn.disabled = false;
+                reconRunBtn.textContent = 'Run reconciliation';
+                if (data.ok) {
+                  updateReconStatus();
+                  var msg = 'Reconciliation: ' + (data.data ? data.data.message : data.message || 'completed');
+                  showToast(msg, true);
+                } else {
+                  showToast('Reconciliation failed: ' + (data.error || 'error'), false);
+                }
+              })
+              .catch(function () {
+                reconRunBtn.disabled = false;
+                reconRunBtn.textContent = 'Run reconciliation';
+                showToast('Reconciliation request failed.', false);
+              });
+          });
+        }
+
+        if (reconViewIssuesBtn) {
+          reconViewIssuesBtn.addEventListener('click', function () {
+            // Navigate to reconciliation issues page when available
+            updateReconStatus();
+          });
+        }
+
         var verifyButtons = Array.prototype.slice.call(document.querySelectorAll('[data-verify-backup]'));
         if (verifyButtons.length) {
           var setVerifyState = function (running) {
@@ -702,6 +1023,9 @@ if (!$isPartial):
         var previewBody = document.getElementById('lookup-preview-body');
         var previewMessage = document.getElementById('lookup-preview-message');
         var statusSelect = lookupForm.querySelector('[name="status"]');
+        var minPriceInput = lookupForm.querySelector('[name="min_price"]');
+        var maxPriceInput = lookupForm.querySelector('[name="max_price"]');
+        var sortSelect = lookupForm.querySelector('[name="sort"]');
         var refreshBtn = document.getElementById('lookup-preview-refresh');
         var clearBtn = document.getElementById('lookup-clear-filters');
         var chipRow = document.getElementById('lookup-chips');
@@ -726,6 +1050,7 @@ if (!$isPartial):
             button.classList.toggle('is-active', (button.getAttribute('data-lookup-status') || '') === currentStatus);
           });
         };
+        var totalValueBadge = document.getElementById('total-value-badge');
         var updateInventoryBadge = function (count) {
           if (!inventoryBadge) return;
           var total = inventoryRows.length;
@@ -733,6 +1058,17 @@ if (!$isPartial):
           if (total && count !== total) {
             inventoryBadge.textContent += ' of ' + total;
           }
+        };
+        var updateTotalValue = function () {
+          if (!totalValueBadge) return;
+          var sum = 0;
+          inventoryRows.forEach(function (row) {
+            if (!row.hidden) {
+              var p = parseFloat(row.getAttribute('data-price') || '0') || 0;
+              sum += p;
+            }
+          });
+          totalValueBadge.textContent = 'Total: $' + sum.toFixed(2);
         };
 
         // --- Pagination state ---
@@ -793,6 +1129,7 @@ if (!$isPartial):
           if (pageInfo) pageInfo.textContent = 'Page ' + currentPage + ' of ' + (totalPages || 1);
           renderPageButtons(totalPages);
           updateInventoryBadge(currentFilteredRows.length);
+          updateTotalValue();
         };
 
         if (prevBtn) prevBtn.addEventListener('click', function () { goToPage(currentPage - 1); });
@@ -805,6 +1142,8 @@ if (!$isPartial):
           currentFilteredRows = [];
           var skuValue = normalizeValue(skuInput && skuInput.value);
           var statusValue = normalizeValue(statusSelect && statusSelect.value);
+          var minPrice = parseFloat(minPriceInput ? minPriceInput.value : '') || 0;
+          var maxPrice = parseFloat(maxPriceInput ? maxPriceInput.value : '') || 0;
           var cutoff = filterState.staleDays > 0 ? (Date.now() - (filterState.staleDays * 86400000)) : 0;
           var matchCount = 0;
           inventoryRows.forEach(function (row) {
@@ -824,6 +1163,11 @@ if (!$isPartial):
             }
             if (matches && cutoff) {
               matches = !isNaN(rowUpdated) && rowUpdated < cutoff;
+            }
+            if (matches && (minPrice > 0 || maxPrice > 0)) {
+              var rowPrice = parseFloat(row.getAttribute('data-price') || '0') || 0;
+              if (minPrice > 0 && rowPrice < minPrice) matches = false;
+              if (maxPrice > 0 && rowPrice > maxPrice) matches = false;
             }
             if (matches && gapState.noPhotos) {
               matches = rowPhotoCount === 0;
@@ -855,6 +1199,7 @@ if (!$isPartial):
             currentPage = 1;
             goToPage(1);
           }
+          updateTotalValue();
         };
 
         var saveFilter = function () {
@@ -862,6 +1207,9 @@ if (!$isPartial):
             localStorage.setItem(filterKey, JSON.stringify({
               sku: (skuInput && skuInput.value) || '',
               status: (statusSelect && statusSelect.value) || '',
+              minPrice: (minPriceInput && minPriceInput.value) || '',
+              maxPrice: (maxPriceInput && maxPriceInput.value) || '',
+              sort: (sortSelect && sortSelect.value) || 'updated_at',
               staleDays: filterState.staleDays || 0,
             }));
           } catch (e) {}
@@ -873,6 +1221,9 @@ if (!$isPartial):
             var data = JSON.parse(saved);
             if (skuInput && typeof data.sku === 'string') skuInput.value = data.sku;
             if (statusSelect && typeof data.status === 'string') statusSelect.value = data.status;
+            if (minPriceInput && typeof data.minPrice === 'string') minPriceInput.value = data.minPrice;
+            if (maxPriceInput && typeof data.maxPrice === 'string') maxPriceInput.value = data.maxPrice;
+            if (sortSelect && typeof data.sort === 'string') sortSelect.value = data.sort;
             if (chipRow && data.staleDays) {
               filterState.staleDays = data.staleDays;
               var btn = chipRow.querySelector('[data-lookup-stale="' + data.staleDays + '"]');
@@ -1003,14 +1354,21 @@ if (!$isPartial):
         var thumbImg = function (entry) {
           var src = entry.photo_url || (entry.photo_id ? ('photo.php?id=' + entry.photo_id) : null);
           if (!src) return null;
+          var btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'thumb-btn';
+          btn.setAttribute('data-photo-src', src);
+          btn.title = 'View photo for ' + (entry.sku || 'SKU');
+          btn.setAttribute('aria-label', btn.title);
           var img = document.createElement('img');
           img.src = src;
           img.alt = 'thumb';
           img.className = 'preview-thumb';
-          var wrap = document.createElement('div');
+          var wrap = document.createElement('span');
           wrap.className = 'thumb-wrap';
           wrap.appendChild(img);
-          return wrap;
+          btn.appendChild(wrap);
+          return btn;
         };
         var relativeTime = function (dateString) {
           var t = Date.parse((dateString || '').replace(' ', 'T'));
@@ -1053,7 +1411,13 @@ if (!$isPartial):
           }
           filtered.forEach(function (entry) {
             var row = document.createElement('tr');
-            var skuTd = createCell(entry.sku);
+            var skuTd = document.createElement('td');
+            var skuLink = document.createElement('a');
+            skuLink.className = 'sku-link';
+            skuLink.href = 'intake.php?sku=' + encodeURIComponent(entry.sku || '');
+            skuLink.title = 'Open ' + (entry.sku || 'SKU') + ' in intake';
+            skuLink.textContent = entry.sku || 'Unknown';
+            skuTd.appendChild(skuLink);
             var thumb = thumbImg(entry);
             if (thumb) {
               skuTd.appendChild(thumb);
@@ -1173,6 +1537,15 @@ if (!$isPartial):
           if (statusValue !== '') {
             params.set('status', statusValue);
           }
+          if (minPriceInput && minPriceInput.value) {
+            params.set('min_price', minPriceInput.value);
+          }
+          if (maxPriceInput && maxPriceInput.value) {
+            params.set('max_price', maxPriceInput.value);
+          }
+          if (sortSelect && sortSelect.value) {
+            params.set('sort', sortSelect.value);
+          }
           params.set('limit', previewLimit);
           params.set('with_photos', '1');
           if (!params.toString()) {
@@ -1231,6 +1604,9 @@ if (!$isPartial):
           clearBtn.addEventListener('click', function () {
             if (skuInput) skuInput.value = '';
             if (statusSelect) statusSelect.value = '';
+            if (minPriceInput) minPriceInput.value = '';
+            if (maxPriceInput) maxPriceInput.value = '';
+            if (sortSelect) sortSelect.value = 'updated_at';
             filterState.staleDays = 0;
             gapState.noPhotos = false;
             gapState.missingPrice = false;
@@ -1314,6 +1690,23 @@ if (!$isPartial):
             applyInventoryFilters();
           });
         }
+        if (minPriceInput) {
+          minPriceInput.addEventListener('input', function () {
+            schedulePreview();
+            applyInventoryFilters();
+          });
+        }
+        if (maxPriceInput) {
+          maxPriceInput.addEventListener('input', function () {
+            schedulePreview();
+            applyInventoryFilters();
+          });
+        }
+        if (sortSelect) {
+          sortSelect.addEventListener('change', function () {
+            schedulePreview();
+          });
+        }
         if (loadMoreBtn) {
           loadMoreBtn.addEventListener('click', function () {
             previewLimit = Math.min(previewLimit + 20, 200);
@@ -1374,6 +1767,9 @@ if (!$isPartial):
             var statusVal = (statusSelect && statusSelect.value.trim()) || '';
             if (skuVal) params.set('sku', skuVal);
             if (statusVal) params.set('status', statusVal);
+            if (minPriceInput && minPriceInput.value) params.set('min_price', minPriceInput.value);
+            if (maxPriceInput && maxPriceInput.value) params.set('max_price', maxPriceInput.value);
+            if (sortSelect && sortSelect.value !== 'updated_at') params.set('sort', sortSelect.value);
             if (filterState.staleDays) params.set('stale', String(filterState.staleDays));
             if (gapState.noPhotos) params.set('gap', 'no-photos');
             if (gapState.missingPrice) params.set('gap', 'no-price');

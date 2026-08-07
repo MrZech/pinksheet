@@ -67,7 +67,7 @@ final class FormValidationTest extends TestCase
         if ($val === null || $val === '') {
             return null;
         }
-        if (!in_array((string) $val, ['0', '1'], true)) {
+        if (is_bool($val) || !in_array((string) $val, ['0', '1'], true)) {
             return "{$label} must be 0 or 1.";
         }
         return null;

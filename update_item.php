@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/square_sync.php';
+require_once __DIR__ . '/square_sync_queue.php';
 checkMaintenance(true);
 ensureStorageWritable();
 
@@ -38,6 +39,7 @@ $allowedFields = [
     'ready' => true,
     'dispotech_price' => true,
     'ebay_price' => true,
+    'quantity' => true,
 ];
 if (!isset($allowedFields[$field])) {
     updateError('Field not allowed');
@@ -75,6 +77,10 @@ try {
         $ready = $value === '1' || $value === 1 || $value === true ? 1 : 0;
         $stmt = $pdo->prepare('UPDATE intake_items SET ready = :val, updated_at = datetime("now") WHERE ' . $skuWhere);
         $stmt->execute([':val' => $ready, ':sku' => $sku]);
+    } elseif ($field === 'quantity') {
+        $qty = max(1, (int)$value);
+        $stmt = $pdo->prepare('UPDATE intake_items SET quantity = :val, updated_at = datetime("now") WHERE ' . $skuWhere);
+        $stmt->execute([':val' => $qty, ':sku' => $sku]);
     } else {
         $price = is_numeric($value) ? (float)$value : null;
         // Unify pricing: treat any price update as the single canonical price.
@@ -107,12 +113,7 @@ try {
         fastcgi_finish_request();
     }
 
-    $squareSync = squareSyncItemBySku($pdo, $sku);
-    $syncStatus = $squareSync['status'] ?? 'skipped';
-
-    if ($syncStatus === 'error') {
-        squareSyncLog('Background sync error for ' . $sku . ': ' . ($squareSync['message'] ?? 'unknown'));
-    }
+    squareQueueEnqueue($pdo, $sku, 'catalog_upsert', 10);
 
     exit;
 } catch (Throwable $e) {

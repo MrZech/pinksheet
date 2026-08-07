@@ -18,7 +18,7 @@ This page covers backups, verification, scheduling, health checks, and restore-a
 The main backup script is `scripts/backup.ps1`.
 
 - Default retention is `0`, which means keep everything.
-- The script copies `data/intake.sqlite` into `data/backups/`.
+- The script snapshots `data/intake.sqlite` with SQLite `VACUUM INTO` (via `scripts/backup_snapshot.php`), which is online-safe: it includes uncheckpointed WAL data and does not block readers or writers. Plain `Copy-Item` of a live WAL database is never used.
 - A SHA256 checksum file is written next to the backup.
 - `logs/lookup.csv` is rotated into `logs/archive/`.
 - By default, OneDrive is used as an off-box mirror when it exists.

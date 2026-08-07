@@ -95,10 +95,10 @@ final class UpdateItemHandlerTest extends TestCase
 
     public function test_update_updated_at_timestamp_changes(): void
     {
+        // Set a known timestamp so we can detect the change
+        $this->pdo->prepare("UPDATE intake_items SET updated_at = '2000-01-01 00:00:00' WHERE id = ?")->execute([$this->itemId]);
         $before = $this->pdo->query("SELECT updated_at FROM intake_items WHERE id = {$this->itemId}")->fetchColumn();
 
-        // Simulate a real PHP request delay
-        usleep(1_000);
         $this->simulateUpdate('status', 'SOLD');
 
         $after = $this->pdo->query("SELECT updated_at FROM intake_items WHERE id = {$this->itemId}")->fetchColumn();

@@ -140,6 +140,7 @@ Create a `.env` file in the repo root with at minimum:
 ```
 SQUARE_ACCESS_TOKEN=your_token_here
 SQUARE_LOCATION_ID=your_location_id_here
+SQUARE_API_VERSION=2026-07-15
 ```
 
 Optional settings:
@@ -147,10 +148,16 @@ Optional settings:
 | Variable | Default | Notes |
 |---|---|---|
 | `SQUARE_ENVIRONMENT` | `sandbox` | Set to `production` for live Square |
-| `SQUARE_API_VERSION` | `2026-01-22` | Square API version header |
+| `SQUARE_API_VERSION` | `2026-07-15` | Square API version header |
 | `SQUARE_CURRENCY` | `USD` | Price currency |
 | `SQUARE_DEFAULT_QUANTITY` | `1` | Inventory count for non-SOLD items |
 | `SQUARE_SYNC_ENABLED` | `1` | Set to `0` to disable without removing credentials |
+| `SQUARE_API_MAX_RETRIES` | `3` | Retries transient Square HTTP 429/5xx responses and transport failures |
+| `SQUARE_API_TIMEOUT_SECONDS` | `20` | Per-request Square HTTP timeout |
+| `SQUARE_API_CONNECT_TIMEOUT_SECONDS` | `5` | Square connection timeout |
+| `SQUARE_WEBHOOK_SIGNATURE_KEY` | none | Required for Square webhook verification |
+| `SQUARE_WEBHOOK_NOTIFICATION_URL` | request URL | Exact HTTPS webhook URL configured in Square; set this behind proxies/CDNs |
+| `SQUARE_WEBHOOK_MAX_AGE_SECONDS` | `259200` | Replay protection window for signed webhook events |
 
 ### What Gets Synced
 
@@ -177,7 +184,8 @@ Optional settings:
 
 - Sync results are stored in `square_catalog_sync` including the last error
 - Errors are appended to `logs/square_sync.log`
-- `square_debug.php` (local-only) shows config, PHP extension status, and can run a test sync for one SKU
+- Square API calls retry transient failures with bounded exponential backoff and log structured operation metadata to `logs/square_sync.log`
+- `square_debug.php` is currently quarantined under `_quarantine/`; restore it intentionally before using it as an operator endpoint
 
 ## Archive
 

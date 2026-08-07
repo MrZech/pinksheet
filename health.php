@@ -146,7 +146,6 @@ try {
     $pngOk = @imagepng($img, $tmpFile);
     $pixelColor = @imagecolorallocate($img, 255, 0, 0);
     @imagesetpixel($img, 0, 0, $pixelColor !== false ? $pixelColor : 0);
-    @imagedestroy($img);
     if (!$pngOk || !is_file($tmpFile)) {
         throw new RuntimeException('Failed to write temp PNG');
     }
@@ -190,7 +189,6 @@ try {
     if (!$gdCheck) {
         throw new RuntimeException('GD rejected the image (polyglot defence)');
     }
-    imagedestroy($gdCheck);
     unset($raw);
 
     /* Write file to SKU directory using copy (move_uploaded_file only

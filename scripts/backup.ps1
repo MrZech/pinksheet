@@ -24,16 +24,19 @@ New-Item -ItemType Directory -Force -Path $logArchiveDir | Out-Null
 $timestamp = Get-Date -Format 'yyyyMMdd-HHmmss'
 
 if (Test-Path $dbPath) {
-    $backupName = "intake-$timestamp.sqlite"
-    $dest = Join-Path $backupDir $backupName
-    Copy-Item -Path $dbPath -Destination $dest -Force
-    Write-Host "SQLite backup created: $dest"
-    try {
-        $hash = Get-FileHash -Path $dest -Algorithm SHA256
-        $hash | Select-Object -ExpandProperty Hash | Out-File -FilePath ($dest + '.sha256') -Encoding ascii -NoNewline
-        Write-Host "SHA256 written: $($dest + '.sha256')"
-    } catch {
-        Write-Warning "Could not write checksum: $_"
+    # Online-safe snapshot via PHP VACUUM INTO (includes WAL data, unlike Copy-Item).
+    $phpExe = (Get-Command php -ErrorAction SilentlyContinue).Source
+    if ($phpExe) {
+        $snapshotScript = Join-Path $repoRoot 'scripts\backup_snapshot.php'
+        & $phpExe $snapshotScript "--out=$backupDir"
+        if ($LASTEXITCODE -ne 0) {
+            Write-Warning "PHP snapshot backup failed (exit $LASTEXITCODE)"
+        }
+    } else {
+        Write-Warning "php not found on PATH; falling back to direct copy (not WAL-safe). Install PHP or add it to PATH."
+        $dest = Join-Path $backupDir "intake-$timestamp.sqlite"
+        Copy-Item -Path $dbPath -Destination $dest -Force
+        Write-Host "SQLite backup created: $dest"
     }
 }
 else {
