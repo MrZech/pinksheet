@@ -7,7 +7,7 @@ This page covers the automated smoke test and the manual checks worth running af
 The smoke test expects a local server on `127.0.0.1:8765`.
 
 ```bash
-php -S 127.0.0.1:8765 -t .
+php -S 127.0.0.1:8765 -t public public/router.php -d upload_max_filesize=32M -d post_max_size=128M -d max_file_uploads=100
 php scripts/smoke.php
 ```
 
@@ -72,7 +72,10 @@ If you are debugging a feature directly, these are the most useful endpoints to 
 | `verify_now.php` | Confirm backup verification |
 | `health.php` | Confirm limits and backup metadata |
 | `sync_square_now.php` | Confirm full Square sync pass (local-only POST) |
-| `square_debug.php` | Confirm Square config, extensions, and optional per-SKU sync test |
+| `square_status.php` | Confirm Square status, queue counts, webhook counts, and last error |
+| `scripts/process_sync_queue.php` | Confirm queued Square work retries and audits correctly |
+| `webhooks/square.php` | Confirm signed Square webhook delivery, replay window, duplicate handling, and sale ingestion |
+| `_quarantine/square_debug.php` | Quarantined diagnostic reference, not a live endpoint |
 
 ## Useful Expectations
 

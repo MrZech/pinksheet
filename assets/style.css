@@ -179,6 +179,7 @@
   --z-modal: 500;
   --z-toast: 600;
   --z-backup-indicator: 700;
+  --z-lightbox: 1000;
   --surface-panel: #ffffff;
   --surface-panel-muted: #f5f8fc;
   --border-panel: rgba(148, 163, 184, 0.26);
@@ -704,6 +705,17 @@ body.dark-mode .form-grid {
   border-color: rgba(54, 173, 163, 0.22);
 }
 
+.qty-badge {
+  display: inline-block;
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 0 5px;
+  border-radius: 3px;
+  background: var(--surface-elevated);
+  color: var(--text-secondary);
+  border: 1px solid var(--line);
+}
+
 .badge.warning {
   background: var(--warning-bg);
   color: var(--warning-text);
@@ -981,6 +993,21 @@ label select + input[hidden] {
 
 label select {
   min-width: 180px;
+}
+
+/* Read-only status display (status is auto-set to Intake for new items) */
+.sheet-header .status .status-readonly {
+  display: inline-flex;
+  align-items: center;
+  min-width: 180px;
+  min-height: 38px;
+  padding: 6px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--border-color, rgba(128, 128, 128, 0.4));
+  background: var(--surface-elevated, transparent);
+  color: var(--text-secondary, inherit);
+  font-size: 0.92rem;
+  white-space: nowrap;
 }
 
 .breadcrumbs {
@@ -1530,6 +1557,105 @@ body.dark-mode .lookup-table tr:hover {
   border: 1px solid var(--line);
 }
 
+/* Clickable SKU in lookup results */
+.sku-link {
+  color: var(--btn-cta-bg, #4f6ef7);
+  font-weight: 600;
+  text-decoration: none;
+}
+.sku-link:hover {
+  text-decoration: underline;
+}
+
+/* Thumbnail as a button that opens the photo lightbox */
+.thumb-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  vertical-align: middle;
+  cursor: zoom-in;
+  border-radius: 6px;
+  line-height: 0;
+}
+.thumb-btn:focus-visible {
+  outline: 2px solid var(--btn-cta-bg, #4f6ef7);
+  outline-offset: 2px;
+}
+.thumb-btn .thumb,
+.thumb-btn .thumb-wrap {
+  margin-left: 0;
+}
+
+/* Photo lightbox overlay */
+.photo-lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-lightbox);
+  display: none;
+  place-items: center;
+  padding: 24px;
+}
+.photo-lightbox:not([hidden]) {
+  display: grid;
+}
+.photo-lightbox-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(5, 8, 20, 0.88);
+  cursor: zoom-out;
+}
+.photo-lightbox-figure {
+  position: relative;
+  max-width: 92vw;
+  max-height: 92vh;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  animation: lightboxPop 0.18s ease-out;
+}
+@keyframes lightboxPop {
+  from { transform: scale(0.96); opacity: 0; }
+  to   { transform: scale(1); opacity: 1; }
+}
+.photo-lightbox-figure img {
+  max-width: 92vw;
+  max-height: 84vh;
+  object-fit: contain;
+  border-radius: 8px;
+  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.6);
+  background: #fff;
+}
+.photo-lightbox-caption {
+  color: #e2e8f0;
+  font-size: 0.85rem;
+  max-width: 92vw;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+.photo-lightbox-close {
+  position: absolute;
+  top: -14px;
+  right: -14px;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: none;
+  background: #fff;
+  color: #111;
+  font-size: 1rem;
+  cursor: pointer;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.4);
+}
+.photo-lightbox-close:hover {
+  background: #f1f5f9;
+}
+body.lightbox-open {
+  overflow: hidden;
+}
+
 .lookup-actions {
   display: flex;
   gap: 10px;
@@ -1980,6 +2106,14 @@ body.dark-mode .intake-undo-toast button {
   display: grid;
   gap: 16px;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.price-sort-row .sort-label {
+  min-width: 140px;
+}
+
+#total-value-badge {
+  font-variant-numeric: tabular-nums;
 }
 
 label {
@@ -3662,6 +3796,15 @@ body.kanban-dragging .kanban-lane {
   flex-wrap: wrap;
 }
 
+.kanban-card .card-qty {
+  font-weight: 600;
+  color: var(--text-primary);
+  background: var(--surface-elevated);
+  padding: 0 5px;
+  border-radius: 3px;
+  font-size: 0.68rem;
+}
+
 .kanban-card .status-badge-container {
   margin-top: 12px;
   cursor: pointer;
@@ -4938,6 +5081,396 @@ body.dark-mode .button-link:hover {
   .ebay-composer-grid {
     grid-template-columns: 1fr !important;
   }
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   COMMAND PALETTE (CTRL+K)
+   ══════════════════════════════════════════════════════════════════ */
+
+.cp-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal-backdrop, 400);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: clamp(60px, 12vh, 120px);
+  background: rgba(15, 23, 42, 0.55);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 180ms ease, visibility 180ms ease;
+}
+
+.cp-overlay.is-open {
+  opacity: 1;
+  visibility: visible;
+}
+
+.cp-panel {
+  width: min(680px, calc(100% - 32px));
+  max-height: min(560px, calc(100vh - 160px));
+  display: flex;
+  flex-direction: column;
+  background: var(--color-surface, #ffffff);
+  border: 1px solid var(--color-border, #d5dce6);
+  border-radius: 14px;
+  box-shadow: 0 30px 70px rgba(15, 23, 42, 0.2);
+  overflow: hidden;
+  transform: translateY(-8px) scale(0.98);
+  transition: transform 180ms ease, opacity 120ms ease;
+  opacity: 0;
+}
+
+.cp-overlay.is-open .cp-panel {
+  transform: translateY(0) scale(1);
+  opacity: 1;
+}
+
+/* ── Header / Search Input ─────────────────────────────────────── */
+
+.cp-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--color-border, #d5dce6);
+  flex-shrink: 0;
+}
+
+.cp-search-icon {
+  display: flex;
+  align-items: center;
+  color: var(--color-text-muted, #475569);
+  flex-shrink: 0;
+}
+
+.cp-input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  outline: none;
+  font-size: 1rem;
+  font-family: inherit;
+  background: transparent;
+  color: var(--color-text, #0f172a);
+  line-height: 1.5;
+}
+
+.cp-input::placeholder {
+  color: var(--color-text-subtle, #64748b);
+  opacity: 0.7;
+}
+
+.cp-shortcut-hint {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  height: 22px;
+  padding: 0 6px;
+  font-size: 0.72rem;
+  font-family: inherit;
+  color: var(--color-text-muted, #475569);
+  background: var(--color-bg-alt, #e4eaf2);
+  border-radius: 5px;
+  border: 1px solid var(--color-border, #d5dce6);
+}
+
+/* ── Results Container ──────────────────────────────────────────── */
+
+.cp-results {
+  flex: 1;
+  overflow-y: auto;
+  padding: 6px 0;
+  overscroll-behavior: contain;
+}
+
+.cp-results::-webkit-scrollbar {
+  width: 6px;
+}
+
+.cp-results::-webkit-scrollbar-thumb {
+  background: var(--color-border, #d5dce6);
+  border-radius: 3px;
+}
+
+.cp-section-label {
+  padding: 8px 16px 4px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-text-subtle, #64748b);
+}
+
+/* ── Loading / Spinner ──────────────────────────────────────────── */
+
+.cp-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px;
+}
+
+.cp-spinner {
+  width: 20px;
+  height: 20px;
+  border: 2.5px solid var(--color-border, #d5dce6);
+  border-top-color: var(--color-accent, #36ada3);
+  border-radius: 50%;
+  animation: cpSpin 0.6s linear infinite;
+}
+
+@keyframes cpSpin {
+  to { transform: rotate(360deg); }
+}
+
+.cp-error {
+  padding: 24px 16px;
+  text-align: center;
+  color: var(--color-text-muted, #475569);
+  font-size: 0.88rem;
+}
+
+/* ── Empty State ────────────────────────────────────────────────── */
+
+.cp-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 16px 36px;
+  text-align: center;
+}
+
+.cp-empty-icon {
+  color: var(--color-text-subtle, #64748b);
+  opacity: 0.4;
+  margin-bottom: 12px;
+}
+
+.cp-empty-text {
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: var(--color-text, #0f172a);
+  margin-bottom: 4px;
+}
+
+.cp-empty-hint {
+  font-size: 0.82rem;
+  color: var(--color-text-subtle, #64748b);
+}
+
+/* ── Result Card ────────────────────────────────────────────────── */
+
+.cp-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  cursor: pointer;
+  border-left: 3px solid transparent;
+  transition: background 120ms ease, border-color 120ms ease;
+}
+
+.cp-card.is-selected {
+  background: var(--color-accent-soft, rgba(54, 173, 163, 0.1));
+  border-left-color: var(--color-accent, #36ada3);
+}
+
+.cp-card:hover {
+  background: var(--color-accent-soft, rgba(54, 173, 163, 0.07));
+}
+
+.cp-card-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background: var(--color-bg-alt, #e4eaf2);
+  color: var(--color-text-muted, #475569);
+}
+
+.cp-card-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.cp-card-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.cp-card-sku {
+  font-weight: 600;
+  font-size: 0.88rem;
+  color: var(--color-text, #0f172a);
+  white-space: nowrap;
+}
+
+.cp-card-model {
+  font-size: 0.82rem;
+  color: var(--color-text-muted, #475569);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cp-card-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  font-size: 0.76rem;
+  color: var(--color-text-subtle, #64748b);
+}
+
+.cp-card-serial {
+  font-variant-numeric: tabular-nums;
+}
+
+.cp-card-specs {
+  opacity: 0.8;
+}
+
+.cp-card-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 3px;
+  flex-shrink: 0;
+  text-align: right;
+}
+
+.cp-status-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  font-size: 0.7rem;
+  font-weight: 500;
+  border-radius: 4px;
+  white-space: nowrap;
+  line-height: 1.4;
+}
+
+.cp-status-intake { background: #e4eaf2; color: #2f578a; }
+.cp-status-ebay-draft { background: #fef3c7; color: #92400e; }
+.cp-status-ebay-review { background: #fef3c7; color: #92400e; }
+.cp-status-ebay-listed { background: #dbeafe; color: #1e40af; }
+.cp-status-store { background: #ecfdf5; color: #065f46; }
+.cp-status-sold { background: #fce4ec; color: #991b1b; }
+
+.cp-card-location {
+  font-size: 0.72rem;
+  color: var(--color-text-subtle, #64748b);
+}
+
+.cp-card-time {
+  font-size: 0.7rem;
+  color: var(--color-text-subtle, #64748b);
+  opacity: 0.7;
+}
+
+/* ── Dark mode overrides ────────────────────────────────────────── */
+
+body[data-theme="dark"] .cp-panel,
+body.dark-mode .cp-panel {
+  background: #1e293b;
+  border-color: #334155;
+}
+
+body[data-theme="dark"] .cp-header,
+body.dark-mode .cp-header {
+  border-bottom-color: #334155;
+}
+
+body[data-theme="dark"] .cp-input,
+body.dark-mode .cp-input {
+  color: #e2e8f0;
+}
+
+body[data-theme="dark"] .cp-input::placeholder,
+body.dark-mode .cp-input::placeholder {
+  color: #64748b;
+}
+
+body[data-theme="dark"] .cp-shortcut-hint,
+body.dark-mode .cp-shortcut-hint {
+  background: #334155;
+  border-color: #475569;
+  color: #94a3b8;
+}
+
+body[data-theme="dark"] .cp-card-icon,
+body.dark-mode .cp-card-icon {
+  background: #334155;
+  color: #94a3b8;
+}
+
+body[data-theme="dark"] .cp-card-sku,
+body.dark-mode .cp-card-sku {
+  color: #e2e8f0;
+}
+
+body[data-theme="dark"] .cp-card.is-selected,
+body.dark-mode .cp-card.is-selected {
+  background: rgba(54, 173, 163, 0.15);
+}
+
+body[data-theme="dark"] .cp-card:hover,
+body.dark-mode .cp-card:hover {
+  background: rgba(54, 173, 163, 0.1);
+}
+
+body[data-theme="dark"] .cp-overlay,
+body.dark-mode .cp-overlay {
+  background: rgba(0, 0, 0, 0.7);
+}
+
+body[data-theme="dark"] .cp-status-intake,
+body.dark-mode .cp-status-intake {
+  background: #334155;
+  color: #94a3b8;
+}
+
+body[data-theme="dark"] .cp-status-ebay-draft,
+body.dark-mode .cp-status-ebay-draft {
+  background: #78350f;
+  color: #fde68a;
+}
+
+body[data-theme="dark"] .cp-status-ebay-review,
+body.dark-mode .cp-status-ebay-review {
+  background: #78350f;
+  color: #fde68a;
+}
+
+body[data-theme="dark"] .cp-status-ebay-listed,
+body.dark-mode .cp-status-ebay-listed {
+  background: #1e3a5f;
+  color: #93c5fd;
+}
+
+body[data-theme="dark"] .cp-status-store,
+body.dark-mode .cp-status-store {
+  background: #064e3b;
+  color: #a7f3d0;
+}
+
+body[data-theme="dark"] .cp-status-sold,
+body.dark-mode .cp-status-sold {
+  background: #7f1d1d;
+  color: #fecaca;
 }
 
 

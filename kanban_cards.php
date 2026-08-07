@@ -48,7 +48,7 @@ if ($requestedLane !== '') {
 
 // Fetch items — deduplicate by sku_normalized keeping refurb or most-recent
 $items = $pdo->prepare("
-    SELECT id, sku, sku_normalized, status, what_is_it, notes, updated_at, dispotech_price, reviewed, ready
+    SELECT id, sku, sku_normalized, status, what_is_it, notes, updated_at, dispotech_price, reviewed, ready, quantity
     FROM intake_items
     WHERE sku IS NOT NULL AND sku != ''
     $whereExtra
@@ -146,6 +146,7 @@ foreach ($rows as $row) {
         'price'    => isset($row['dispotech_price']) && $row['dispotech_price'] !== '' ? (float)$row['dispotech_price'] : null,
         'reviewed' => !empty($row['reviewed']),
         'ready'    => !empty($row['ready']),
+        'qty'      => max(1, (int)($row['quantity'] ?? 1)),
         'thumb_id' => $thumbs[$norm] ?? null,
         'qr_url'   => $protocol . '://' . $host . '/intake.php?sku=' . urlencode($norm),
     ];

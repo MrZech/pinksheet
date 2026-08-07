@@ -100,7 +100,9 @@ try {
     }
     if ($NotifyAlways) {
         $subject = "[Pinksheet] Backup OK"
-        $body = "Backup verification succeeded.`nLatest backup: $($lastBackupName ?? 'n/a')"
+        $backupLabel = 'n/a'
+        if ($lastBackupName) { $backupLabel = $lastBackupName }
+        $body = "Backup verification succeeded.`nLatest backup: $backupLabel"
         Send-Alert -subject $subject -body $body
     }
 } catch {

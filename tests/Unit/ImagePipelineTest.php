@@ -16,6 +16,7 @@ use PHPUnit\Framework\TestCase;
  *
  * @group image-pipeline
  */
+require_once __DIR__ . '/../../config.php';
 #[CoversNothing]
 final class ImagePipelineTest extends TestCase
 {
@@ -25,14 +26,6 @@ final class ImagePipelineTest extends TestCase
     {
         $this->tmpDir = sys_get_temp_dir() . '/pinksheet_test_' . bin2hex(random_bytes(8));
         mkdir($this->tmpDir, 0777, true);
-
-        // Ensure constants are defined for the pipeline
-        if (!defined('PNG_ONLY_MODE')) {
-            define('PNG_ONLY_MODE', true);
-        }
-        if (!defined('PNG_REJECT_NON_PNG')) {
-            define('PNG_REJECT_NON_PNG', false);
-        }
     }
 
     protected function tearDown(): void
@@ -75,7 +68,6 @@ final class ImagePipelineTest extends TestCase
                 imagegif($img, $path);
                 break;
         }
-        imagedestroy($img);
         return $path;
     }
 
@@ -164,7 +156,6 @@ final class ImagePipelineTest extends TestCase
         $img    = imagecreatetruecolor($width, $height);
         imagefill($img, 0, 0, imagecolorallocate($img, 0, 128, 0));
         imagejpeg($img, $path);
-        imagedestroy($img);
 
         $result = imageConvertToPng($path, $this->tmpDir);
         $this->assertNotNull($result);
@@ -205,7 +196,7 @@ final class ImagePipelineTest extends TestCase
             'error'    => UPLOAD_ERR_OK,
         ], 'ZZ-TESTPOLY');
         $this->assertFalse($result['ok']);
-        $this->assertStringContainsStringIgnoringCase('not a valid image', $result['message'] ?? '');
+        $this->assertStringContainsStringIgnoringCase('must be JPG, PNG, WebP, or GIF', $result['message'] ?? '');
     }
 
     /* ── processUploadedPhoto full pipeline ─────────────────── */

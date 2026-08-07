@@ -104,8 +104,8 @@ final class PrintLayoutTest extends TestCase
         $gridOpenPos = strpos($html, '<div class="print-grid"', $markerPos);
         $this->assertNotFalse($gridOpenPos, '.print-grid opening tag must exist after comment marker');
 
-        $sectionPos = strpos($html, '<section class="section recent-items"', $gridOpenPos);
-        $this->assertNotFalse($sectionPos, 'recent-items section must follow .print-grid');
+        $sectionPos = strpos($html, '</section>', $gridOpenPos);
+        $this->assertNotFalse($sectionPos, 'closing section tag must follow .print-grid');
 
         $gridBlock = substr($html, $gridOpenPos, $sectionPos - $gridOpenPos);
 

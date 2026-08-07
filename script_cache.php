@@ -66,6 +66,8 @@ try {
         errorResponse('Method not allowed', 405);
     }
 
+    require_csrf();
+
     $input = readInput();
     $sku = normalizeSku((string)($input['sku'] ?? ''));
     $skuDisplay = trim((string)($input['sku_display'] ?? $sku));

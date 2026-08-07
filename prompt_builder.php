@@ -68,6 +68,7 @@ if (!$isPartial):
   <script src="assets/theme.js?v=<?= getAssetVersion() ?>" defer></script>
   <script src="assets/app.js?v=<?= getAssetVersion() ?>" defer></script>
   <script src="assets/nav.js?v=<?= getAssetVersion() ?>" defer></script>
+  <script src="assets/command-palette.js?v=<?= getAssetVersion() ?>" defer></script>
   <script src="assets/qz-tray.js?v=<?= getAssetVersion() ?>" defer></script>
 </head>
 <body class="home prompt-page">

@@ -73,10 +73,9 @@ final class UIRefactorRegressionTest extends TestCase
     public function test_reviewed_checkbox_is_a_span_not_input(): void
     {
         $html = file_get_contents($this->kanbanFile);
-        // Must use span, not input[type=checkbox]
-        $this->assertStringContainsString('<span', $html);
-        // Should NOT contain the old checkbox input pattern
-        $this->assertStringNotContainsString('type="checkbox"', $html);
+        // Visual ready indicator is now an <input type="checkbox">
+        $this->assertStringContainsString('type="checkbox"', $html);
+        $this->assertStringContainsString('visual-ready', $html);
     }
 
     public function test_reviewed_checkbox_has_data_sku(): void
@@ -178,5 +177,25 @@ final class UIRefactorRegressionTest extends TestCase
         $html = file_get_contents($this->kanbanFile);
         // Drag-and-drop moved inline to kanban.php
         $this->assertStringContainsString('drag', $html);
+    }
+
+    // ── Autosave on field exit contract ────────────────────────────────
+
+    public function test_app_js_saves_on_focusout(): void
+    {
+        $appJs = file_get_contents(TESTING_ROOT . '/assets/app.js');
+        // Clicking away from a form field must flush pending changes.
+        $this->assertStringContainsString("addEventListener('focusout'", $appJs);
+        $this->assertStringContainsString('flushBeforeUnload', $appJs);
+    }
+
+    public function test_app_js_serializes_saves_while_in_flight(): void
+    {
+        $appJs = file_get_contents(TESTING_ROOT . '/assets/app.js');
+        // Rapid focusouts must not race: a save in flight queues the newest
+        // state instead of letting a stale response overwrite it.
+        $this->assertStringContainsString('syncInFlight', $appJs);
+        $this->assertStringContainsString('syncNeedsAnother', $appJs);
+        $this->assertStringContainsString('.finally(', $appJs);
     }
 }

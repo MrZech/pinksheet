@@ -51,22 +51,17 @@ function runPhpBackup(): array
         }
     }
 
+    require_once __DIR__ . '/lib/backup.php';
     $timestamp = date('Ymd-His');
     if (is_file($dbPath)) {
-        $dest = $backupDir . '/intake-' . $timestamp . '.sqlite';
-        if (!copy($dbPath, $dest)) {
-            return ['ok' => false, 'error' => 'Failed to copy DB to ' . $dest];
+        // VACUUM INTO — online-safe snapshot that includes WAL data.
+        $snapshot = snapshotDatabase($dbPath, $backupDir);
+        if (!$snapshot['ok']) {
+            return ['ok' => false, 'error' => $snapshot['error'] ?? 'Snapshot failed'];
         }
+        $dest = $snapshot['dest'];
         $messages[] = 'SQLite backup created: ' . $dest;
-        // Write SHA256 checksum
-        $hash = hash_file('sha256', $dest);
-        if ($hash !== false) {
-            file_put_contents($dest . '.sha256', $hash);
-            $messages[] = 'SHA256 written: ' . $dest . '.sha256';
-        } else {
-            $messages[] = 'Failed to write checksum.';
-            $ok = false;
-        }
+        $messages[] = 'SHA256 written: ' . $dest . '.sha256';
     } else {
         $messages[] = 'SQLite database not found at ' . $dbPath;
         $ok = false;

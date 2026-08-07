@@ -20,3 +20,26 @@ scripts/alert.config.ps1
 # Local app secrets
 .env
 .aider*
+
+# Tooling / scratch
+.freebuff/
+desktop-v2.db
+
+# Test sandbox databases
+tmp/test_sandbox_data/
+
+# Runtime state files (auto-generated)
+data/.asset_version
+data/.storage_ok
+
+# Live archive database (rebuilt by scripts/build_archive_db.php)
+data/archive.sqlite
+
+# Logs (runtime artifacts)
+logs/*.log
+
+# PHPUnit cache
+.phpunit.cache/
+
+# Alert email password (DPAPI-encrypted secret)
+scripts/alert.password.txt

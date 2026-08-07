@@ -197,7 +197,6 @@ function imageConvertToPng(string $srcPath, string $destDir): ?string
             imagealphablending($resampled, false);
             imagesavealpha($resampled, true);
             imagecopyresampled($resampled, $gd, 0, 0, 0, 0, $dstW, $dstH, $srcW, $srcH);
-            imagedestroy($gd);
             $gd = $resampled;
         }
     }
@@ -209,7 +208,6 @@ function imageConvertToPng(string $srcPath, string $destDir): ?string
     $destPath   = $destDir . '/' . $storedName;
 
     $ok = imagepng($gd, $destPath);
-    imagedestroy($gd);
 
     @ini_set('memory_limit', (string)$oldLimit);
 
@@ -262,13 +260,11 @@ function compressUploadedImage(string $sourcePath, string $mimeType): array
         $newH = (int)round($origH * ($maxWidth / $origW));
         $resized = imagecreatetruecolor($newW, $newH);
         if (!$resized) {
-            imagedestroy($gd);
             return ['ok' => false, 'message' => 'Failed to allocate resized canvas.'];
         }
         imagealphablending($resized, false);
         imagesavealpha($resized, true);
         imagecopyresampled($resized, $gd, 0, 0, 0, 0, $newW, $newH, $origW, $origH);
-        imagedestroy($gd);
         $gd = $resized;
     }
 
@@ -288,7 +284,6 @@ function compressUploadedImage(string $sourcePath, string $mimeType): array
             break;
     }
 
-    imagedestroy($gd);
 
     if (!$saved) {
         @unlink($tempPath);
@@ -356,7 +351,6 @@ function processUploadedPhoto(array $file, string $sku, ?string $baseDir = null)
         @unlink($tmp);
         return ['ok' => false, 'message' => $originalName . ' is not a valid image file and was rejected.'];
     }
-    imagedestroy($gdCheck);
     unset($raw);
 
     /* ── Resize, compress, strip EXIF ──────────────────────── */

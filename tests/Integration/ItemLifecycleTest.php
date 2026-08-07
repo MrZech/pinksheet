@@ -41,7 +41,7 @@ final class ItemLifecycleTest extends TestCase
         simulateRequest('POST', '/index.php', [
             'action'       => 'create',
             'sku'          => 'LIFECYCLE-001',
-            'status'       => 'Intake',
+            'status'       => 'intake',
             'what_is_it'   => 'Lifecycle Integration Test Item',
             'functional'   => 'Yes',
             'condition'    => 'Good',
@@ -87,7 +87,7 @@ final class ItemLifecycleTest extends TestCase
 
         $this->assertIsArray($item, 'Item should exist after creation');
         $this->assertSame('LIFECYCLE-001', $item['sku']);
-        $this->assertSame('Intake',         $item['status']);
+        $this->assertSame('intake',         $item['status']);
         $this->assertSame('Lifecycle Integration Test Item', $item['what_is_it']);
         $this->assertSame('1',              (string) $item['is_square']);
         $this->assertSame('0',              (string) $item['reviewed']);

@@ -66,6 +66,7 @@ if (!$isPartial):
   <script>window.CSRF_TOKEN = <?= json_encode($csrfToken) ?>;</script>
   <script src="assets/theme.js?v=<?= getAssetVersion() ?>" defer></script>
   <script src="assets/nav.js?v=<?= getAssetVersion() ?>" defer></script>
+  <script src="assets/command-palette.js?v=<?= getAssetVersion() ?>" defer></script>
   <style>
     .ebay-canvas-wrap {
       position: relative;

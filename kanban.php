@@ -65,6 +65,7 @@ body[data-theme=dark] .kanban-skeleton-card{background:linear-gradient(90deg,rgb
   <script src="assets/app.js?v=<?= getAssetVersion() ?>" defer></script>
   <script src="assets/qz-tray.js?v=<?= getAssetVersion() ?>" defer></script>
   <script src="assets/nav.js?v=<?= getAssetVersion() ?>" defer></script>
+  <script src="assets/command-palette.js?v=<?= getAssetVersion() ?>" defer></script>
 </head>
 <body class="home status-board">
   <div class="layout-wrapper">
@@ -104,7 +105,7 @@ body[data-theme=dark] .kanban-skeleton-card{background:linear-gradient(90deg,rgb
       <div class="kanban-board" id="kanban-board">
         <?php foreach ($lanes as $lane): ?>
           <div class="kanban-lane" data-status="<?php echo htmlspecialchars($lane, ENT_QUOTES, 'UTF-8'); ?>">
-            <h3><?php echo htmlspecialchars($lane, ENT_QUOTES, 'UTF-8'); ?> <span class="kanban-count"><?php echo $laneCounts[$lane] ?? 0; ?></span></h3>
+            <h3><?php echo htmlspecialchars(statusLabel($lane), ENT_QUOTES, 'UTF-8'); ?> <span class="kanban-count"><?php echo $laneCounts[$lane] ?? 0; ?></span></h3>
             <div class="kanban-lane-body" data-lane="<?php echo htmlspecialchars($lane, ENT_QUOTES, 'UTF-8'); ?>">
               <!-- Cards injected by JS after page load -->
               <div class="kanban-skeleton">
@@ -151,6 +152,7 @@ body[data-theme=dark] .kanban-skeleton-card{background:linear-gradient(90deg,rgb
         : '';
 
       var price = c.price !== null ? '<span>$' + Number(c.price).toFixed(2) + '</span>' : '';
+      var qty = c.qty && c.qty > 1 ? '<span class="card-qty">x' + c.qty + '</span>' : '';
 
       card.innerHTML =
         '<div class="card-top-row">' +
@@ -169,12 +171,12 @@ body[data-theme=dark] .kanban-skeleton-card{background:linear-gradient(90deg,rgb
           '<div class="sku">' +
             '<a href="intake.php?sku=' + encodeURIComponent(c.norm) + '" title="Open ' + escH(c.sku) + ' in intake">' + escH(c.sku) + '</a>' +
             '<span class="ready-indicator">' +
-              '<input type="checkbox" class="visual-ready"' + (c.ready ? ' checked' : '') + '>' +
+              '<input type="checkbox" class="visual-ready" title="Ready for ' + escH(c.sku) + '" aria-label="Ready for ' + escH(c.sku) + '"' + (c.ready ? ' checked' : '') + '>' +
               '<span class="ready-label">Ready</span>' +
             '</span>' +
           '</div>' +
           '<div class="what">' + escH(c.what) + '</div>' +
-          '<div class="meta"><span>' + escH(c.updated) + '</span>' + price + '</div>' +
+          '<div class="meta"><span>' + escH(c.updated) + '</span>' + qty + price + '</div>' +
           '<div class="status-badge-container status-' + badgeStatus + '" data-status="' + badgeStatus + '" data-sku="' + escH(c.sku) + '">' +
             checkSvg + '<span class="label-text">' + badgeLabel + '</span>' +
           '</div>' +
@@ -300,53 +302,73 @@ body[data-theme=dark] .kanban-skeleton-card{background:linear-gradient(90deg,rgb
         var lane = e.target.closest('.kanban-lane');
         if (!lane || !dragged) return;
         var status = lane.getAttribute('data-status') || '';
-        // Capture before dragend runs (dragend clears globals before fetch completes).
         var card = dragged;
         var fromLane = draggedFromLane;
         var sku = card.getAttribute('data-sku-normalized') || card.getAttribute('data-sku') || '';
         clearLaneHighlight();
 
-        fetch('update_item.php', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-          body: 'sku=' + encodeURIComponent(sku) + '&field=status&value=' + encodeURIComponent(status) + '&csrf_token=' + encodeURIComponent(window.CSRF_TOKEN)
-        })
-          .then(function (r) { return r.json(); })
-          .then(function (data) {
-            if (!data.ok) {
-              alert('Update failed: ' + (data.error || 'error'));
+        // Optimistic: move card immediately, revert on failure
+        if (fromLane && fromLane !== lane) {
+          var fromCount = fromLane.querySelector('.kanban-count');
+          var toCount = lane.querySelector('.kanban-count');
+          if (fromCount && toCount) {
+            fromCount.textContent = String(Math.max(0, parseInt(fromCount.textContent || '0', 10) - 1));
+            toCount.textContent = String(parseInt(toCount.textContent || '0', 10) + 1);
+          }
+        }
+        var dropBody = lane.querySelector('.kanban-lane-body');
+        if (dropBody) dropBody.appendChild(card);
+        card.style.opacity = '1';
+        card.classList.toggle('is-sold', status === 'sold');
+
+        var revertCard = function () {
+          if (fromLane && fromLane !== lane) {
+            var fb = fromLane.querySelector('.kanban-lane-body');
+            if (fb) fb.appendChild(card);
+            var fc = fromLane.querySelector('.kanban-count');
+            var tc = lane.querySelector('.kanban-count');
+            if (fc && tc) {
+              tc.textContent = String(Math.max(0, parseInt(tc.textContent || '0', 10) - 1));
+              fc.textContent = String(parseInt(fc.textContent || '0', 10) + 1);
+            }
+          }
+          card.style.opacity = '1';
+          card.classList.toggle('is-sold', status === 'sold');
+        };
+
+        // Fire status update and (if sold) reviewed update in parallel
+        var fetches = [
+          fetch('update_item.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: 'sku=' + encodeURIComponent(sku) + '&field=status&value=' + encodeURIComponent(status) + '&csrf_token=' + encodeURIComponent(window.CSRF_TOKEN)
+          }).then(function (r) { return r.json(); })
+        ];
+
+        if (status === 'sold') {
+          fetches.push(
+            fetch('update_item.php', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+              body: 'sku=' + encodeURIComponent(sku) + '&field=reviewed&value=2&csrf_token=' + encodeURIComponent(window.CSRF_TOKEN)
+            }).then(function (r) { return r.json(); })
+          );
+        }
+
+        Promise.all(fetches)
+          .then(function (results) {
+            if (!results[0].ok) {
+              revertCard();
+              alert('Update failed: ' + (results[0].error || 'error'));
               return;
             }
-
-            if (fromLane && fromLane !== lane) {
-              var fromCount = fromLane.querySelector('.kanban-count');
-              var toCount = lane.querySelector('.kanban-count');
-              if (fromCount && toCount) {
-                fromCount.textContent = String(Math.max(0, parseInt(fromCount.textContent || '0', 10) - 1));
-                toCount.textContent = String(parseInt(toCount.textContent || '0', 10) + 1);
-              }
+            if (status === 'sold' && results[1] && results[1].ok) {
+              var badge = card.querySelector('.status-badge-container');
+              if (badge) updateStatusBadge(badge, 'sold');
             }
-            var dropBody = lane.querySelector('.kanban-lane-body');
-            if (dropBody) dropBody.appendChild(card);
-            card.style.opacity = '1';
-
-            // When dropped on sold lane, also set reviewed=2 (sold) and update badge
-            if (status === 'sold') {
-              fetch('update_item.php', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                body: 'sku=' + encodeURIComponent(sku) + '&field=reviewed&value=2&csrf_token=' + encodeURIComponent(window.CSRF_TOKEN)
-              }).then(function (r) { return r.json(); }).then(function (d) {
-                if (d.ok) {
-                  var badge = card.querySelector('.status-badge-container');
-                  if (badge) updateStatusBadge(badge, 'sold');
-                }
-              });
-            }
-            var isSold = status === 'sold';
-            card.classList.toggle('is-sold', isSold);
           })
           .catch(function () {
+            revertCard();
             alert('Update failed');
           });
       });
@@ -496,7 +518,7 @@ body[data-theme=dark] .kanban-skeleton-card{background:linear-gradient(90deg,rgb
         if (nextSib && body.contains(nextSib)) {
           body.insertBefore(card, nextSib);
         } else {
-          body.appendChild(card);
+          body.appendChild(card); 
         }
         requestAnimationFrame(function () {
           card.style.opacity = '1';
