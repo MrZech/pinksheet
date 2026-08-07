@@ -66,10 +66,11 @@ final class SessionStateRegressionTest extends TestCase
     {
         $this->pdo->exec("INSERT INTO intake_items (sku) VALUES ('TS-001')");
         $id = (int) $this->pdo->lastInsertId();
+
+        // Set a known timestamp so we can detect the change
+        $this->pdo->prepare("UPDATE intake_items SET updated_at = '2000-01-01 00:00:00' WHERE id = ?")->execute([$id]);
         $ts1 = $this->pdo->query("SELECT updated_at FROM intake_items WHERE id = {$id}")->fetchColumn();
 
-        // Ensure time passes
-        usleep(1_000);
         $this->pdo->prepare("UPDATE intake_items SET status = 'Tested', updated_at = datetime('now') WHERE id = ?")->execute([$id]);
         $ts2 = $this->pdo->query("SELECT updated_at FROM intake_items WHERE id = {$id}")->fetchColumn();
 

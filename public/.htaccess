@@ -1,0 +1,18 @@
+# Pinksheet — Apache configuration for the public/ document root.
+# Point your VirtualHost DocumentRoot at this directory and keep
+# everything else (data/, logs/, .env, qz-signing/, scripts/) above it.
+
+Options -Indexes
+
+# Upload limits (applies under mod_php). The UI reports these dynamically.
+php_value upload_max_filesize 32M
+php_value post_max_size 128M
+php_value max_file_uploads 100
+
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteBase /
+  # Everything that is not a real file in public/ goes through the router.
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteRule ^(.*)$ router.php [QSA,L]
+</IfModule>

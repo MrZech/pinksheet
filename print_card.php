@@ -45,7 +45,7 @@ $stmt = $pdo->prepare("
 $stmt->execute([strtoupper($sku)]);
 $photos = $stmt->fetchAll();
 
-$laneStatus = htmlspecialchars($item['status'] ?? 'Intake', ENT_QUOTES, 'UTF-8');
+$laneStatus = htmlspecialchars((string)($item['status'] ?? '') !== '' ? statusLabel((string)$item['status']) : 'Intake', ENT_QUOTES, 'UTF-8');
 $reviewedVal = (int)($item['reviewed'] ?? 0);
 if ($reviewedVal === 2) {
     $pillClass = 'sold';

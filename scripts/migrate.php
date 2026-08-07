@@ -86,6 +86,9 @@ if (!in_array('wifi_card_installed', $names, true)) {
 if (!in_array('compatible_os', $names, true)) {
     $pdo->exec("ALTER TABLE intake_items ADD COLUMN compatible_os TEXT");
 }
+if (!in_array('quantity', $names, true)) {
+    $pdo->exec("ALTER TABLE intake_items ADD COLUMN quantity INTEGER NOT NULL DEFAULT 1");
+}
 
 $pdo->exec("CREATE INDEX IF NOT EXISTS idx_intake_items_sku_normalized ON intake_items (sku_normalized)");
 $pdo->exec("UPDATE intake_items SET sku_normalized = UPPER(TRIM(COALESCE(sku, ''))) WHERE sku_normalized IS NULL OR sku_normalized = ''");

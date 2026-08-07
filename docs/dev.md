@@ -27,7 +27,7 @@ This page explains how the app is wired together so you can change it without gu
 | `config.php` | App-wide constants, `.env` loader, maintenance mode, and storage checks |
 | `square_sync.php` | Square catalog sync library — upserts items, variations, images, and inventory counts |
 | `sync_square_now.php` | Local-only endpoint that syncs every SKU in the database to Square in one pass |
-| `square_debug.php` | Local-only diagnostic endpoint that reports Square config, PHP extensions, and optional per-SKU sync test |
+| `_quarantine/square_debug.php` | Quarantined local-only diagnostic endpoint; review and restore deliberately before use |
 | `autosave.php` | Server-backed draft storage |
 | `script_cache.php` | Prompt builder cache storage |
 | `copy_item.php` | Returns the newest row for a SKU without ids or timestamps |
@@ -95,7 +95,7 @@ This page explains how the app is wired together so you can change it without gu
 6. Inventory count is set to 1 for active items and 0 for SOLD items.
 7. The result is stored in `square_catalog_sync` including any error message.
 8. `sync_square_now.php` runs the same logic for every SKU in one local-only POST request.
-9. `square_debug.php` exposes config, PHP extension status, and an optional per-SKU sync test for local diagnostics.
+9. The diagnostic `square_debug.php` file is currently quarantined; do not document or expose it as a live endpoint unless it is intentionally restored.
 
 ### Photo Uploads
 
@@ -142,7 +142,7 @@ This page explains how the app is wired together so you can change it without gu
 ## Local Run
 
 ```bash
-php -S 127.0.0.1:8765 -t .
+php -S 127.0.0.1:8765 -t public public/router.php -d upload_max_filesize=32M -d post_max_size=128M -d max_file_uploads=100
 php scripts/smoke.php
 ```
 
@@ -162,5 +162,5 @@ The embedded PHP binary in `php-8.5.4/` is available if the system PHP version i
 - Photo behavior usually touches `upload_photo.php`, `upload_photo_chunk.php`, `photo.php`, and `set_thumbnail.php`.
 - Backup changes usually touch `scripts/backup.ps1`, `backup_now.php`, `verify_now.php`, and the maintenance docs.
 - Archive import changes usually touch `scripts/import_archive_csv.php`, `scripts/build_archive_db.php`, and `archive.php`.
-- Square sync changes usually touch `square_sync.php`, `sync_square_now.php`, `square_debug.php`, `scripts/sync_square.php`, and `schema.md`.
+- Square sync changes usually touch `square_sync.php`, `square_webhook_service.php`, `webhooks/square.php`, `sync_square_now.php`, `scripts/sync_square.php`, queue/reconciliation scripts, and `schema.md`.
 - UI theme changes live entirely in `assets/style.css`. Dark mode variables are in the `body[data-theme="dark"]` block. Print styles are in `assets/print.css`.

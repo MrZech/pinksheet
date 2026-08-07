@@ -81,7 +81,8 @@ CREATE TABLE IF NOT EXISTS intake_items (
     dispotech_price REAL,
     in_ebay_room TEXT,
     what_box TEXT,
-    notes TEXT
+    notes TEXT,
+    quantity INTEGER NOT NULL DEFAULT 1
 );
 SQL);
 $pdo->exec(<<<'SQL'
@@ -162,6 +163,19 @@ if ($duplicateSkus) {
     }
 }
     $pdo->exec('PRAGMA user_version = 2');
+}
+$schemaVersion = (int)$pdo->query('PRAGMA user_version')->fetchColumn();
+if ($schemaVersion < 3) {
+    $cols = $pdo->query("PRAGMA table_info(intake_items)")->fetchAll(PDO::FETCH_COLUMN, 1);
+    if (!in_array('quantity', $cols, true)) {
+        $pdo->exec("ALTER TABLE intake_items ADD COLUMN quantity INTEGER NOT NULL DEFAULT 1");
+    }
+    // Sync intake_deleted schema
+    $delCols = $pdo->query("PRAGMA table_info(intake_deleted)")->fetchAll(PDO::FETCH_COLUMN, 1);
+    if (!in_array('quantity', $delCols, true)) {
+        $pdo->exec("ALTER TABLE intake_deleted ADD COLUMN quantity INTEGER NOT NULL DEFAULT 1");
+    }
+    $pdo->exec('PRAGMA user_version = 3');
 }
 $pdo->exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_intake_items_sku_normalized_unique ON intake_items (sku_normalized) WHERE sku_normalized IS NOT NULL AND TRIM(sku_normalized) <> ''");
 $pdo->exec(<<<'SQL'
@@ -329,7 +343,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'id' => $id,
             'sku' => $sku,
             'sku_normalized' => normalizeSku($sku),
-            'status' => trim($_POST['status'] ?? ''),
+            // New intake items default to Intake status so they always show on
+            // the Status Board; existing items keep whatever status they had.
+            'status' => trim($_POST['status'] ?? '') !== '' ? trim($_POST['status']) : 'intake',
             'what_is_it' => trim($_POST['what_is_it'] ?? ''),
             'date_received' => trim($_POST['date_received'] ?? ''),
             'source' => trim($_POST['source'] ?? ''),
@@ -360,6 +376,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'in_ebay_room' => trim($_POST['in_ebay_room'] ?? ''),
             'what_box' => trim($_POST['what_box'] ?? ''),
             'notes' => trim($_POST['notes'] ?? ''),
+            'quantity' => max(1, (int)($_POST['quantity'] ?? 1)),
         ];
         $pendingPhotoUploads = [];
 
@@ -402,6 +419,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (!$errors) {
             $updateStmt = $pdo->prepare(<<<'SQL'
 UPDATE intake_items SET
+            $updateStmt = $pdo->prepare(<<<'SQL'
+UPDATE intake_items SET
     sku = :sku,
     sku_normalized = :sku_normalized,
     status = :status,
@@ -434,6 +453,7 @@ UPDATE intake_items SET
     in_ebay_room = :in_ebay_room,
     what_box = :what_box,
     notes = :notes,
+    quantity = :quantity,
     updated_at = datetime('now')
 WHERE id = :id;
 SQL);
@@ -456,7 +476,7 @@ INSERT INTO intake_items (
     power_on, brand_model, ram, ssd_gb, cpu, os, battery_health,
     graphics_card, screen_resolution, diagnostics_test_ran, wifi_card_installed, compatible_os, where_it_goes,
     ebay_status, ebay_price, dispotech_price, in_ebay_room,
-    what_box, notes, updated_at
+    what_box, notes, quantity, updated_at
 ) VALUES (
     :sku, :sku_normalized, :status, :what_is_it, :date_received, :source,
     :functional, :condition, :is_square, :care_if_square,
@@ -464,7 +484,7 @@ INSERT INTO intake_items (
     :power_on, :brand_model, :ram, :ssd_gb, :cpu, :os, :battery_health,
     :graphics_card, :screen_resolution, :diagnostics_test_ran, :wifi_card_installed, :compatible_os, :where_it_goes,
     :ebay_status, :ebay_price, :dispotech_price, :in_ebay_room,
-    :what_box, :notes, datetime('now')
+    :what_box, :notes, :quantity, datetime('now')
 );
 SQL);
                     $insertData = $data;
@@ -504,15 +524,19 @@ SQL);
 
             if (!$errors) {
                 $squareSyncResult = squareSyncItemBySku($pdo, $data['sku_normalized']);
-                $redirect = $_SERVER['PHP_SELF'] . '?saved=1&save_mode=' . urlencode($saveMode);
-                $redirect .= '&square_sync=' . urlencode((string)($squareSyncResult['status'] ?? 'skipped'));
-                if ($data['sku'] !== '') {
-                    $redirect .= '&sku=' . urlencode($data['sku']);
-                }
                 if ($data['sku_normalized'] !== '') {
                     $pdo->prepare('DELETE FROM intake_drafts WHERE sku_normalized = :sku_normalized')->execute([
                         'sku_normalized' => $data['sku_normalized'],
                     ]);
+                }
+                if (isset($_POST['save_and_new'])) {
+                    header('Location: intake.php?clear_draft=1&saved=1&save_mode=' . urlencode($saveMode));
+                    exit;
+                }
+                $redirect = $_SERVER['PHP_SELF'] . '?saved=1&save_mode=' . urlencode($saveMode);
+                $redirect .= '&square_sync=' . urlencode((string)($squareSyncResult['status'] ?? 'skipped'));
+                if ($data['sku'] !== '') {
+                    $redirect .= '&sku=' . urlencode($data['sku']);
                 }
                 header('Location: ' . $redirect);
                 exit;
@@ -574,6 +598,7 @@ if (!$isPartial):
   <script src="assets/theme.js?v=<?= getAssetVersion() ?>" defer></script>
   <script src="assets/app.js?v=<?= getAssetVersion() ?>" defer></script>
   <script src="assets/nav.js?v=<?= getAssetVersion() ?>" defer></script>
+  <script src="assets/command-palette.js?v=<?= getAssetVersion() ?>" defer></script>
   <script src="assets/qz-tray.js?v=<?= getAssetVersion() ?>" defer></script>
   <style>
     :root {
@@ -789,14 +814,14 @@ if (!$isPartial):
           <a class="button-link new-intake-cta" href="intake.php?clear_draft=1" data-new-intake>New Intake</a>
         </div>
         <div class="status">
+          <?php $formStatus = trim((string)($formData['status'] ?? '')); ?>
           <label>
             <span>Status:</span>
-            <select name="status" form="intake-form">
-              <option value="">Select</option>
-              <?php foreach ($statusOptions as $opt): ?>
-                <option value="<?php echo $opt; ?>" <?php echo (($formData['status'] ?? '') === $opt) ? 'selected' : ''; ?>><?php echo $opt; ?></option>
-              <?php endforeach; ?>
-            </select>
+            <!-- Status is set automatically: new items start in Intake so
+                 they always appear on the Status Board. Editing an existing
+                 item keeps its current status (hidden field below). -->
+            <input type="hidden" name="status" form="intake-form" value="<?php echo h($formStatus !== '' ? $formStatus : 'intake'); ?>">
+            <span class="status-readonly"><?php echo h(statusLabel($formStatus !== '' ? $formStatus : 'intake')); ?></span>
           </label>
           <label>
             <span>Price:</span>
@@ -806,10 +831,18 @@ if (!$isPartial):
                    form="intake-form"
                    value="<?php echo h(isset($formData['dispotech_price']) ? (string)$formData['dispotech_price'] : (isset($formData['ebay_price']) ? (string)$formData['ebay_price'] : '')); ?>">
           </label>
+          <label>
+            <span>Qty:</span>
+            <input type="number" name="quantity" form="intake-form" min="1" step="1"
+                   value="<?php echo isset($formData['quantity']) ? h((string)(int)$formData['quantity']) : '1'; ?>">
+          </label>
         </div>
         <?php
           $printSku = trim((string)($formData['sku'] ?? $activeSkuNormalized));
           $printStatus = trim((string)($formData['status'] ?? ''));
+          if ($printStatus === '') {
+              $printStatus = 'intake';
+          }
           $printPrice = isset($formData['dispotech_price']) && $formData['dispotech_price'] !== ''
             ? $formData['dispotech_price']
             : (isset($formData['ebay_price']) && $formData['ebay_price'] !== '' ? $formData['ebay_price'] : null);
@@ -818,9 +851,11 @@ if (!$isPartial):
           <div class="print-summary-label">SKU</div>
           <div class="print-summary-value"><?php echo h($printSku !== '' ? $printSku : '—'); ?></div>
           <div class="print-summary-label">Status</div>
-          <div class="print-summary-value"><?php echo h($printStatus !== '' ? $printStatus : 'Select'); ?></div>
+          <div class="print-summary-value"><?php echo h($printStatus !== '' ? statusLabel($printStatus) : 'Select'); ?></div>
           <div class="print-summary-label">Price</div>
           <div class="print-summary-value"><?php echo $printPrice !== null ? '$' . number_format((float)$printPrice, 2) : '—'; ?></div>
+          <div class="print-summary-label">Qty</div>
+          <div class="print-summary-value"><?php echo isset($formData['quantity']) ? (int)$formData['quantity'] : 1; ?></div>
         </div>
       </header>
       <nav class="breadcrumbs" aria-label="Breadcrumb">
@@ -960,11 +995,11 @@ if (!$isPartial):
               <p class="hint">Drop, paste, or click to add images.</p>
             </div>
             <div class="sku-photo-preview" id="sku-photo-preview" hidden>
-              <p class="hint">Preview (not saved until you click Save Intake Item):</p>
+              <p class="hint">Queued — these attach to the SKU automatically once you enter it.</p>
               <div class="sku-photo-grid" id="sku-photo-preview-list" aria-live="polite"></div>
             </div>
             <div id="photo-upload-messages" class="upload-messages" aria-live="polite"></div>
-            <p class="hint">Photos are attached when you click Save Intake Item.</p>
+            <p class="hint">Photos attach to the SKU as soon as you enter it.</p>
             <p class="hint">Per-photo limit: <?php echo h(humanBytes($effectivePhotoLimitBytes)); ?>.</p>
             <?php if ($activeSkuNormalized === ''): ?>
               <p class="hint">Enter a SKU first to keep photos grouped with that specific item.</p>
@@ -1033,11 +1068,11 @@ if (!$isPartial):
                 <div class="conjoined">
                 <label class="segment">
                   <input type="checkbox" name="is_square" <?php echo !empty($formData['is_square']) ? 'checked' : ''; ?>>
-                  <span>Is it square?</span>
+                  <span>Is it a Square item?</span>
                 </label>
                 <label class="segment">
                   <input type="checkbox" name="care_if_square" <?php echo !empty($formData['care_if_square']) ? 'checked' : ''; ?>>
-                  <span>Do we care?</span>
+                  <span>Do we care about this item?</span>
                 </label>
               </div>
               </div>
@@ -1051,7 +1086,7 @@ if (!$isPartial):
               <label class="inline">
                 <?php $squareChecked = !empty($formData['is_square']) || !empty($formData['care_if_square']); ?>
                 <input type="checkbox" name="square_and_care" <?php echo $squareChecked ? 'checked' : ''; ?>>
-                <span>Square item (flag it so we care)</span>
+                <span>Mark as Square priority (checks both above)</span>
               </label>
               <fieldset>
                 <legend>Keep items together?</legend>
@@ -1144,6 +1179,10 @@ if (!$isPartial):
             </div>
 
             <div class="actions">
+              <label class="inline save-and-new">
+                <input type="checkbox" name="save_and_new" id="save-and-new">
+                <span>Start a new record after saving</span>
+              </label>
               <button type="submit">Save Intake Item</button>
               <button type="button" class="ghost button" id="print-sticker-btn" data-label-preset="compact" title="Generate a small SKU sticker label">Print Sticker</button>
             </div>
@@ -1172,7 +1211,7 @@ if (!$isPartial):
               </div>
               <div class="print-row-item">
                 <span class="print-label">Status</span>
-                <span class="print-value"><?php echo h($printStatus !== '' ? $printStatus : 'Select'); ?></span>
+                <span class="print-value"><?php echo h($printStatus !== '' ? statusLabel($printStatus) : 'Select'); ?></span>
               </div>
             </div>
           </div>
@@ -1665,6 +1704,15 @@ if (!$isPartial):
           try { localStorage.removeItem('intakeDraftV1'); } catch (e) {}
         });
 
+        /* Ctrl/Cmd + Enter saves immediately. */
+        form.addEventListener('keydown', function (e) {
+          if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+            e.preventDefault();
+            var submitBtn = form.querySelector('button[type="submit"]');
+            if (submitBtn) { submitBtn.click(); } else { form.submit(); }
+          }
+        });
+
         /* SKU uppercase conversion — runs independently of the centralized
            auto-save engine.   Every keystroke normalises to upper case. */
         var skuInput = form.querySelector('[name="sku"]');
@@ -2039,6 +2087,16 @@ if (!$isPartial):
           });
         });
       };
+
+      /* ── Photo auto-attach: when a SKU is typed and photos are still
+         queued (added before the SKU existed), upload them right away. ── */
+      if (skuField) {
+        skuField.addEventListener('input', function () {
+          if (!isUploading && photoQueue.length > 0 && (skuField.value || '').trim() !== '') {
+            processQueue();
+          }
+        });
+      }
       if (photoDropzone) {
         var dz = photoDropzone;
         ['dragenter', 'dragover'].forEach(function (evtName) {

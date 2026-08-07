@@ -16,14 +16,28 @@ Pinksheet is a PHP + SQLite inventory app for intake work, SKU lookup, photo man
 ## Quick Start
 
 ```bash
-php -S localhost:8000 -t .
+php -d upload_max_filesize=32M -d post_max_size=128M -d max_file_uploads=100 -S 127.0.0.1:8765 -t public public/router.php
 ```
 
-Then open:
+Or on Windows:
 
-- `http://localhost:8000/home.php` for the dashboard
-- `http://localhost:8000/intake.php?clear_draft=1` for a blank intake form
-- `http://localhost:8000/archive.php` for the legacy archive
+```powershell
+.\serve.ps1
+```
+
+Then open `http://127.0.0.1:8765/` — no sign-in required, it just works.
+
+- `/home.php` — dashboard
+- `/intake.php?clear_draft=1` — blank intake form
+- `/archive.php` — legacy archive
+
+> **Security model:** the document root is `public/` and every request is
+> routed through `public/router.php`, which whitelists entry points.  The
+> database, logs, `.env`, signing keys, scripts, and the bundled PHP runtime
+> are never reachable over HTTP.  There is no login — anyone who can reach
+> the server can use the app.  The Square webhook receiver is protected by
+> its own HMAC signature verification.  For an open-on-the-network app,
+> keep it on a trusted LAN and expose it with HTTPS (see docs/ops.md).
 
 ## Main Pages
 
@@ -59,7 +73,8 @@ PowerShell backup and verify helpers live in `scripts/`.
 
 - Records are matched by normalized SKU.
 - Autosave is server-backed and versioned.
-- Photos are stored separately from the SQLite rows.
+- Photos are stored separately from the SQLite rows — and photos attach to a SKU **as soon as you enter the SKU**, no need to save first.
+- The status board has a live filter (press `/` to focus) and keyboard navigation (arrow keys move between cards, `Enter` opens a card in intake).
 - Archive rows are read-only in the UI.
 - Backups are designed to be local-first, with optional mirrors.
 - Square sync is optional and only runs when the local environment is configured.
@@ -80,7 +95,7 @@ PowerShell backup and verify helpers live in `scripts/`.
 ## Square Sync
 
 - Create a local `.env` file in the repo root and set `SQUARE_ACCESS_TOKEN` and `SQUARE_LOCATION_ID` to enable sync.
-- Optional settings include `SQUARE_ENVIRONMENT`, `SQUARE_API_VERSION`, `SQUARE_CURRENCY`, `SQUARE_DEFAULT_QUANTITY`, and `SQUARE_SYNC_ENABLED`.
+- Optional settings include `SQUARE_ENVIRONMENT`, `SQUARE_API_VERSION=2026-07-15`, `SQUARE_CURRENCY`, `SQUARE_DEFAULT_QUANTITY`, `SQUARE_SYNC_ENABLED`, retry timeout settings, and signed webhook settings.
 - On save, quick edits, photo upload, and thumbnail changes, the app can upsert the matching Square catalog item and variation.
 - Square sync metadata and last errors are stored in `square_catalog_sync`.
 - Detailed sync errors are appended to `logs/square_sync.log`.

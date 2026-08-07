@@ -98,8 +98,10 @@ function createSandboxDatabase(): PDO
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         sku_normalized TEXT NOT NULL,
         payload TEXT NOT NULL,
+        version INTEGER NOT NULL DEFAULT 1,
         updated_at TEXT NOT NULL DEFAULT (datetime('now'))
     )");
+    $pdo->exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_intake_drafts_sku ON intake_drafts (sku_normalized)");
 
     $pdo->exec("CREATE TABLE IF NOT EXISTS script_cache (
         sku_normalized TEXT PRIMARY KEY,
@@ -111,12 +113,34 @@ function createSandboxDatabase(): PDO
     )");
 
     $pdo->exec("CREATE TABLE IF NOT EXISTS square_catalog_sync (
-        id TEXT PRIMARY KEY,
-        type TEXT,
-        sku_normalized TEXT,
-        item_data TEXT,
-        updated_at TEXT
+        sku_normalized TEXT PRIMARY KEY,
+        square_item_id TEXT,
+        square_item_version INTEGER,
+        square_variation_id TEXT,
+        square_variation_version INTEGER,
+        square_image_id TEXT,
+        square_image_photo_id INTEGER,
+        payload_hash TEXT,
+        last_synced_at TEXT,
+        last_error TEXT,
+        last_sale_sync_at TEXT,
+        last_inventory_sync TEXT,
+        sync_enabled INTEGER NOT NULL DEFAULT 1,
+        last_origin TEXT,
+        last_correlation_id TEXT,
+        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
     )");
+
+    // Add quantity column if not present
+    $cols2 = $pdo->query("PRAGMA table_info(intake_items)")->fetchAll(PDO::FETCH_COLUMN, 1);
+    if (!in_array('quantity', $cols2, true)) {
+        $pdo->exec("ALTER TABLE intake_items ADD COLUMN quantity INTEGER NOT NULL DEFAULT 1");
+    }
+    // Keep intake_deleted schema in sync with intake_items for soft-delete INSERT
+    $delCols = $pdo->query("PRAGMA table_info(intake_deleted)")->fetchAll(PDO::FETCH_COLUMN, 1);
+    if (!in_array('quantity', $delCols, true)) {
+        $pdo->exec("ALTER TABLE intake_deleted ADD COLUMN quantity INTEGER NOT NULL DEFAULT 1");
+    }
 
     return $pdo;
 }
@@ -160,55 +184,6 @@ function cleanSandboxDatabases(): void
             $shm = $f . '-shm';
             if (is_file($wal)) { @unlink($wal); }
             if (is_file($shm)) { @unlink($shm); }
-        }
-    }
-}
-
-// ── 3. Polyfill helpers used by tests ───────────────────────────────────
-if (!function_exists('sanitizeFilename')) {
-    function sanitizeFilename(string $name): string
-    {
-        return preg_replace('/[\\\\\/:*?"<>|]/', '', $name) ?? $name;
-    }
-}
-if (!function_exists('detectUploadMimeType')) {
-    function detectUploadMimeType(string $path): ?string
-    {
-        $finfo = finfo_open(FILEINFO_MIME_TYPE);
-        $mime  = finfo_file($finfo, $path);
-        $allowed = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
-        $executable = ['text/x-php', 'text/x-shellscript', 'application/x-php', 'application/x-dosexec'];
-        if (in_array($mime, $executable, true)) {
-            return null;
-        }
-        return in_array($mime, $allowed, true) ? $mime : null;
-    }
-}
-if (!function_exists('normalizeSku')) {
-    function normalizeSku(string $sku): string
-    {
-        return strtoupper(trim($sku));
-    }
-}
-if (!function_exists('loadDotEnv')) {
-    function loadDotEnv(string $path): void
-    {
-        if (!is_file($path)) { return; }
-        $lines = file($path, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
-        if ($lines === false) { return; }
-        foreach ($lines as $line) {
-            $line = trim($line);
-            if ($line === '' || str_starts_with($line, '#')) { continue; }
-            if (str_contains($line, '=')) {
-                [$key, $val] = explode('=', $line, 2);
-                $key = trim($key);
-                $val = trim($val);
-                if ((str_starts_with($val, '"') && str_ends_with($val, '"')) ||
-                    (str_starts_with($val, "'") && str_ends_with($val, "'"))) {
-                    $val = substr($val, 1, -1);
-                }
-                putenv("{$key}={$val}");
-            }
         }
     }
 }

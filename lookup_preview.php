@@ -31,7 +31,13 @@ if (safeStringLength($sku) > MAX_QUERY_LENGTH) {
 if (safeStringLength($status) > MAX_STATUS_LENGTH) {
     $status = safeStringSubstring($status, 0, MAX_STATUS_LENGTH);
 }
-if ($sku === '' && $status === '') {
+$minPrice = $_GET['min_price'] ?? '';
+$maxPrice = $_GET['max_price'] ?? '';
+$sort = $_GET['sort'] ?? 'updated_at';
+if ($sort !== 'price_asc' && $sort !== 'price_desc') {
+    $sort = 'updated_at';
+}
+if ($sku === '' && $status === '' && $minPrice === '' && $maxPrice === '') {
     header('Content-Type: application/json; charset=utf-8');
     echo json_encode([]);
     exit;
@@ -64,11 +70,31 @@ try {
         $conditions[] = 'status = :status';
         $params['status'] = $status;
     }
+    $effectivePrice = 'COALESCE(dispotech_price, ebay_price, 0)';
+    if ($minPrice !== '' || $maxPrice !== '') {
+        $priceConds = [];
+        if ($minPrice !== '') {
+            $priceConds[] = "$effectivePrice >= :min_price";
+            $params['min_price'] = (float)$minPrice;
+        }
+        if ($maxPrice !== '') {
+            $priceConds[] = "$effectivePrice <= :max_price";
+            $params['max_price'] = (float)$maxPrice;
+        }
+        $conditions[] = '(' . implode(' AND ', $priceConds) . ')';
+    }
 $sql = 'SELECT id, sku, status, what_is_it, updated_at, dispotech_price, ebay_price FROM intake_items';
     if ($conditions) {
         $sql .= ' WHERE ' . implode(' AND ', $conditions);
     }
-    $sql .= ' ORDER BY updated_at DESC, id DESC LIMIT ' . (int)$limit;
+    if ($sort === 'price_asc') {
+        $sql .= " ORDER BY $effectivePrice ASC, id DESC";
+    } elseif ($sort === 'price_desc') {
+        $sql .= " ORDER BY $effectivePrice DESC, id DESC";
+    } else {
+        $sql .= ' ORDER BY updated_at DESC, id DESC';
+    }
+    $sql .= ' LIMIT ' . (int)$limit;
     $stmt = $pdo->prepare($sql);
     $stmt->execute($params);
     $rows = $stmt->fetchAll();

@@ -146,7 +146,7 @@ These are the files most likely to matter during a real maintenance issue:
 For local work, the repo can be started with:
 
 ```bash
-php -S 127.0.0.1:8765 -t .
+php -S 127.0.0.1:8765 -t public public/router.php -d upload_max_filesize=32M -d post_max_size=128M -d max_file_uploads=100
 ```
 
 Then open:
