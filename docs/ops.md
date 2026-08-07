@@ -14,7 +14,9 @@ This is the day-to-day checklist for keeping the app healthy.
 Run through this checklist on the deployment target before going live:
 
 1. **Square environment** — `.env` must set `SQUARE_ENVIRONMENT=production` and
-   `SQUARE_ACCESS_TOKEN` to a production token, not the sandbox values.
+   `SQUARE_ACCESS_TOKEN` to a production token, not the sandbox values. After
+   pasting values, run `php scripts/check_square_env.php` — it reports every
+   setting and tests the token against the production API.
 2. **Webhook URL** — `SQUARE_WEBHOOK_NOTIFICATION_URL` must be the exact HTTPS URL
    registered in the Square dashboard (e.g. `https://your-domain.com/webhooks/square.php`).
    The signature check is computed against this string, so a mismatch rejects every
