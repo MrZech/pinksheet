@@ -133,7 +133,12 @@ function squareSyncItemBySku(PDO $pdo, string $skuNormalized): array
         $existing = squareSyncFindExistingCatalogObject($config, $syncRow, $skuNormalized);
         $catalogObject = squareSyncBuildCatalogObject($item, $config, $existing);
         $upsertResult = squareSyncApiJson($config, 'POST', '/v2/catalog/object', [
-            'idempotency_key' => 'pink-' . substr(hash('sha256', $skuNormalized . $payloadHash), 0, 32),
+            // Idempotency key must change whenever the request body changes.
+            // The body switches between CREATE (no ids) and UPDATE (existing
+            // ids found via the API), so include those ids in the derivation;
+            // otherwise a retry after a partial failure reuses the key with
+            // different data and Square rejects it with IDEMPOTENCY_KEY_REUSED.
+            'idempotency_key' => 'pink-' . substr(hash('sha256', $skuNormalized . $payloadHash . ':' . ($existing['item']['id'] ?? '') . ':' . ($existing['variation']['id'] ?? '')), 0, 32),
             'object' => $catalogObject,
         ]);
 
