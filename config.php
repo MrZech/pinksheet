@@ -19,6 +19,22 @@ if ($env === 'development') {
 
 /* ── Session ─────────────────────────────────────────────────── */
 if (session_status() === PHP_SESSION_NONE && php_sapi_name() !== 'cli') {
+    /*
+     * Store sessions inside the app's own writable data/ directory.
+     * On minimal servers/containers the system session dir (e.g.
+     * /var/lib/php/sessions) may be missing or not writable for the
+     * web user, which silently breaks session persistence and makes
+     * every CSRF-protected POST fail with 403 ("Invalid or missing
+     * CSRF token") even though the database is perfectly writable.
+     */
+    $sessionDir = __DIR__ . '/data/sessions';
+    if (!is_dir($sessionDir)) {
+        @mkdir($sessionDir, 0777, true);
+    }
+    if (is_dir($sessionDir) && is_writable($sessionDir)) {
+        session_save_path($sessionDir);
+    }
+
     $sessionSecure = !empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off';
     session_set_cookie_params([
         'lifetime' => 0,
