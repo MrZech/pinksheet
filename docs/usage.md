@@ -26,7 +26,7 @@ The intake sheet lives in `index.php`, with `intake.php` as a thin wrapper.
 - `SKU` is required.
 - `What is it?` is required.
 - SKU values are normalized to uppercase before the record is saved.
-- The status choices are `Intake`, `Tested`, `Dispo Tech Store`, `eBay`, and `SOLD`.
+- The status is chosen from a dropdown on the intake sheet and defaults to `Intake` for new records. The lanes are `Intake`, `eBay Draft`, `eBay Review`, `eBay Listed`, `Dispo Tech Store`, and `SOLD`.
 - Saving an existing SKU updates the newest matching record for that normalized SKU.
 
 ### Save Actions

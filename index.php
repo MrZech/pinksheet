@@ -834,11 +834,21 @@ if (!$isPartial):
           <?php $formStatus = trim((string)($formData['status'] ?? '')); ?>
           <label>
             <span>Status:</span>
-            <!-- Status is set automatically: new items start in Intake so
-                 they always appear on the Status Board. Editing an existing
-                 item keeps its current status (hidden field below). -->
-            <input type="hidden" name="status" form="intake-form" value="<?php echo h($formStatus !== '' ? $formStatus : 'intake'); ?>">
-            <span class="status-readonly"><?php echo h(statusLabel($formStatus !== '' ? $formStatus : 'intake')); ?></span>
+            <!-- Status is editable from the dropdown. New items default to
+                 Intake so they always appear on the Status Board. A legacy
+                 status that is no longer a lane keeps its raw value as a
+                 selected option so it is not silently lost on save. -->
+            <select name="status" form="intake-form">
+              <?php
+                $currentStatus = $formStatus !== '' ? $formStatus : 'intake';
+                if (!in_array($currentStatus, $statusOptions, true)) {
+                    echo '<option value="' . h($currentStatus) . '" selected>' . h(statusLabel($currentStatus)) . '</option>';
+                }
+                foreach ($statusOptions as $opt):
+              ?>
+                <option value="<?php echo h($opt); ?>"<?php echo $currentStatus === $opt ? ' selected' : ''; ?>><?php echo h(statusLabel($opt)); ?></option>
+              <?php endforeach; ?>
+            </select>
           </label>
           <label>
             <span>Price:</span>
