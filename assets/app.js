@@ -15,6 +15,8 @@
   var dirty = false;
   var syncTimer = null;
   var statusEl = document.getElementById('autosave-status');
+  var syncInFlight = false;    // a save request is currently uploading
+  var syncNeedsAnother = false; // new edits arrived while a save was in flight
 
   var subscribers = [];
 
@@ -66,11 +68,21 @@
     if (!dirty) return;
     var sku = ((window.appState['sku'] || window.appState['prompt_sku'] || '') + '').trim().toUpperCase();
     if (!sku) {
-      setStatus('Add a SKU to save', 'warn');
+      // Don't re-warn on every focusout while the SKU is still missing.
+      if (!statusEl || statusEl.textContent !== 'Add a SKU to save') {
+        setStatus('Add a SKU to save', 'warn');
+      }
+      return;
+    }
+    if (syncInFlight) {
+      // An earlier save is still uploading.  Re-run once it finishes so a
+      // stale response can never overwrite the newest field values.
+      syncNeedsAnother = true;
       return;
     }
     setStatus('Saving changes\u2026', 'saving');
     dirty = false;
+    syncInFlight = true;
     fetch('autosave.php', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': window.CSRF_TOKEN || '' },
@@ -81,16 +93,24 @@
     })
     .then(function (r) { return r.json(); })
     .then(function (resp) {
-      if (resp.status === 'ok') {
+      if (resp && (resp.ok === true || resp.status === 'ok')) {
         setStatus('All changes saved', 'saved');
       } else {
         dirty = true;
-        setStatus('Save failed: ' + (resp.message || 'unknown error'), 'err');
+        setStatus('Save failed: ' + (resp.error || resp.message || 'unknown error'), 'err');
       }
     })
     .catch(function () {
       dirty = true;
       setStatus('Save failed (network)', 'err');
+    })
+    .finally(function () {
+      syncInFlight = false;
+      if (syncNeedsAnother) {
+        syncNeedsAnother = false;
+        clearTimeout(syncTimer);
+        syncTimer = setTimeout(syncToServer, 50);
+      }
     });
   };
 
@@ -118,6 +138,19 @@
     if (t.tagName === 'SELECT') {
       handleChange(t);
     }
+  });
+
+  /* ── Save when clicking away from a field (focusout) ──
+     Any pending keystrokes are flushed to the server as soon as the
+     user leaves the field, instead of waiting out the debounce timer.
+     When no SKU has been entered yet, the draft is still persisted to
+     localStorage so nothing typed is lost. */
+  document.addEventListener('focusout', function (e) {
+    var t = e.target;
+    if (!t || !t.name) return;
+    if (t.type === 'file') return;
+    if (t.tagName !== 'INPUT' && t.tagName !== 'SELECT' && t.tagName !== 'TEXTAREA') return;
+    flushBeforeUnload();
   });
 
   /* ── Persist unsaved state to localStorage when SKU is missing ── */
