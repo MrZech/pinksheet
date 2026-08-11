@@ -255,6 +255,19 @@ button.ghost,
     border: none;
 }
 
+/* The D1/D2 panels are populated by cloning the live form's .section
+   blocks.  Dark mode paints those sections with a dark card background;
+   strip it (and the card chrome) so the printed sheet stays white. */
+.print-d1-panel .section,
+.print-d2-panel .section {
+    background: transparent !important;
+    border: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
 .print-d1-panel .row,
 .print-d2-panel .row {
     display: flex;

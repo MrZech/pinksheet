@@ -1306,181 +1306,183 @@ if (!$isPartial):
 
         setTimeout(finish, 1800);
       };
-      var buildPrintIframe = function () {
-        var sourceGrid = document.querySelector('.print-grid');
-        if (!sourceGrid) return null;
+      /* ── Print: populate the on-page print grid, then window.print() ──
+         Printing runs directly on this page instead of a hidden iframe.
+         Some browsers / embedded webviews print the top-level frame rather
+         than the iframe, which produced a blank page with only the title.
+         Printing the main page also makes Ctrl+P / browser print menus
+         work.  print.css hides all screen chrome in print media and shows
+         only the .print-grid. */
 
-        var iframe = document.createElement('iframe');
-        iframe.id = 'print-frame';
-        iframe.style.position = 'fixed';
-        iframe.style.left = '-9999px';
-        iframe.style.top = '0';
-        iframe.style.width = '7.9in';
-        iframe.style.height = '10.4in';
-        iframe.style.border = '0';
-        iframe.style.background = '#ffffff';
-        iframe.setAttribute('aria-hidden', 'true');
-        document.body.appendChild(iframe);
-
-        var doc = iframe.contentDocument || iframe.contentWindow.document;
-        doc.open();
-        doc.write(
-          '<!doctype html><html><head><title>Print</title>' +
-          '<base href="' + window.location.origin + window.location.pathname.replace(/[^/]*$/, '') + '">' +
-          '<link rel="stylesheet" href="assets/style.css">' +
-          '<link rel="stylesheet" media="print" href="assets/print.css">' +
-          '<script src="assets/qrcode.min.js?v=<?php echo getAssetVersion(); ?>"><\/script>' +
-          '</head><body' + (document.body.classList.contains('print-pink') ? ' class="print-pink"' : '') + '>' +
-          '<div class="page"><div class="print-grid" id="print-root"></div></div>' +
-          '</body></html>'
-        );
-        doc.close();
-
-        var attachAndPrint = function () {
-          var printRoot = doc.getElementById('print-root');
-          if (!printRoot) return;
-
-          var clone = sourceGrid.cloneNode(true);
-
-          // Populate D1 panel from live form
-          var d1Panel = clone.querySelector('#print-d1-panel');
-          var liveD1 = document.querySelector('.form-col-right .section:first-child');
-          if (d1Panel && liveD1) {
-            var d1Clone = liveD1.cloneNode(true);
-            d1Clone.querySelectorAll('input, textarea, select').forEach(function (f) {
-              f.setAttribute('readonly', 'readonly');
-              if (f.tagName === 'INPUT' && f.type !== 'checkbox' && f.type !== 'radio') {
-                f.setAttribute('tabindex', '-1');
-              }
-            });
-            var compatButtons = d1Clone.querySelector('.compat-os-buttons');
-            if (compatButtons) compatButtons.parentNode.removeChild(compatButtons);
-            d1Panel.innerHTML = '';
-            d1Panel.appendChild(d1Clone);
+      var ensureQrLibLoaded = function () {
+        if (window.QRCode) return Promise.resolve();
+        return new Promise(function (resolve, reject) {
+          var existing = document.querySelector('script[data-print-qr-lib="1"]');
+          if (existing) {
+            existing.addEventListener('load', resolve, { once: true });
+            existing.addEventListener('error', reject, { once: true });
+            return;
           }
+          var s = document.createElement('script');
+          s.src = 'assets/qrcode.min.js?v=<?php echo getAssetVersion(); ?>';
+          s.dataset.printQrLib = '1';
+          s.onload = resolve;
+          s.onerror = reject;
+          document.body.appendChild(s);
+        });
+      };
 
-          // Populate D2 panel from live form
-          var d2Panel = clone.querySelector('#print-d2-panel');
-          var liveD2 = document.querySelector('.form-col-right .section:nth-child(2)');
-          if (d2Panel && liveD2) {
-            var d2Clone = liveD2.cloneNode(true);
-            d2Clone.querySelectorAll('input, textarea, select').forEach(function (f) {
-              f.setAttribute('readonly', 'readonly');
-              if (f.tagName === 'INPUT' && f.type !== 'checkbox' && f.type !== 'radio') {
-                f.setAttribute('tabindex', '-1');
-              }
-            });
-            d2Panel.innerHTML = '';
-            d2Panel.appendChild(d2Clone);
-          }
+      var populatePrintGrid = function () {
+        var grid = document.querySelector('.print-grid');
+        if (!grid) return;
 
-          // Populate notes
-          var notesContent = clone.querySelector('#print-notes-content');
-          var liveNotes = document.querySelector('textarea[name="notes"]');
-          if (notesContent && liveNotes) {
-            notesContent.textContent = liveNotes.value && liveNotes.value.trim() ? liveNotes.value : ' ';
-          }
+        // Populate D1 panel from live form
+        var d1Panel = grid.querySelector('#print-d1-panel');
+        var liveD1 = document.querySelector('.form-col-right .section:first-child');
+        if (d1Panel && liveD1) {
+          var d1Clone = liveD1.cloneNode(true);
+          d1Clone.querySelectorAll('input, textarea, select').forEach(function (f) {
+            f.setAttribute('readonly', 'readonly');
+            if (f.tagName === 'INPUT' && f.type !== 'checkbox' && f.type !== 'radio') {
+              f.setAttribute('tabindex', '-1');
+            }
+          });
+          var compatButtons = d1Clone.querySelector('.compat-os-buttons');
+          if (compatButtons) compatButtons.parentNode.removeChild(compatButtons);
+          d1Panel.innerHTML = '';
+          d1Panel.appendChild(d1Clone);
+        }
 
-          // Copy field values from live form into cloned panels
-          var liveForm = document.getElementById('intake-form');
-          if (liveForm) {
-            clone.querySelectorAll('input[name], textarea[name], select[name]').forEach(function (dest) {
-              var name = dest.getAttribute('name');
-              if (!name) return;
-              var src = liveForm.querySelector('[name="' + name + '"]');
-              if (!src) return;
-              if (dest.tagName === 'INPUT') {
-                if (dest.type === 'checkbox') {
-                  dest.checked = src.checked;
-                } else if (dest.type === 'radio') {
-                  dest.checked = src.checked && dest.value === src.value;
-                } else {
-                  dest.value = src.value;
-                }
+        // Populate D2 panel from live form
+        var d2Panel = grid.querySelector('#print-d2-panel');
+        var liveD2 = document.querySelector('.form-col-right .section:nth-child(2)');
+        if (d2Panel && liveD2) {
+          var d2Clone = liveD2.cloneNode(true);
+          d2Clone.querySelectorAll('input, textarea, select').forEach(function (f) {
+            f.setAttribute('readonly', 'readonly');
+            if (f.tagName === 'INPUT' && f.type !== 'checkbox' && f.type !== 'radio') {
+              f.setAttribute('tabindex', '-1');
+            }
+          });
+          d2Panel.innerHTML = '';
+          d2Panel.appendChild(d2Clone);
+        }
+
+        // Populate notes
+        var notesContent = grid.querySelector('#print-notes-content');
+        var liveNotes = document.querySelector('textarea[name="notes"]');
+        if (notesContent && liveNotes) {
+          notesContent.textContent = liveNotes.value && liveNotes.value.trim() ? liveNotes.value : ' ';
+        }
+
+        // Copy field values from live form into cloned panels
+        var liveForm = document.getElementById('intake-form');
+        if (liveForm) {
+          grid.querySelectorAll('input[name], textarea[name], select[name]').forEach(function (dest) {
+            var name = dest.getAttribute('name');
+            if (!name) return;
+            var src = liveForm.querySelector('[name="' + name + '"]');
+            if (!src) return;
+            if (dest.tagName === 'INPUT') {
+              if (dest.type === 'checkbox') {
+                dest.checked = src.checked;
+              } else if (dest.type === 'radio') {
+                dest.checked = src.checked && dest.value === src.value;
               } else {
                 dest.value = src.value;
               }
-            });
-          }
-
-          // Build gallery from first 4 supplementary photos (skip thumbnail)
-          var galleryRow = clone.querySelector('#print-gallery-row');
-          var thumbImgEl = document.querySelector('.print-thumb-cell img');
-          var thumbId = thumbImgEl ? extractPhotoIdFromSrc(thumbImgEl.getAttribute('src')) : '';
-          var photoItems = document.querySelectorAll('.section.sku-photos .sku-photo-item');
-          var count = 0;
-          photoItems.forEach(function (item) {
-            if (count >= 4) return;
-            if (item.classList.contains('is-preview')) return;
-            var img = item.querySelector('.sku-photo-link img');
-            if (!img) return;
-            var src = img.getAttribute('src') || '';
-            if (!src) return;
-            var photoId = extractPhotoIdFromSrc(src);
-            if (thumbId && photoId && String(photoId) === String(thumbId)) return;
-            var figure = doc.createElement('figure');
-            figure.className = 'print-gallery-item';
-            var gi = doc.createElement('img');
-            gi.src = src;
-            gi.alt = '';
-            figure.appendChild(gi);
-            galleryRow.appendChild(figure);
-            count++;
-          });
-
-          // Generate QR code in the iframe
-          var qrCell = clone.querySelector('.print-qr-cell');
-          if (qrCell) {
-            var sku = qrCell.getAttribute('data-sku') || '';
-            if (sku) {
-              var protocol = window.location.protocol === 'https:' ? 'https' : 'http';
-              var host = window.location.host;
-              var url = protocol + '://' + host + '/intake.php?sku=' + encodeURIComponent(sku);
-              try {
-                new QRCode(qrCell, {
-                  text: url,
-                  width: 120,
-                  height: 120,
-                  colorDark: '#0f172a',
-                  colorLight: '#ffffff',
-                  correctLevel: QRCode.CorrectLevel.H
-                });
-              } catch (e) {}
+            } else {
+              dest.value = src.value;
             }
-          }
+          });
+        }
 
-          printRoot.appendChild(clone);
+        // Build gallery from first 4 supplementary photos (skip thumbnail)
+        var galleryRow = grid.querySelector('#print-gallery-row');
+        var thumbImgEl = grid.querySelector('.print-thumb-cell img');
+        var thumbId = thumbImgEl ? extractPhotoIdFromSrc(thumbImgEl.getAttribute('src')) : '';
+        var photoItems = document.querySelectorAll('.section.sku-photos .sku-photo-item');
+        var count = 0;
+        photoItems.forEach(function (item) {
+          if (count >= 4) return;
+          if (item.classList.contains('is-preview')) return;
+          var img = item.querySelector('.sku-photo-link img');
+          if (!img) return;
+          var src = img.getAttribute('src') || '';
+          if (!src) return;
+          var photoId = extractPhotoIdFromSrc(src);
+          if (thumbId && photoId && String(photoId) === String(thumbId)) return;
+          var figure = document.createElement('figure');
+          figure.className = 'print-gallery-item';
+          var gi = document.createElement('img');
+          gi.src = src;
+          gi.alt = '';
+          figure.appendChild(gi);
+          galleryRow.appendChild(figure);
+          count++;
+        });
+      };
 
-          waitForImages(doc, function () {
+      var renderPrintQr = function () {
+        var qrCell = document.querySelector('.print-qr-cell');
+        if (!qrCell) return Promise.resolve();
+        var sku = qrCell.getAttribute('data-sku') || '';
+        if (!sku) return Promise.resolve();
+        return ensureQrLibLoaded().then(function () {
+          var protocol = window.location.protocol === 'https:' ? 'https' : 'http';
+          var url = protocol + '://' + window.location.host + '/intake.php?sku=' + encodeURIComponent(sku);
+          try {
+            qrCell.innerHTML = '';
+            new QRCode(qrCell, {
+              text: url,
+              width: 120,
+              height: 120,
+              colorDark: '#0f172a',
+              colorLight: '#ffffff',
+              correctLevel: QRCode.CorrectLevel.H
+            });
+          } catch (e) {}
+        });
+      };
+
+      var printPage = function () {
+        populatePrintGrid();
+        renderPrintQr().finally(function () {
+          waitForImages(document, function () {
             setTimeout(function () {
-              try { iframe.contentWindow.focus(); } catch (e) {}
-              iframe.contentWindow.print();
-              setTimeout(function () {
-                try { iframe.remove(); } catch (e) {}
-              }, 400);
+              window.print();
             }, 120);
           });
-        };
-
-        if (doc.readyState === 'complete') {
-          attachAndPrint();
-        } else {
-          iframe.addEventListener('load', attachAndPrint);
-        }
-        return iframe;
-      };
-      var printViaIframe = function () {
-        buildPrintIframe();
+        });
       };
 
       var printButton = document.getElementById('print-button');
       if (printButton) {
         printButton.addEventListener('click', function () {
-          printViaIframe();
+          printPage();
         });
       }
 
-      // No main-page mutations during print; nothing to clean up on unload.
+      // Keep Ctrl+P / browser print menus working: populate the grid
+      // whenever the browser enters print preview.
+      var onBeforePrint = function () {
+        populatePrintGrid();
+        renderPrintQr().catch(function () {});
+      };
+      if (window.matchMedia) {
+        try {
+          var printMql = window.matchMedia('print');
+          var onPrintChange = function (mql) {
+            if (mql.matches) { onBeforePrint(); }
+          };
+          if (printMql.addEventListener) {
+            printMql.addEventListener('change', onPrintChange);
+          } else if (printMql.addListener) {
+            printMql.addListener(onPrintChange);
+          }
+        } catch (e) {}
+      }
+      window.addEventListener('beforeprint', onBeforePrint);
 
       var whatInput = document.getElementById('what-is-it-input');
       var whatError = document.getElementById('what-error');
