@@ -391,6 +391,22 @@ button.ghost,
     box-sizing: border-box;
 }
 
+/* Dark mode paints form controls with near-white text
+   (body[data-theme="dark"] input { color: var(--text-primary) }), which
+   would print invisible on white paper.  Force printed values to dark ink. */
+.print-d1-panel input,
+.print-d1-panel select,
+.print-d1-panel textarea,
+.print-d1-panel option,
+.print-d2-panel input,
+.print-d2-panel select,
+.print-d2-panel textarea,
+.print-d2-panel option {
+    color: #111 !important;
+    -webkit-text-fill-color: #111 !important;
+    caret-color: #111 !important;
+}
+
 .print-d1-panel input[type="checkbox"],
 .print-d1-panel input[type="radio"],
 .print-d2-panel input[type="checkbox"],
