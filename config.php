@@ -377,6 +377,7 @@ function getAssetVersion(): int
         'assets/nav.js',
         'assets/command-palette.js',
         'assets/qz-tray.js',
+        'assets/qrcode.min.js',
     ];
     $latest = 0;
     foreach ($assets as $f) {

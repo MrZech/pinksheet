@@ -477,7 +477,10 @@
     btn.addEventListener('click', function () {
       if (btn._disabled || btn._qzOffline) { return; }
 
-      var skuField = document.querySelector('input[name="sku"]');
+      // Scope to the intake form: the photo-delete form also carries a hidden
+      // input[name=sku] earlier in the DOM, so a global query grabs the wrong
+      // (hidden, empty) field and printing fails with "Enter a SKU before printing."
+      var skuField = document.querySelector('#intake-form input[name="sku"]');
       var sku = skuField ? (skuField.value || '').trim() : '';
       var preset = btn.getAttribute('data-label-preset') || 'compact';
 

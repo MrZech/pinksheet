@@ -1329,7 +1329,7 @@ if (!$isPartial):
           '<base href="' + window.location.origin + window.location.pathname.replace(/[^/]*$/, '') + '">' +
           '<link rel="stylesheet" href="assets/style.css">' +
           '<link rel="stylesheet" media="print" href="assets/print.css">' +
-          '<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" integrity="sha512-CNgIRecGo7nphbeZ04Sc13ka07paqdeTu0WR1IM4kNcpmBAUSHSQX0FslNhTDadL4O5SAGapGt4FodqL8My0mA==" crossorigin="anonymous" referrerpolicy="no-referrer"><\/script>' +
+          '<script src="assets/qrcode.min.js?v=<?php echo getAssetVersion(); ?>"><\/script>' +
           '</head><body' + (document.body.classList.contains('print-pink') ? ' class="print-pink"' : '') + '>' +
           '<div class="page"><div class="print-grid" id="print-root"></div></div>' +
           '</body></html>'
@@ -1766,7 +1766,9 @@ if (!$isPartial):
       var deleteForm = document.getElementById('photo-delete-form');
       var deleteInput = document.getElementById('delete-photo-id');
       var deleteSku = document.getElementById('delete-photo-sku');
-      var skuField = document.querySelector('input[name="sku"]');
+      // Scope to the intake form: photo-delete-form's hidden input[name=sku]
+      // precedes it in the DOM, so a global query would read the wrong field.
+      var skuField = document.querySelector('#intake-form input[name="sku"]');
       var isUploading = false;
       var intakeForm = document.getElementById('intake-form');
       var submitButton = document.querySelector('button[type="submit"]');
@@ -2477,7 +2479,9 @@ if (!$isPartial):
     var qrInstance = null;
     var qrWrap = document.getElementById('intake-qr-wrap');
     var qrRender = document.getElementById('intake-qr-render');
-    var skuInput = document.querySelector('input[name="sku"]');
+    // Scope to the intake form: photo-delete-form's hidden input[name=sku]
+    // precedes it in the DOM, so a global query would read the wrong field.
+    var skuInput = document.querySelector('#intake-form input[name="sku"]');
     var qrLibPromise = null;
 
     var loadQrLibrary = function () {
@@ -2495,10 +2499,7 @@ if (!$isPartial):
           return;
         }
         var script = document.createElement('script');
-        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js';
-        script.integrity = 'sha512-CNgIRecGo7nphbeZ04Sc13ka07paqdeTu0WR1IM4kNcpmBAUSHSQX0FslNhTDadL4O5SAGapGt4FodqL8My0mA==';
-        script.crossOrigin = 'anonymous';
-        script.referrerPolicy = 'no-referrer';
+        script.src = 'assets/qrcode.min.js?v=<?php echo getAssetVersion(); ?>';
         script.dataset.qrcodeLib = '1';
         script.onload = function () { resolve(); };
         script.onerror = function () { reject(new Error('QR library failed to load')); };

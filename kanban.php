@@ -796,10 +796,7 @@ body[data-theme=dark] .kanban-skeleton-card{background:linear-gradient(90deg,rgb
   <script>
   setTimeout(function () {
     var s1 = document.createElement('script');
-    s1.src = 'https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js';
-    s1.integrity = 'sha512-CNgIRecGo7nphbeZ04Sc13ka07paqdeTu0WR1IM4kNcpmBAUSHSQX0FslNhTDadL4O5SAGapGt4FodqL8My0mA==';
-    s1.crossOrigin = 'anonymous';
-    s1.referrerPolicy = 'no-referrer';
+    s1.src = 'assets/qrcode.min.js?v=<?php echo getAssetVersion(); ?>';
     document.body.appendChild(s1);
 
     var s2 = document.createElement('script');
