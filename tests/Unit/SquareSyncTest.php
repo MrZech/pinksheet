@@ -51,6 +51,37 @@ final class SquareSyncTest extends TestCase
         if ($oldLocation !== false) { putenv('SQUARE_LOCATION_ID=' . $oldLocation); }
     }
 
+    public function test_square_config_disabled_when_credentials_are_placeholders(): void
+    {
+        $oldToken = getenv('SQUARE_ACCESS_TOKEN');
+        putenv('SQUARE_ACCESS_TOKEN=replace-with-your-square-access-token');
+        $oldLocation = getenv('SQUARE_LOCATION_ID');
+        putenv('SQUARE_LOCATION_ID=replace-with-your-square-location-id');
+
+        $config = squareSyncConfig();
+        $this->assertFalse(
+            $config['enabled'],
+            'Placeholder credentials from .env.example must NOT count as configured'
+        );
+
+        if ($oldToken !== false) { putenv('SQUARE_ACCESS_TOKEN=' . $oldToken); }
+        if ($oldLocation !== false) { putenv('SQUARE_LOCATION_ID=' . $oldLocation); }
+    }
+
+    public function test_square_config_enabled_with_real_looking_credentials(): void
+    {
+        $oldToken = getenv('SQUARE_ACCESS_TOKEN');
+        putenv('SQUARE_ACCESS_TOKEN=' . str_repeat('a', 40));
+        $oldLocation = getenv('SQUARE_LOCATION_ID');
+        putenv('SQUARE_LOCATION_ID=' . str_repeat('b', 36));
+
+        $config = squareSyncConfig();
+        $this->assertTrue($config['enabled']);
+
+        if ($oldToken !== false) { putenv('SQUARE_ACCESS_TOKEN=' . $oldToken); }
+        if ($oldLocation !== false) { putenv('SQUARE_LOCATION_ID=' . $oldLocation); }
+    }
+
     // ── SKU Normalization ───────────────────────────────────────────────
 
     public function test_sku_normalization_uppercases(): void

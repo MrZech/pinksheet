@@ -51,8 +51,16 @@ function squareSyncConfig(): array
     $timeoutSeconds = trim((string)(getenv('SQUARE_API_TIMEOUT_SECONDS') ?: '20'));
     $connectTimeoutSeconds = trim((string)(getenv('SQUARE_API_CONNECT_TIMEOUT_SECONDS') ?: '5'));
 
+    // A token/location that is empty or still the .env.example placeholder
+    // means Square is NOT actually configured.  Treating the placeholder as
+    // real made the app report "connected" and fire API calls Square rejects
+    // with 401 on every save — while catalog mappings were never created and
+    // SKUs never moved to SOLD.
+    $tokenReal = $token !== '' && !str_starts_with($token, 'replace-with-');
+    $locationReal = $locationId !== '' && !str_starts_with($locationId, 'replace-with-');
+
     return [
-        'enabled' => !in_array($enabledRaw, ['0', 'false', 'no', 'off'], true) && $token !== '' && $locationId !== '',
+        'enabled' => !in_array($enabledRaw, ['0', 'false', 'no', 'off'], true) && $tokenReal && $locationReal,
         'token' => $token,
         'location_id' => $locationId,
         'api_version' => $apiVersion,

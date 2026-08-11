@@ -658,7 +658,13 @@ if (!$isPartial):
             setBackupState(true);
             showToast('Backup started', true);
             setBackupIndicator('running', 'Backup running…', 'This can take a bit if your backup mirror is slow.');
-            fetch('backup_now.php', { method: 'POST', credentials: 'same-origin', cache: 'no-store', body: 'csrf_token=' + encodeURIComponent(window.CSRF_TOKEN) })
+            fetch('backup_now.php', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+              credentials: 'same-origin',
+              cache: 'no-store',
+              body: 'csrf_token=' + encodeURIComponent(window.CSRF_TOKEN)
+            })
               .then(function (r) { return r.json(); })
               .then(function (data) {
                 if (data.ok) {
@@ -705,7 +711,13 @@ if (!$isPartial):
             setSquareSyncState(true);
             showToast('Square sync started', true);
             setBackupIndicator('running', 'Square sync running...', 'Pushing current intake inventory to Square.');
-            fetch('sync_square_now.php', { method: 'POST', credentials: 'same-origin', cache: 'no-store', body: 'csrf_token=' + encodeURIComponent(window.CSRF_TOKEN) })
+            fetch('sync_square_now.php', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+              credentials: 'same-origin',
+              cache: 'no-store',
+              body: 'csrf_token=' + encodeURIComponent(window.CSRF_TOKEN)
+            })
               .then(function (r) { return r.json(); })
               .then(function (data) {
                 if (data.ok) {
@@ -979,7 +991,13 @@ if (!$isPartial):
           var runVerify = function () {
             setVerifyState(true);
             showToast('Verification started', true);
-            fetch('verify_now.php', { method: 'POST', credentials: 'same-origin', cache: 'no-store', body: 'csrf_token=' + encodeURIComponent(window.CSRF_TOKEN) })
+            fetch('verify_now.php', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+              credentials: 'same-origin',
+              cache: 'no-store',
+              body: 'csrf_token=' + encodeURIComponent(window.CSRF_TOKEN)
+            })
               .then(function (r) { return r.json(); })
               .then(function (data) {
                 if (data.ok) {
