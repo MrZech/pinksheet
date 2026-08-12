@@ -39,6 +39,47 @@ Run through this checklist on the deployment target before going live:
 8. **Send a Square test webhook** — trigger `test.webhook` from the Square dashboard
    and confirm `logs/square_sync.log` records it as verified.
 
+## Deploying To The Server (Proxmox container)
+
+The app runs in a Debian LXC container (`pct exec 141 ...`) with the repo at
+`/opt/pinksheet` served by the `pinksheet` systemd unit.
+
+**Normal deploy** (fast-forward only):
+
+```bash
+pct exec 141 -- bash -lc 'cd /opt/pinksheet && git pull --ff-only && systemctl restart pinksheet && systemctl is-active pinksheet'
+```
+
+**After a history rewrite** (e.g. a `git filter-repo` force-push purging
+sensitive files): the container's old `main` no longer exists upstream, so
+`--ff-only` fails with "Diverging branches can't be fast-forwarded". This is
+expected — recover by pointing the branch at the rewritten history:
+
+```bash
+pct exec 141 -- bash -lc 'cd /opt/pinksheet && git fetch origin && git log --oneline origin/main..main'   # must be EMPTY
+pct exec 141 -- bash -lc 'cd /opt/pinksheet && git checkout -f main && git reset --hard origin/main && systemctl restart pinksheet'
+pct exec 141 -- systemctl is-active pinksheet
+```
+
+- Stop if the `origin/main..main` log lists local-only commits — those would be
+  discarded by the reset.
+- `.env` (real Square credentials), `data/intake.sqlite`, `data/sku_photos/`,
+  and `logs/` are gitignored and untouched by the reset.
+- The rewritten trees are content-identical except for the removed files, so
+  nothing of value is lost; `git pull --ff-only` works normally again afterwards.
+
+**Verifying health inside the container** (curl is not installed):
+
+```bash
+pct exec 141 -- systemctl cat pinksheet | grep ExecStart   # find the listen address/port
+pct exec 141 -- php -r 'echo file_get_contents("http://127.0.0.1:PORT/health.php");'
+pct exec 141 -- journalctl -u pinksheet --no-pager -n 30   # startup errors / request log
+```
+
+Production does not use the dev port `8765` — hit the port from `ExecStart`.
+A JSON `{"status":"ok",...}` response plus an `active` service means the
+rollout is good.
+
 ## Morning Check
 
 1. Open `home.php`.
