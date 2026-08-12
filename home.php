@@ -419,6 +419,8 @@ if (!$isPartial):
             <div class="lookup-results-actions">
               <span class="badge subtle" id="inventory-badge"><?php echo count($listedItems); ?> items</span>
               <span class="badge subtle" id="total-value-badge">Total: $0.00</span>
+              <a class="button-link ghost" href="export_inventory.php" download>Export inventory (CSV)</a>
+              <a class="button-link ghost" href="export_inventory.php?scope=active" download>Export active (CSV)</a>
             </div>
           </div>
           <div class="table-wrap">
@@ -1049,7 +1051,6 @@ if (!$isPartial):
         var chipRow = document.getElementById('lookup-chips');
         var filterState = { staleDays: 0 };
         var loadMoreBtn = document.getElementById('lookup-load-more');
-        var exportBtn = document.getElementById('lookup-export-csv');
         var previewLimit = 500;
         var recentSkuKey = 'pinksheetRecentSkus';
         var filterKey = 'pinksheetLookupFilter';
@@ -1730,56 +1731,6 @@ if (!$isPartial):
           loadMoreBtn.addEventListener('click', function () {
             previewLimit = Math.min(previewLimit + 20, 200);
             schedulePreview();
-          });
-        }
-        if (exportBtn) {
-          exportBtn.addEventListener('click', function () {
-            if (!window.fetch) return;
-            var skuValue = (skuInput && skuInput.value.trim()) || '';
-            var statusValue = (statusSelect && statusSelect.value.trim()) || '';
-            var minPrice = (minPriceInput && minPriceInput.value.trim()) || '';
-            var maxPrice = (maxPriceInput && maxPriceInput.value.trim()) || '';
-            if (skuValue === '' && statusValue === '' && minPrice === '' && maxPrice === '') {
-              showToast('Add a SKU, status, or price range before exporting.', false);
-              return;
-            }
-            var params = new URLSearchParams();
-            if (skuValue !== '') params.set('sku', skuValue);
-            if (statusValue !== '') params.set('status', statusValue);
-            if (minPrice !== '') params.set('min_price', minPrice);
-            if (maxPrice !== '') params.set('max_price', maxPrice);
-            params.set('limit', 200);
-            fetch('lookup_preview.php?' + params.toString())
-              .then(function (r) { return r.json(); })
-              .then(function (items) {
-                if (!Array.isArray(items) || !items.length) {
-                  showToast('Nothing to export.', false);
-                  return;
-                }
-                var header = ['SKU', 'Status', 'What is it?', 'Updated'];
-                var rows = items.map(function (i) {
-                  return [
-                    (i.sku || '').replace(/\"/g, '\"\"'),
-                    (i.status || '').replace(/\"/g, '\"\"'),
-                    (i.what_is_it || '').replace(/\"/g, '\"\"'),
-                    i.updated_at || ''
-                  ];
-                });
-                var csv = [header].concat(rows).map(function (row) {
-                  return row.map(function (cell) { return '\"' + cell + '\"'; }).join(',');
-                }).join('\\r\\n');
-                var blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-                var url = URL.createObjectURL(blob);
-                var a = document.createElement('a');
-                a.href = url;
-                a.download = 'lookup_export.csv';
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                URL.revokeObjectURL(url);
-                showToast('Exported ' + rows.length + ' rows.', true);
-              })
-              .catch(function () { showToast('Export failed.', false); });
           });
         }
         var copyLinkBtn = document.getElementById('lookup-copy-link');

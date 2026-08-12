@@ -270,7 +270,22 @@ if (!$isPartial):
       </section>
 
       <section class="section">
-        <h2>Archive items</h2>
+        <div class="lookup-results-header" style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
+          <h2 style="margin:0;">Archive items</h2>
+          <?php
+            // Carry the current filters into the export so it mirrors what's on screen.
+            $exportParams = array_filter([
+                'q' => $q,
+                'status' => $statusFilter,
+                'source' => $sourceFilter,
+                'legacy_source' => $legacySourceFilter,
+                'sold_from' => $soldFrom,
+                'sold_to' => $soldTo,
+            ], static fn($v) => $v !== '');
+            $exportHref = 'export_archive.php' . ($exportParams ? '?' . http_build_query($exportParams) : '');
+          ?>
+          <a class="button-link ghost" href="<?php echo h($exportHref); ?>" download>Export archive (CSV)</a>
+        </div>
         <div class="table-wrap">
           <table class="archive-table">
             <thead>
