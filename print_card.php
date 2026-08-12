@@ -402,7 +402,7 @@ $thumbId = $photoCount > 0 ? (int)$photos[0]['id'] : 0;
                      || (isset($_SERVER['HTTP_CF_VISITOR']) && str_contains($_SERVER['HTTP_CF_VISITOR'], '"scheme":"https"'));
                  $protocol = $isHttps ? 'https' : 'http';
                  $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
-                 echo htmlspecialchars($protocol . '://' . $host . '/intake.php?sku=' . urlencode($displaySku), ENT_QUOTES, 'UTF-8');
+                 echo htmlspecialchars($protocol . '://' . $host . '/card.php?sku=' . urlencode($displaySku), ENT_QUOTES, 'UTF-8');
              ?>"></div>
       </div>
     </div>

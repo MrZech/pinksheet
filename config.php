@@ -146,11 +146,13 @@ function require_csrf(string $purpose = CSRF_TOKEN_PURPOSE): void
 header('X-Frame-Options: DENY');
 header('X-Content-Type-Options: nosniff');
 header('Referrer-Policy: strict-origin-when-cross-origin');
-header('Permissions-Policy: camera=(), microphone=(), geolocation=()');
+// camera=(self) so the kanban QR scanner can use the camera on this origin;
+// cross-origin iframes and third-party embeds remain blocked.
+header('Permissions-Policy: camera=(self), microphone=(), geolocation=()');
 $cspDirectives = [
     "default-src 'self'",
-    "script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://unpkg.com https://cdn.jsdelivr.net",
-    "style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://unpkg.com https://cdn.jsdelivr.net",
+    "script-src 'self' 'unsafe-inline'",
+    "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data: blob:",
     "font-src 'self'",
     "connect-src 'self' ws://localhost:* wss://localhost:*",
@@ -244,6 +246,7 @@ function ensureStorageWritable(): void
         __DIR__ . '/data',
         __DIR__ . '/data/sku_photos',
         __DIR__ . '/data/chunks',
+        __DIR__ . '/data/thumbs',
         __DIR__ . '/logs',
     ];
 
@@ -378,6 +381,8 @@ function getAssetVersion(): int
         'assets/command-palette.js',
         'assets/qz-tray.js',
         'assets/qrcode.min.js',
+        'assets/html5-qrcode.min.js',
+        'assets/compressor.min.js',
     ];
     $latest = 0;
     foreach ($assets as $f) {

@@ -9,6 +9,12 @@ data/chunks/
 data/sku_photos/
 data/ebay_images/
 data/layouts/
+data/sessions/
+data/thumbs/
+
+# One-time safety snapshot of the pre-rewrite git history (contains the
+# purged session files). Delete once you're confident the rewrite is good:
+tmp/pinksheet-pre-rewrite.bundle
 
 # Logs
 logs/lookup.csv

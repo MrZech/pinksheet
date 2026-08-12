@@ -394,7 +394,7 @@ if (!$isPartial):
                 </select>
               </label>
             </div>
-            <p class="error client-error" id="lookup-error" hidden>Enter a SKU or pick a status to search.</p>
+            <p class="error client-error" id="lookup-error" hidden>Enter a SKU, pick a status, or set a price range to search.</p>
             <div class="filter-chips" id="lookup-chips">
               <button type="button" data-lookup-status="">Any</button>
               <button type="button" data-lookup-status="intake">Intake</button>
@@ -1538,7 +1538,8 @@ if (!$isPartial):
           }
           var skuValue = (skuInput && skuInput.value.trim()) || '';
           var statusValue = (statusSelect && statusSelect.value.trim()) || '';
-          if (skuValue === '' && statusValue === '') {
+          var hasPrice = !!((minPriceInput && minPriceInput.value) || (maxPriceInput && maxPriceInput.value));
+          if (skuValue === '' && statusValue === '' && !hasPrice) {
             resetPreview();
             return;
           }
@@ -1736,13 +1737,17 @@ if (!$isPartial):
             if (!window.fetch) return;
             var skuValue = (skuInput && skuInput.value.trim()) || '';
             var statusValue = (statusSelect && statusSelect.value.trim()) || '';
-            if (skuValue === '' && statusValue === '') {
-              showToast('Add a SKU or status before exporting.', false);
+            var minPrice = (minPriceInput && minPriceInput.value.trim()) || '';
+            var maxPrice = (maxPriceInput && maxPriceInput.value.trim()) || '';
+            if (skuValue === '' && statusValue === '' && minPrice === '' && maxPrice === '') {
+              showToast('Add a SKU, status, or price range before exporting.', false);
               return;
             }
             var params = new URLSearchParams();
             if (skuValue !== '') params.set('sku', skuValue);
             if (statusValue !== '') params.set('status', statusValue);
+            if (minPrice !== '') params.set('min_price', minPrice);
+            if (maxPrice !== '') params.set('max_price', maxPrice);
             params.set('limit', 200);
             fetch('lookup_preview.php?' + params.toString())
               .then(function (r) { return r.json(); })
@@ -1809,7 +1814,10 @@ if (!$isPartial):
         lookupForm.addEventListener('submit', function (event) {
           var sku = ((lookupForm.querySelector('[name="sku"]') || {}).value || '').trim();
           var status = ((lookupForm.querySelector('[name="status"]') || {}).value || '').trim();
-          if (sku === '' && status === '') {
+          var minPrice = ((lookupForm.querySelector('[name="min_price"]') || {}).value || '').trim();
+          var maxPrice = ((lookupForm.querySelector('[name="max_price"]') || {}).value || '').trim();
+          var onlyPrice = sku === '' && status === '' && (minPrice !== '' || maxPrice !== '');
+          if (sku === '' && status === '' && !onlyPrice) {
             event.preventDefault();
             if (errorEl) {
               errorEl.hidden = false;
@@ -1818,6 +1826,32 @@ if (!$isPartial):
           }
           if (errorEl) {
             errorEl.hidden = true;
+          }
+          // Price-only search: there's no single SKU to open, so open the
+          // highest-priority match from the backend instead.
+          if (onlyPrice) {
+            event.preventDefault();
+            var priceParams = new URLSearchParams();
+            if (minPrice !== '') priceParams.set('min_price', minPrice);
+            if (maxPrice !== '') priceParams.set('max_price', maxPrice);
+            priceParams.set('sort', (sortSelect && sortSelect.value) || 'price_asc');
+            priceParams.set('limit', '1');
+            fetch('lookup_preview.php?' + priceParams.toString())
+              .then(function (r) { return r.json(); })
+              .then(function (items) {
+                if (Array.isArray(items) && items.length && items[0].sku) {
+                  window.location.href = 'intake.php?sku=' + encodeURIComponent(items[0].sku);
+                } else if (errorEl) {
+                  errorEl.textContent = 'No items match that price range.';
+                  errorEl.hidden = false;
+                }
+              })
+              .catch(function () {
+                if (errorEl) {
+                  errorEl.textContent = 'Could not look up a matching item.';
+                  errorEl.hidden = false;
+                }
+              });
           }
         });
       }

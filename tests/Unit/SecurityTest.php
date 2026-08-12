@@ -97,7 +97,13 @@ final class SecurityTest extends TestCase
     {
         $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
 
-        $tampered = substr($_SESSION['csrf_token'], 0, -1) . '0';
+        // Flip the final hex digit to a guaranteed-different value so the
+        // tampered string can never accidentally equal the original (the
+        // old '0' suffix matched when the token already ended in '0',
+        // which made this test flaky ~1 in 16 runs).
+        $last = substr($_SESSION['csrf_token'], -1);
+        $flip = $last === 'f' ? 'e' : 'f';
+        $tampered = substr($_SESSION['csrf_token'], 0, -1) . $flip;
         $this->assertFalse(hash_equals($_SESSION['csrf_token'], $tampered));
 
         $same = hash_equals($_SESSION['csrf_token'], $_SESSION['csrf_token']);

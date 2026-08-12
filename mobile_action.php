@@ -58,19 +58,69 @@ $uploadToken = csrf_token();
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-  <meta name="theme-color" content="#121358">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <meta name="theme-color" content="#121358" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#0f1117" media="(prefers-color-scheme: dark)">
   <title>Photo Upload · <?= $displaySku ?></title>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/compressorjs/1.2.1/compressor.min.js" integrity="sha512-kT2NQK+9YIaaZCs5YhRNnvs7y3D4A/VgBiJqnLgP1q4tVKvq2U2b7/YCxDDxEtfnX9clDW+F5LGIFOjz7ALjg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <script src="assets/compressor.min.js?v=<?php echo getAssetVersion(); ?>"></script>
   <style>
+    :root {
+      --bg: #f0f4f8;
+      --card-bg: #fff;
+      --text: #0f172a;
+      --muted: #475569;
+      --faint: #64748b;
+      --accent: #121358;
+      --accent-hover: #232f72;
+      --accent-active: #2f578a;
+      --border: #e2e8f0;
+      --ok-bg: #e2f0d9;
+      --ok-text: #385723;
+      --err-bg: #fef2f2;
+      --err-text: #991b1b;
+      --badge-sold-bg: #e0f2fe;
+      --badge-sold-text: #0369a1;
+      --badge-active-bg: #e2f0d9;
+      --badge-active-text: #385723;
+      --badge-inactive-bg: #f1f5f9;
+      --badge-inactive-text: #475569;
+      --badge-status-bg: rgba(47,87,138,0.1);
+      --badge-status-text: #232f72;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #0f1117;
+        --card-bg: #1c2030;
+        --text: #e8eaf0;
+        --muted: #9ba3b5;
+        --faint: #8a93a6;
+        --accent: #2f578a;
+        --accent-hover: #3a6aa0;
+        --accent-active: #4a7cb8;
+        --border: #2a3044;
+        --ok-bg: rgba(56,87,35,0.3);
+        --ok-text: #a7c98a;
+        --err-bg: rgba(185,28,28,0.25);
+        --err-text: #f0a0a0;
+        --badge-sold-bg: rgba(3,105,161,0.25);
+        --badge-sold-text: #7cc4e8;
+        --badge-active-bg: rgba(56,87,35,0.3);
+        --badge-active-text: #a7c98a;
+        --badge-inactive-bg: rgba(148,163,184,0.15);
+        --badge-inactive-text: #9ba3b5;
+        --badge-status-bg: rgba(74,124,184,0.2);
+        --badge-status-text: #9ec0e8;
+      }
+    }
     *, *::before, *::after { box-sizing: border-box; }
     html, body {
       margin: 0; padding: 0;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
       font-size: 16px;
       line-height: 1.5;
-      background: #f0f4f8;
-      color: #0f172a;
+      background: var(--bg);
+      color: var(--text);
       -webkit-text-size-adjust: 100%;
     }
     .container {
@@ -79,7 +129,7 @@ $uploadToken = csrf_token();
       padding: 16px;
     }
     .card {
-      background: #fff;
+      background: var(--card-bg);
       border-radius: 12px;
       box-shadow: 0 2px 8px rgba(0,0,0,0.08);
       padding: 16px;
@@ -90,9 +140,9 @@ $uploadToken = csrf_token();
       font-size: 1.1rem;
       font-weight: 700;
     }
-    .card .sku { font-size: 1.3rem; font-weight: 800; color: #121358; margin-bottom: 4px; }
-    .card .what { font-size: 0.9rem; color: #475569; margin-bottom: 8px; }
-    .card .meta { font-size: 0.82rem; color: #64748b; display: flex; gap: 8px; flex-wrap: wrap; }
+    .card .sku { font-size: 1.3rem; font-weight: 800; color: var(--accent); margin-bottom: 4px; }
+    .card .what { font-size: 0.9rem; color: var(--muted); margin-bottom: 8px; }
+    .card .meta { font-size: 0.82rem; color: var(--faint); display: flex; gap: 8px; flex-wrap: wrap; }
     .badge {
       display: inline-block;
       padding: 3px 8px;
@@ -102,22 +152,29 @@ $uploadToken = csrf_token();
       letter-spacing: 0.04em;
       text-transform: uppercase;
     }
-    .badge-sold { background: #e0f2fe; color: #0369a1; }
-    .badge-active { background: #e2f0d9; color: #385723; }
-    .badge-inactive { background: #f1f5f9; color: #475569; }
-    .badge-status { background: rgba(47,87,138,0.1); color: #232f72; }
+    .badge-sold { background: var(--badge-sold-bg); color: var(--badge-sold-text); }
+    .badge-active { background: var(--badge-active-bg); color: var(--badge-active-text); }
+    .badge-inactive { background: var(--badge-inactive-bg); color: var(--badge-inactive-text); }
+    .badge-status { background: var(--badge-status-bg); color: var(--badge-status-text); }
     .photo-grid {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
       gap: 8px;
       margin-top: 10px;
     }
+    .photo-grid a {
+      display: block;
+      border-radius: 8px;
+      overflow: hidden;
+      background: var(--bg);
+    }
     .photo-grid img {
       width: 100%;
       height: 100px;
       object-fit: cover;
+      display: block;
+      border: 1px solid var(--border);
       border-radius: 8px;
-      border: 1px solid #e2e8f0;
     }
     .upload-section {
       margin-top: 16px;
@@ -126,8 +183,13 @@ $uploadToken = csrf_token();
       display: block;
       font-weight: 700;
       font-size: 0.85rem;
-      margin-bottom: 8px;
-      color: #0f172a;
+      margin-bottom: 12px;
+      color: var(--text);
+    }
+    .btn-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
     }
     .camera-btn {
       display: flex;
@@ -136,7 +198,7 @@ $uploadToken = csrf_token();
       gap: 8px;
       width: 100%;
       padding: 16px;
-      background: #121358;
+      background: var(--accent);
       color: #fff;
       border: none;
       border-radius: 12px;
@@ -145,9 +207,27 @@ $uploadToken = csrf_token();
       cursor: pointer;
       transition: background 0.15s ease;
     }
-    .camera-btn:hover { background: #232f72; }
-    .camera-btn:active { background: #2f578a; }
+    .camera-btn:hover { background: var(--accent-hover); }
+    .camera-btn:active { background: var(--accent-active); }
     .camera-btn svg { width: 24px; height: 24px; flex-shrink: 0; }
+    .gallery-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      width: 100%;
+      padding: 16px;
+      background: transparent;
+      color: var(--accent);
+      border: 2px solid var(--accent);
+      border-radius: 12px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s ease;
+    }
+    .gallery-btn:hover { background: var(--badge-status-bg); }
+    .gallery-btn svg { width: 24px; height: 24px; flex-shrink: 0; }
     .upload-status {
       margin-top: 12px;
       padding: 10px 14px;
@@ -157,8 +237,8 @@ $uploadToken = csrf_token();
       display: none;
     }
     .upload-status.is-visible { display: block; }
-    .upload-status.ok { background: #e2f0d9; color: #385723; border: 1px solid rgba(56,87,35,0.2); }
-    .upload-status.err { background: #fef2f2; color: #991b1b; border: 1px solid rgba(185,28,28,0.2); }
+    .upload-status.ok { background: var(--ok-bg); color: var(--ok-text); border: 1px solid var(--border); }
+    .upload-status.err { background: var(--err-bg); color: var(--err-text); border: 1px solid var(--border); }
     .file-input-wrap { display: none; }
     .spinner {
       display: inline-block;
@@ -174,7 +254,7 @@ $uploadToken = csrf_token();
     .notes-section {
       margin-top: 8px;
       font-size: 0.85rem;
-      color: #475569;
+      color: var(--muted);
       white-space: pre-wrap;
       word-break: break-word;
     }
@@ -184,7 +264,7 @@ $uploadToken = csrf_token();
     }
     .success-msg .check { font-size: 3rem; margin-bottom: 8px; }
     .success-msg h2 { margin: 0 0 4px; font-size: 1.2rem; }
-    .success-msg p { color: #475569; font-size: 0.9rem; margin: 0; }
+    .success-msg p { color: var(--muted); font-size: 0.9rem; margin: 0; }
   </style>
 </head>
 <body>
@@ -202,23 +282,32 @@ $uploadToken = csrf_token();
 
     <?php if ($photos): ?>
     <div class="card">
-      <strong style="font-size:0.85rem;color:#475569;">Photos (<?= count($photos) ?>)</strong>
+      <strong style="font-size:0.85rem;color:var(--faint);">Photos (<?= count($photos) ?>)</strong>
       <div class="photo-grid">
         <?php foreach ($photos as $photo): ?>
-          <img src="photo.php?id=<?= (int)$photo['id'] ?>" alt="" loading="lazy">
+          <a href="photo.php?id=<?= (int)$photo['id'] ?>" target="_blank" rel="noopener" title="Open full photo">
+            <img src="photo.php?id=<?= (int)$photo['id'] ?>&thumb=1" alt="" loading="lazy">
+          </a>
         <?php endforeach; ?>
       </div>
     </div>
     <?php endif; ?>
 
     <div class="card upload-section">
-      <label>Upload a new photo</label>
-      <button type="button" class="camera-btn" id="capture-btn">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
-        Take Photo
-      </button>
+      <label>Add photos for this item</label>
+      <div class="btn-row">
+        <button type="button" class="camera-btn" id="capture-btn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+          Take Photo
+        </button>
+        <button type="button" class="gallery-btn" id="gallery-btn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>
+          From Gallery
+        </button>
+      </div>
       <div class="file-input-wrap">
         <input type="file" id="photo-input" accept="image/*" capture="environment">
+        <input type="file" id="gallery-input" accept="image/*" multiple>
       </div>
       <div class="upload-status" id="upload-status"></div>
     </div>
@@ -227,10 +316,14 @@ $uploadToken = csrf_token();
   <script>
     (function () {
       var captureBtn = document.getElementById('capture-btn');
+      var galleryBtn = document.getElementById('gallery-btn');
       var photoInput = document.getElementById('photo-input');
+      var galleryInput = document.getElementById('gallery-input');
       var statusEl = document.getElementById('upload-status');
       var sku = <?= json_encode($item['sku_normalized'] ?? $item['sku'] ?? '') ?>;
       var csrfToken = <?= json_encode($uploadToken) ?>;
+      var queue = [];
+      var uploading = false;
 
       var setStatus = function (msg, type) {
         if (!statusEl) return;
@@ -239,9 +332,23 @@ $uploadToken = csrf_token();
         if (type) statusEl.classList.add(type);
       };
 
-      var uploadPhoto = function (file) {
-        if (!file) return;
-        setStatus('Compressing...', '');
+      var queueFiles = function (files) {
+        if (!files || files.length === 0) return;
+        for (var i = 0; i < files.length; i++) queue.push(files[i]);
+        if (!uploading) processQueue();
+      };
+
+      var processQueue = function () {
+        if (queue.length === 0) {
+          uploading = false;
+          setStatus('All photos uploaded!', 'ok');
+          setTimeout(function () { window.location.reload(); }, 1500);
+          return;
+        }
+        uploading = true;
+        var file = queue.shift();
+        var total = queue.length + 1;
+        setStatus('Compressing (' + (total - queue.length) + ' of ' + total + ')...');
 
         new Compressor(file, {
           quality: 0.7,
@@ -249,7 +356,7 @@ $uploadToken = csrf_token();
           maxHeight: 1920,
           convertSize: 0,
           success: function (compressed) {
-            setStatus('Uploading... (' + Math.round(compressed.size / 1024) + ' KB)', '');
+            setStatus('Uploading (' + (total - queue.length) + ' of ' + total + ')... ' + Math.round(compressed.size / 1024) + ' KB');
             var fd = new FormData();
             fd.append('sku', sku);
             fd.append('photo', compressed, file.name || 'photo.jpg');
@@ -262,18 +369,20 @@ $uploadToken = csrf_token();
               .then(function (r) { return r.json(); })
               .then(function (data) {
                 if (data.status === 'ok') {
-                  setStatus('Photo uploaded successfully!', 'ok');
-                  setTimeout(function () { window.location.reload(); }, 1500);
+                  processQueue();
                 } else {
                   setStatus('Upload failed: ' + (data.message || 'unknown error'), 'err');
+                  uploading = false;
                 }
               })
               .catch(function () {
                 setStatus('Upload failed: network error', 'err');
+                uploading = false;
               });
           },
           error: function (err) {
             setStatus('Compression failed: ' + (err.message || 'unknown error'), 'err');
+            uploading = false;
           }
         });
       };
@@ -282,10 +391,22 @@ $uploadToken = csrf_token();
         captureBtn.addEventListener('click', function () {
           photoInput.click();
         });
-
         photoInput.addEventListener('change', function () {
           if (photoInput.files && photoInput.files.length > 0) {
-            uploadPhoto(photoInput.files[0]);
+            queueFiles(photoInput.files);
+            photoInput.value = '';
+          }
+        });
+      }
+
+      if (galleryBtn && galleryInput) {
+        galleryBtn.addEventListener('click', function () {
+          galleryInput.click();
+        });
+        galleryInput.addEventListener('change', function () {
+          if (galleryInput.files && galleryInput.files.length > 0) {
+            queueFiles(galleryInput.files);
+            galleryInput.value = '';
           }
         });
       }

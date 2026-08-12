@@ -800,10 +800,7 @@ body[data-theme=dark] .kanban-skeleton-card{background:linear-gradient(90deg,rgb
     document.body.appendChild(s1);
 
     var s2 = document.createElement('script');
-    s2.src = 'https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js';
-    s2.integrity = 'sha512-r6rDA7W6ZeQhvl8S7yRVQUKVHdexq+GAlNkNNqVC7YyIV+NwqCTJe2hDWCiffTyRNOeGEzRRJ9ifvRm/HCzGYg==';
-    s2.crossOrigin = 'anonymous';
-    s2.referrerPolicy = 'no-referrer';
+    s2.src = 'assets/html5-qrcode.min.js?v=<?php echo getAssetVersion(); ?>';
     document.body.appendChild(s2);
   }, 1);
   </script>

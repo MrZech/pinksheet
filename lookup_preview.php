@@ -74,11 +74,14 @@ try {
     if ($minPrice !== '' || $maxPrice !== '') {
         $priceConds = [];
         if ($minPrice !== '') {
-            $priceConds[] = "$effectivePrice >= :min_price";
+            // CAST(... AS REAL): PDO binds execute() params as TEXT, and SQLite
+            // then compares prices lexicographically ('123' < '50'), which
+            // silently breaks every price filter. Force numeric comparison.
+            $priceConds[] = "$effectivePrice >= CAST(:min_price AS REAL)";
             $params['min_price'] = (float)$minPrice;
         }
         if ($maxPrice !== '') {
-            $priceConds[] = "$effectivePrice <= :max_price";
+            $priceConds[] = "$effectivePrice <= CAST(:max_price AS REAL)";
             $params['max_price'] = (float)$maxPrice;
         }
         $conditions[] = '(' . implode(' AND ', $priceConds) . ')';

@@ -35,7 +35,42 @@ if (!is_file($path)) {
     exit;
 }
 
-$ext = strtolower(pathinfo($storedName, PATHINFO_EXTENSION));
+/* ── Optional on-the-fly thumbnail (?thumb=1) ───────────────────
+   Downsizes the photo to a 320px JPEG, cached on disk under
+   data/thumbs/ so repeat requests stream the cache.  If GD is
+   unavailable or the image can't be decoded, we fall through and
+   serve the original — never worse than today. */
+if (isset($_GET['thumb']) && $_GET['thumb'] === '1') {
+    $thumbsDir = __DIR__ . '/data/thumbs';
+    if (!is_dir($thumbsDir)) {
+        @mkdir($thumbsDir, 0777, true);
+    }
+    $thumbPath = $thumbsDir . '/' . $photoId . '-' . (int)@filemtime($path) . '-t320.jpg';
+    if (is_dir($thumbsDir) && is_writable($thumbsDir)) {
+        if (!is_file($thumbPath) && function_exists('imagecreatefromstring')) {
+            $src = @imagecreatefromstring((string)@file_get_contents($path));
+            if ($src !== false) {
+                $w = imagesx($src);
+                $h = imagesy($src);
+                $scale = min(1.0, 320 / max($w, $h));
+                $tw = max(1, (int)round($w * $scale));
+                $th = max(1, (int)round($h * $scale));
+                $dst = imagecreatetruecolor($tw, $th);
+                $white = imagecolorallocate($dst, 255, 255, 255);
+                imagefilledrectangle($dst, 0, 0, $tw, $th, $white);
+                imagecopyresampled($dst, $src, 0, 0, 0, 0, $tw, $th, $w, $h);
+                imagejpeg($dst, $thumbPath, 82);
+                imagedestroy($dst);
+                imagedestroy($src);
+            }
+        }
+        if (is_file($thumbPath)) {
+            $path = $thumbPath;
+        }
+    }
+}
+
+$ext = strtolower(pathinfo($path, PATHINFO_EXTENSION));
 $mimeMap = ['jpg' => 'image/jpeg', 'jpeg' => 'image/jpeg', 'png' => 'image/png', 'webp' => 'image/webp', 'gif' => 'image/gif'];
 $mimeType = $mimeMap[$ext] ?? 'image/png';
 

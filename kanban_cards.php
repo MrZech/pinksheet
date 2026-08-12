@@ -148,7 +148,7 @@ foreach ($rows as $row) {
         'ready'    => !empty($row['ready']),
         'qty'      => max(1, (int)($row['quantity'] ?? 1)),
         'thumb_id' => $thumbs[$norm] ?? null,
-        'qr_url'   => $protocol . '://' . $host . '/intake.php?sku=' . urlencode($norm),
+        'qr_url'   => $protocol . '://' . $host . '/card.php?sku=' . urlencode($norm),
     ];
 }
 
