@@ -83,7 +83,7 @@ Most bugs happen when one of those layers changes and the others do not get upda
 | `kanban.php` | Status board |
 | `prompt_builder.php` | ChatGPT prompt and eBay script builder |
 | `photo.php` | Streams stored photos |
-| `download_photos.php` | ZIP export for all photos on a SKU |
+| `download_photos.php` | Deprecated — redirects to the intake page; use the "Download all as PNG" button there (per-photo via `photo.php?id=N&download=1`) |
 
 If you are trying to find behavior, start with these files before chasing helpers.
 

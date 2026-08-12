@@ -1703,6 +1703,39 @@ if (!$isPartial):
           } catch (e) {}
         }
 
+        /* Restore a server-side autosave draft when a SKU is present.
+           The June refactor dropped this fetch — the server-draft-banner
+           element stayed in the markup but was never shown, so unsaved
+           autosave work was silently lost on reload.  Re-add it: fetch the
+           draft for the SKU, apply it to the form, and seed appState so a
+           later edit merges with the restored draft instead of overwriting
+           it with a single field. */
+        var serverDraftBanner = document.getElementById('server-draft-banner');
+        var fetchServerDraft = function () {
+          if (!form || !serverDraftBanner) return;
+          var skuInput = form.querySelector('[name="sku"]');
+          var skuVal = (skuInput && skuInput.value || '').trim();
+          if (!skuVal) return;
+          fetch('autosave.php?sku=' + encodeURIComponent(skuVal))
+            .then(function (resp) { return resp.json(); })
+            .then(function (resp) {
+              if (!resp || resp.ok !== true || !resp.has_draft || !resp.data) return;
+              applyDraftObject(resp.data);
+              var serialized = JSON.stringify(resp.data);
+              try { localStorage.setItem(draftKey, serialized); } catch (e) {}
+              if (window.updateState) {
+                Object.keys(resp.data).forEach(function (name) {
+                  if (name === 'sku_normalized') return;
+                  window.updateState(name, resp.data[name]);
+                });
+              }
+              serverDraftBanner.textContent = 'Restored server draft';
+              serverDraftBanner.hidden = false;
+            })
+            .catch(function () {});
+        };
+        fetchServerDraft();
+
         var setCopyStatus = function (text, tone) {
           if (!copySkuStatus) return;
           copySkuStatus.hidden = false;

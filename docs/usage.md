@@ -82,7 +82,7 @@ Photos are stored separately from the item record.
 - `upload_photo.php` handles single-file uploads.
 - `upload_photo_chunk.php` handles large chunked uploads.
 - `photo.php?id=...` streams one stored image back to the browser.
-- `download_photos.php?sku=...` downloads all photos for a SKU as a ZIP.
+- The intake page's "Download all as PNG" button downloads every photo for the SKU (each via `photo.php?id=N&download=1`).
 - `set_thumbnail.php` marks one photo as the thumbnail for a SKU.
 
 ### Photo Rules

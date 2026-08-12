@@ -284,7 +284,7 @@ if (!$isPartial):
             ], static fn($v) => $v !== '');
             $exportHref = 'export_archive.php' . ($exportParams ? '?' . http_build_query($exportParams) : '');
           ?>
-          <a class="button-link ghost" href="<?php echo h($exportHref); ?>" download>Export archive (CSV)</a>
+          <a class="button-link ghost" href="<?php echo h($exportHref); ?>" download data-csv-export>Export archive (CSV)</a>
         </div>
         <div class="table-wrap">
           <table class="archive-table">

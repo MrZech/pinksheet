@@ -34,8 +34,40 @@ Run through this checklist on the deployment target before going live:
 6. **Verify the stack** — run the test suite (`vendor/bin/phpunit`), then start the
    server and run `php scripts/smoke.php`; it should report all OK. Confirm
    `health.php` shows writable storage and no warnings.
-7. **Register scheduled tasks** — run `scripts/setup_scheduled_tasks.ps1` once as
-   Administrator (sync queue, reconciliation, nightly backup, DB health).
+7. **Register scheduled tasks** —
+   - **Linux (Proxmox container, recommended):** run
+     `scripts/setup_linux_cron.sh` inside the container (see
+     "Registering background jobs" below).
+   - **Windows:** run `scripts/setup_scheduled_tasks.ps1` once as Administrator
+     (sync queue, reconciliation, nightly backup, DB health).
+
+## Registering background jobs (Linux / Proxmox container)
+
+The app needs cron jobs so queued Square updates actually get pushed, inventory
+reconciliation runs, and backups happen — the Windows PowerShell scheduler
+scripts do **not** run on the container. Install once per container:
+
+```bash
+pct exec 141 -- bash /opt/pinksheet/scripts/setup_linux_cron.sh
+```
+
+If cron is missing in the container, install it first:
+
+```bash
+pct exec 141 -- bash -lc 'apt-get update && apt-get install -y cron && systemctl enable --now cron'
+```
+
+The script registers (idempotently, re-runs are safe):
+
+| When | Job |
+|---|---|
+| every 2 minutes | `process_sync_queue.php --limit=20` — pushes queued Square catalog updates (this is what moves items marked SOLD to Square) |
+| daily 03:00 | `reconcile_square.php` — inventory reconciliation |
+| daily 02:00 | `backup_db.php` — online-safe SQLite backup, 14-day retention |
+| daily 08:00 | `check_db.php data/intake.sqlite` — DB integrity check |
+
+Logs land in `/opt/pinksheet/logs/cron_*.log`. Verify with
+`crontab -l` inside the container.
 8. **Send a Square test webhook** — trigger `test.webhook` from the Square dashboard
    and confirm `logs/square_sync.log` records it as verified.
 

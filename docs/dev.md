@@ -44,7 +44,7 @@ This page explains how the app is wired together so you can change it without gu
 | `upload_photo_chunk.php` | Chunked photo upload endpoint |
 | `set_thumbnail.php` | Marks one photo as the SKU thumbnail |
 | `photo.php` | Streams a stored photo back to the browser |
-| `download_photos.php` | ZIP download for all photos on one SKU |
+| `download_photos.php` | **Deprecated** — always redirects to the intake page; photo downloads are per-image via `photo.php?id=N&download=1` (the "Download all as PNG" button on the intake page) |
 | `health.php` | JSON health endpoint for backup age and limits |
 | `backup_now.php` | Local/private backup trigger used by the Home button |
 | `verify_now.php` | Local/private backup verification trigger used by the Home button |

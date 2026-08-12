@@ -98,7 +98,7 @@ This table stores photo metadata. The binary files themselves live on disk.
 
 - `upload_photo.php` and `upload_photo_chunk.php` insert rows here.
 - `photo.php` uses the row to locate and stream the file from disk.
-- `download_photos.php` uses the rows to build a ZIP for one SKU.
+- Photos are served individually via `photo.php?id=N` (`&download=1` forces a download); the intake page's "Download all as PNG" button iterates them. (`download_photos.php` is deprecated and no longer builds a ZIP.)
 - `set_thumbnail.php` flips `is_thumb` for a SKU so previews prefer that image.
 
 ## `script_cache`

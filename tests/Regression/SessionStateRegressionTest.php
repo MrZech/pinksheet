@@ -123,6 +123,37 @@ final class SessionStateRegressionTest extends TestCase
         $this->assertNotNull(json_decode($payload, true));
     }
 
+    public function test_server_draft_restore_fetch_is_present_in_intake_page(): void
+    {
+        // The June refactor dropped the autosave.php fetch that restored a
+        // server-side draft on page load; the banner stayed in the markup but
+        // was never shown, so unsaved work was silently lost on reload.
+        $source = (string)file_get_contents(TESTING_ROOT . '/index.php');
+        $this->assertStringContainsString(
+            "fetch('autosave.php?sku=' + encodeURIComponent(skuVal))",
+            $source,
+            'index.php must fetch the server draft for the SKU on page load'
+        );
+        $this->assertStringContainsString(
+            'serverDraftBanner.hidden = false',
+            $source,
+            'index.php must reveal the server-draft banner when a draft is restored'
+        );
+    }
+
+    public function test_server_draft_restore_seeds_app_state(): void
+    {
+        // Restored fields must be pushed into window.appState via updateState
+        // so a later edit merges with the restored draft instead of the next
+        // autosave overwriting the draft with just the one changed field.
+        $source = (string)file_get_contents(TESTING_ROOT . '/index.php');
+        $this->assertStringContainsString(
+            'window.updateState(name, resp.data[name])',
+            $source,
+            'restored server-draft fields must seed appState so later edits merge'
+        );
+    }
+
     // ── Script Cache State ──────────────────────────────────────────────
 
     public function test_script_cache_persists_across_requests(): void
