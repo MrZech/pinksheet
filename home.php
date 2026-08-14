@@ -274,6 +274,7 @@ if (!$isPartial):
               <span id="square-queue-count"></span>
               <span id="square-webhook-count"></span>
               <span id="square-sold-count"></span>
+              <span id="square-last-sale"></span>
             </p>
             <p class="dash-sub" id="square-status-error" style="display:none;"></p>
             <p class="dash-sub">
@@ -768,6 +769,7 @@ if (!$isPartial):
         var squareQueueCount = document.getElementById('square-queue-count');
         var squareWebhookCount = document.getElementById('square-webhook-count');
         var squareSoldCount = document.getElementById('square-sold-count');
+        var squareLastSale = document.getElementById('square-last-sale');
         var squareError = document.getElementById('square-status-error');
         var squareQueueBtn = document.getElementById('square-queue-btn');
 
@@ -786,25 +788,25 @@ if (!$isPartial):
                     } else {
                         squareLastSync.textContent = 'Not yet synced';
                     }
-                    var queueTotal = (d.queue_waiting || 0) + (d.queue_dead_letter || 0);
-                    var detailsParts = [];
-                    if (queueTotal > 0) detailsParts.push('Queue: ' + queueTotal + ' waiting');
-                    detailsParts.push('Webhooks today: ' + (d.webhooks_today || 0));
-                    if (d.sold_today > 0) detailsParts.push('Sold today: ' + d.sold_today);
-                    if (d.recent_sale && d.recent_sale.sku) {
-                        detailsParts.push('Last sale: ' + d.recent_sale.sku + ' $' + (d.recent_sale.price || 0).toFixed(2));
-                    }
-                    if (detailsParts.length) {
-                        squareDetails.style.display = '';
-                        squareQueueCount.textContent = detailsParts[0] || '';
-                        squareWebhookCount.textContent = detailsParts[1] || '';
-                        squareSoldCount.textContent = detailsParts[2] || '';
-                    } else {
-                        squareDetails.style.display = 'none';
-                    }
-                if (d.queue_dead_letter > 0 || d.last_error) {
+                    var queueWaiting = (d.queue_waiting || 0);
+                    var queueFailed = (d.queue_failed || 0);
+                    var queueDead = (d.queue_dead_letter || 0);
+                    var queueTotal = queueWaiting + queueFailed + queueDead;
+                    var queueParts = [queueWaiting + ' waiting'];
+                    if (queueFailed > 0) queueParts.push(queueFailed + ' failed');
+                    if (queueDead > 0) queueParts.push(queueDead + ' dead-letter');
+                    squareDetails.style.display = '';
+                    squareQueueCount.textContent = 'Queue: ' + queueParts.join(' · ');
+                    squareWebhookCount.textContent = 'Webhooks today: ' + (d.webhooks_today || 0);
+                    squareSoldCount.textContent = d.sold_today > 0 ? ('Sold today: ' + d.sold_today) : '';
+                    squareLastSale.textContent = (d.recent_sale && d.recent_sale.sku) ? ('Last sale: ' + d.recent_sale.sku + ' $' + (d.recent_sale.price || 0).toFixed(2)) : '';
+                if (d.queue_dead_letter > 0 || d.queue_failed > 0 || d.last_error) {
                   squareError.style.display = '';
-                  squareError.textContent = '⚠ ' + (d.last_error || d.queue_dead_letter + ' dead letter(s)');
+                  var errParts = [];
+                  if (d.queue_failed > 0) errParts.push(d.queue_failed + ' failed');
+                  if (d.queue_dead_letter > 0) errParts.push(d.queue_dead_letter + ' dead letter(s)');
+                  if (d.last_error) errParts.push(d.last_error);
+                  squareError.textContent = '⚠ ' + errParts.join(' · ');
                 } else {
                   squareError.style.display = 'none';
                 }

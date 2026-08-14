@@ -40,6 +40,7 @@ $allowedFields = [
     'dispotech_price' => true,
     'ebay_price' => true,
     'quantity' => true,
+    'notes' => true,
 ];
 if (!isset($allowedFields[$field])) {
     updateError('Field not allowed');
@@ -81,6 +82,9 @@ try {
         $qty = max(1, (int)$value);
         $stmt = $pdo->prepare('UPDATE intake_items SET quantity = :val, updated_at = datetime("now") WHERE ' . $skuWhere);
         $stmt->execute([':val' => $qty, ':sku' => $sku]);
+    } elseif ($field === 'notes') {
+        $stmt = $pdo->prepare('UPDATE intake_items SET notes = :val, updated_at = datetime("now") WHERE ' . $skuWhere);
+        $stmt->execute([':val' => (string)$value, ':sku' => $sku]);
     } else {
         $price = is_numeric($value) ? (float)$value : null;
         // Unify pricing: treat any price update as the single canonical price.

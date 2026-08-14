@@ -52,6 +52,8 @@ if ($reviewedVal === 2) {
 } else {
     $reviewedLabel = 'INACTIVE';
 }
+$statusRawLower = strtolower(trim((string)($item['status'] ?? '')));
+$statusOptions = ['intake', 'ebay draft', 'ebay listed', 'ebay review', 'dispo tech store', 'ready', 'sold'];
 $uploadToken = csrf_token();
 ?>
 <!doctype html>
@@ -258,6 +260,39 @@ $uploadToken = csrf_token();
       white-space: pre-wrap;
       word-break: break-word;
     }
+    .edit-section { margin-top: 16px; }
+    .edit-label { display: block; font-weight: 700; font-size: 0.85rem; margin-bottom: 12px; color: var(--text); }
+    .edit-field { margin-bottom: 12px; }
+    .edit-field label { display: block; font-size: 0.78rem; font-weight: 600; color: var(--faint); margin-bottom: 4px; }
+    .edit-field select, .edit-field input, .edit-field textarea {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--bg);
+      color: var(--text);
+      font-size: 1rem;
+      font-family: inherit;
+    }
+    .edit-field select:focus, .edit-field input:focus, .edit-field textarea:focus { outline: none; border-color: var(--accent); }
+    .edit-field textarea { resize: vertical; min-height: 64px; }
+    .mark-sold-btn {
+      width: 100%;
+      padding: 12px;
+      background: var(--err-bg);
+      color: var(--err-text);
+      border: 1px solid var(--err-text);
+      border-radius: 10px;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: opacity 0.15s ease;
+    }
+    .mark-sold-btn:active { opacity: 0.8; }
+    .edit-status { margin-top: 10px; font-size: 0.85rem; font-weight: 600; display: none; }
+    .edit-status.is-visible { display: block; }
+    .edit-status.ok { color: var(--ok-text); }
+    .edit-status.err { color: var(--err-text); }
     .success-msg {
       text-align: center;
       padding: 20px;
@@ -278,6 +313,31 @@ $uploadToken = csrf_token();
         <?php if ($price): ?><span><?= $price ?></span><?php endif; ?>
       </div>
       <?php if ($notes): ?><div class="notes-section"><?= nl2br($notes) ?></div><?php endif; ?>
+    </div>
+
+    <div class="card edit-section">
+      <label class="edit-label">Edit item</label>
+      <div class="edit-field">
+        <label for="status-select">Status</label>
+        <select id="status-select">
+          <?php foreach ($statusOptions as $opt): ?>
+            <option value="<?= htmlspecialchars($opt, ENT_QUOTES, 'UTF-8') ?>"<?= $statusRawLower === $opt ? ' selected' : '' ?>><?= htmlspecialchars(ucwords($opt), ENT_QUOTES, 'UTF-8') ?></option>
+          <?php endforeach; ?>
+          <?php if ($statusRawLower !== '' && !in_array($statusRawLower, $statusOptions, true)): ?>
+            <option value="<?= htmlspecialchars((string)($item['status'] ?? ''), ENT_QUOTES, 'UTF-8') ?>" selected><?= htmlspecialchars((string)($item['status'] ?? ''), ENT_QUOTES, 'UTF-8') ?></option>
+          <?php endif; ?>
+        </select>
+      </div>
+      <div class="edit-field">
+        <label for="price-input">Price ($)</label>
+        <input type="number" id="price-input" inputmode="decimal" step="0.01" min="0" value="<?= htmlspecialchars((string)($item['dispotech_price'] ?? ''), ENT_QUOTES, 'UTF-8') ?>">
+      </div>
+      <div class="edit-field">
+        <label for="notes-input">Notes</label>
+        <textarea id="notes-input" rows="3" placeholder="Add notes…"><?= $notes ?></textarea>
+      </div>
+      <button type="button" class="mark-sold-btn" id="mark-sold-btn">Mark Sold</button>
+      <div class="edit-status" id="edit-status"></div>
     </div>
 
     <?php if ($photos): ?>
@@ -408,6 +468,83 @@ $uploadToken = csrf_token();
             queueFiles(galleryInput.files);
             galleryInput.value = '';
           }
+        });
+      }
+
+      /* ── Item edit (status / price / notes) ─────────────── */
+      var statusSelect = document.getElementById('status-select');
+      var priceInput = document.getElementById('price-input');
+      var notesInput = document.getElementById('notes-input');
+      var markSoldBtn = document.getElementById('mark-sold-btn');
+      var editStatusEl = document.getElementById('edit-status');
+
+      var setEditStatus = function (msg, tone) {
+        if (!editStatusEl) return;
+        editStatusEl.textContent = msg;
+        editStatusEl.className = 'edit-status is-visible' + (tone ? ' ' + tone : '');
+      };
+
+      var saveField = function (field, value, cb) {
+        setEditStatus('Saving…');
+        fetch('update_item.php', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: 'sku=' + encodeURIComponent(sku) + '&field=' + encodeURIComponent(field) + '&value=' + encodeURIComponent(value) + '&csrf_token=' + encodeURIComponent(csrfToken)
+        })
+          .then(function (r) { return r.json(); })
+          .then(function (data) {
+            if (data.ok) {
+              setEditStatus('Saved', 'ok');
+              if (cb) cb(true);
+            } else {
+              setEditStatus('Failed: ' + (data.error || 'error'), 'err');
+              if (cb) cb(false);
+            }
+          })
+          .catch(function () {
+            setEditStatus('Failed: network error', 'err');
+            if (cb) cb(false);
+          });
+      };
+
+      if (statusSelect) {
+        statusSelect.addEventListener('change', function () {
+          var v = statusSelect.value;
+          if (v === '') return;
+          saveField('status', v, function (ok) {
+            if (ok && v === 'sold') {
+              saveField('reviewed', '2', function () {
+                setEditStatus('Saved', 'ok');
+                setTimeout(function () { window.location.reload(); }, 900);
+              });
+            }
+          });
+        });
+      }
+
+      if (priceInput) {
+        priceInput.addEventListener('change', function () {
+          saveField('dispotech_price', priceInput.value);
+        });
+      }
+
+      if (notesInput) {
+        notesInput.addEventListener('blur', function () {
+          saveField('notes', notesInput.value);
+        });
+      }
+
+      if (markSoldBtn) {
+        markSoldBtn.addEventListener('click', function () {
+          if (statusSelect) statusSelect.value = 'sold';
+          saveField('status', 'sold', function (ok) {
+            if (ok) {
+              saveField('reviewed', '2', function () {
+                setEditStatus('Marked sold', 'ok');
+                setTimeout(function () { window.location.reload(); }, 900);
+              });
+            }
+          });
         });
       }
     })();

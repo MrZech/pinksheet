@@ -118,6 +118,31 @@ final class UpdateItemHandlerTest extends TestCase
         $this->assertSame('Only notes change',         $updated['notes']);
     }
 
+    public function test_real_endpoint_whitelists_notes_field(): void
+    {
+        // The mobile card page (mobile_action.php) edits notes through
+        // update_item.php. Pin that the REAL endpoint whitelists 'notes' and
+        // has an UPDATE branch for it, so the simulated handler above cannot
+        // drift from the production handler (it previously did — the real
+        // whitelist was missing 'notes').
+        $source = (string)file_get_contents(TESTING_ROOT . '/update_item.php');
+        $this->assertStringContainsString(
+            "'notes' => true",
+            $source,
+            'update_item.php must whitelist the notes field'
+        );
+        $this->assertStringContainsString(
+            "field === 'notes'",
+            $source,
+            'update_item.php must handle the notes field'
+        );
+        $this->assertStringContainsString(
+            'SET notes = :val',
+            $source,
+            'notes update must write the notes column'
+        );
+    }
+
     // ── Helpers ─────────────────────────────────────────────────────────
 
     /**
