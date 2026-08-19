@@ -90,6 +90,9 @@ foreach ([
     'sku_normalized' => 'TEXT',
     'wifi_card_installed' => 'INTEGER NOT NULL DEFAULT 0',
     'compatible_os' => 'TEXT',
+    'ebay_category' => 'TEXT',
+    'ebay_category_path' => 'TEXT',
+    'ebay_category_id' => 'TEXT',
 ] as $column => $definition) {
     if (!in_array($column, $intakeColumnNames, true)) {
         $pdo->exec("ALTER TABLE intake_items ADD COLUMN $column $definition");
@@ -387,6 +390,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'diagnostics_test_ran' => isset($_POST['diagnostics_test_ran']) ? 1 : 0,
             'wifi_card_installed' => isset($_POST['wifi_card_installed']) ? 1 : 0,
             'compatible_os' => trim($_POST['compatible_os'] ?? ''),
+            'ebay_category' => trim($_POST['ebay_category'] ?? ''),
+            'ebay_category_path' => trim($_POST['ebay_category_path'] ?? ''),
+            'ebay_category_id' => trim($_POST['ebay_category_id'] ?? ''),
             'where_it_goes' => trim($_POST['where_it_goes'] ?? ''),
             'ebay_status' => trim($_POST['ebay_status'] ?? ''),
             // Single canonical Price field. We keep both DB columns in sync for backwards compatibility.
@@ -463,6 +469,9 @@ UPDATE intake_items SET
     diagnostics_test_ran = :diagnostics_test_ran,
     wifi_card_installed = :wifi_card_installed,
     compatible_os = :compatible_os,
+    ebay_category = :ebay_category,
+    ebay_category_path = :ebay_category_path,
+    ebay_category_id = :ebay_category_id,
     where_it_goes = :where_it_goes,
     ebay_status = :ebay_status,
     ebay_price = :ebay_price,
@@ -491,7 +500,7 @@ INSERT INTO intake_items (
     functional, condition, is_square, care_if_square,
     cords_adapters, keep_items_together, picture_taken,
     power_on, brand_model, ram, ssd_gb, cpu, os, battery_health,
-    graphics_card, screen_resolution, diagnostics_test_ran, wifi_card_installed, compatible_os, where_it_goes,
+    graphics_card, screen_resolution, diagnostics_test_ran, wifi_card_installed, compatible_os, ebay_category, ebay_category_path, ebay_category_id, where_it_goes,
     ebay_status, ebay_price, dispotech_price, in_ebay_room,
     what_box, notes, quantity, updated_at
 ) VALUES (
@@ -499,7 +508,7 @@ INSERT INTO intake_items (
     :functional, :condition, :is_square, :care_if_square,
     :cords_adapters, :keep_items_together, :picture_taken,
     :power_on, :brand_model, :ram, :ssd_gb, :cpu, :os, :battery_health,
-    :graphics_card, :screen_resolution, :diagnostics_test_ran, :wifi_card_installed, :compatible_os, :where_it_goes,
+    :graphics_card, :screen_resolution, :diagnostics_test_ran, :wifi_card_installed, :compatible_os, :ebay_category, :ebay_category_path, :ebay_category_id, :where_it_goes,
     :ebay_status, :ebay_price, :dispotech_price, :in_ebay_room,
     :what_box, :notes, :quantity, datetime('now')
 );
@@ -614,6 +623,7 @@ if (!$isPartial):
   <script>window.CSRF_TOKEN = <?= json_encode(csrf_token()) ?>;</script>
   <script src="assets/theme.js?v=<?= getAssetVersion() ?>" defer></script>
   <script src="assets/app.js?v=<?= getAssetVersion() ?>" defer></script>
+  <script src="assets/ebay-category.js?v=<?= getAssetVersion() ?>" defer></script>
   <script src="assets/nav.js?v=<?= getAssetVersion() ?>" defer></script>
   <script src="assets/command-palette.js?v=<?= getAssetVersion() ?>" defer></script>
   <script src="assets/qz-tray.js?v=<?= getAssetVersion() ?>" defer></script>
@@ -996,6 +1006,15 @@ if (!$isPartial):
                   <?php endforeach; ?>
                 </datalist>
           </label>
+              <label class="ebay-category-field">eBay Category
+                <span class="ebay-category-combo">
+                  <input type="text" name="ebay_category" id="ebay-category-input" value="<?php echo h($formData['ebay_category'] ?? ''); ?>" autocomplete="off" placeholder="Type or pick an eBay category">
+                  <ul class="ebay-combo-menu" id="ebay-category-menu" role="listbox" hidden></ul>
+                </span>
+                <input type="hidden" name="ebay_category_path" value="<?php echo h($formData['ebay_category_path'] ?? ''); ?>">
+                <input type="hidden" name="ebay_category_id" value="<?php echo h($formData['ebay_category_id'] ?? ''); ?>">
+                <span class="hint">Matches eBay's live electronics categories.</span>
+              </label>
             </div>
             <div class="row mobile-location">
               <label>Location / Where it goes

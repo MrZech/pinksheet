@@ -252,7 +252,7 @@ function squareSyncLoadPreferredPhoto(PDO $pdo, string $skuNormalized): ?array
 function squareSyncPayloadHash(array $item, ?array $photo): string
 {
     $fields = [
-        'sku', 'sku_normalized', 'status', 'what_is_it', 'date_received', 'source', 'functional',
+        'sku', 'sku_normalized', 'status', 'what_is_it', 'ebay_category', 'ebay_category_path', 'ebay_category_id', 'date_received', 'source', 'functional',
         'condition', 'is_square', 'care_if_square', 'cords_adapters', 'keep_items_together',
         'picture_taken', 'power_on', 'brand_model', 'ram', 'ssd_gb', 'cpu', 'os', 'battery_health',
         'graphics_card', 'screen_resolution', 'where_it_goes', 'ebay_status', 'ebay_price',
@@ -367,6 +367,9 @@ function squareSyncDescription(array $item): string
         'sku' => 'SKU',
         'status' => 'Pinksheet Status',
         'what_is_it' => 'Item',
+        'ebay_category' => 'eBay Category',
+        'ebay_category_path' => 'eBay Category Path',
+        'ebay_category_id' => 'eBay Category ID',
         'date_received' => 'Date Received',
         'source' => 'Source',
         'functional' => 'Functional',

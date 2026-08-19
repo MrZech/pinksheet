@@ -27,6 +27,9 @@ This is the main working table. Intake rows are matched by `sku_normalized`, not
 | `sku_normalized` | TEXT | Uppercase trimmed SKU used for matching |
 | `status` | TEXT | `Intake`, `Description`, `Tested`, `Listed`, or `SOLD` |
 | `what_is_it` | TEXT | Short item description |
+| `ebay_category` | TEXT | Selected eBay leaf category name (e.g. "PC Laptops & Netbooks") |
+| `ebay_category_path` | TEXT | eBay category breadcrumb path (e.g. "Computers/Tablets & Networking > Laptops & Netbooks > PC Laptops & Netbooks") |
+| `ebay_category_id` | TEXT | eBay numeric leaf category id (populated by the live taxonomy refresh) |
 | `date_received` | TEXT | Date received |
 | `source` | TEXT | Source or intake origin |
 | `functional` | TEXT | Functional status |

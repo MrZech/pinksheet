@@ -112,13 +112,27 @@ SQL);
 }
 
 $csvPath = $argv[1];
-$options = getopt('', ['source::', 'table::', 'dry-run']);
-$dryRun = in_array('--dry-run', $argv, true) || array_key_exists('dry-run', $options);
-$legacySource = trim((string)($options['source'] ?? ''));
-if ($legacySource === '') {
-    $legacySource = pathinfo($csvPath, PATHINFO_FILENAME);
+
+// Parse flags manually: PHP's getopt() stops at the first positional argument,
+// so the documented "csv --source=... --table=..." usage would silently drop
+// flags placed after the CSV path.
+$options = [];
+foreach (array_slice($argv, 2) as $arg) {
+    if ($arg === '--dry-run') {
+        $options['dry-run'] = true;
+    } elseif (str_starts_with($arg, '--source=')) {
+        $options['source'] = substr($arg, strlen('--source='));
+    } elseif (str_starts_with($arg, '--table=')) {
+        $options['table'] = substr($arg, strlen('--table='));
+    }
 }
-$legacyTable = trim((string)($options['table'] ?? ''));
+$dryRun = array_key_exists('dry-run', $options);
+
+$defaultLegacySource = trim((string)($options['source'] ?? ''));
+if ($defaultLegacySource === '') {
+    $defaultLegacySource = pathinfo($csvPath, PATHINFO_FILENAME);
+}
+$defaultLegacyTable = trim((string)($options['table'] ?? ''));
 
 if (!is_file($csvPath) || !is_readable($csvPath)) {
     fwrite(STDERR, "CSV file is missing or not readable: $csvPath\n");
@@ -243,9 +257,25 @@ while (($data = fgetcsv($fh, 0, ',', '"', '')) !== false) {
     if ($createdAt === '') {
         $createdAt = gmdate('Y-m-d H:i:s');
     }
-    $legacySource = firstValue($row, ['legacysource', 'legacy_source']);
-    $legacyTable = firstValue($row, ['legacytable', 'legacy_table']);
+    $rowLegacySource = firstValue($row, ['legacysource', 'legacy_source']);
+    $rowLegacyTable = firstValue($row, ['legacytable', 'legacy_table']);
+    // CLI --source/--table are the defaults; a per-row legacy_source/legacy_table
+    // column wins when the CSV provides one.
+    $legacySource = $rowLegacySource !== '' ? $rowLegacySource : $defaultLegacySource;
+    $legacyTable = $rowLegacyTable !== '' ? $rowLegacyTable : $defaultLegacyTable;
     $legacyPayload = firstValue($row, ['legacypayload', 'legacy_payload']);
+    if ($legacyPayload === '') {
+        // Preserve the full raw CSV row (original column names) for auditing
+        // and troubleshooting, as documented in docs/archive.md.
+        $rawRow = [];
+        foreach ($headerRow as $idx => $originalHeader) {
+            $rawRow[trim((string)$originalHeader)] = $data[$idx] ?? '';
+        }
+        $legacyPayload = json_encode($rawRow, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+        if ($legacyPayload === false) {
+            $legacyPayload = '';
+        }
+    }
     $normalizedSku = normalizeSku($sku);
 
     try {

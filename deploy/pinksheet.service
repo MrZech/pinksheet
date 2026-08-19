@@ -1,0 +1,37 @@
+# Reference systemd unit for the Pinksheet app (Debian LXC container).
+#
+# Install on the production container:
+#   cp deploy/pinksheet.service /etc/systemd/system/pinksheet.service
+#   systemctl daemon-reload && systemctl enable --now pinksheet
+#
+# The app listens on 127.0.0.1 only; put nginx (deploy/nginx-pinksheet.conf)
+# in front for HTTPS + the public webhook path. Adjust User/Group and the
+# WorkingDirectory to match the container.
+
+[Unit]
+Description=Pinksheet intake app (Dispo.Tech)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/pinksheet
+# PHP built-in server behind the public/ front controller. For heavier load,
+# swap this for PHP-FPM and point nginx at the FPM socket instead.
+ExecStart=/usr/bin/php -d upload_max_filesize=32M -d post_max_size=128M -d max_file_uploads=100 -S 127.0.0.1:8765 -t public public/router.php
+Restart=always
+RestartSec=2
+
+# Run unprivileged; the service needs write access to data/, logs/ and tmp/.
+User=www-data
+Group=www-data
+
+# Hardening (adjust ReadWritePaths if your paths differ).
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+ReadWritePaths=/opt/pinksheet/data /opt/pinksheet/logs /opt/pinksheet/tmp
+
+[Install]
+WantedBy=multi-user.target

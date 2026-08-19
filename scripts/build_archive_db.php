@@ -47,6 +47,20 @@ $archive->exec("CREATE INDEX IF NOT EXISTS idx_archive_items_status_sold_at ON a
 $archive->exec("CREATE INDEX IF NOT EXISTS idx_archive_items_legacy_source ON archive_items (legacy_source, legacy_table)");
 $archive->exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_archive_items_legacy_identity ON archive_items (legacy_source, legacy_table, legacy_id)");
 
+// Self-heal schema drift: archive.php and export_archive.php create the table
+// without these optional columns, so add them here if a page created the table first.
+$archiveColumns = $archive->query('PRAGMA table_info(archive_items)')->fetchAll(PDO::FETCH_ASSOC);
+$archiveColumnNames = array_map(static fn (array $column): string => (string)$column['name'], $archiveColumns);
+foreach ([
+    'legacy_location_id TEXT',
+    'legacy_category_id TEXT',
+] as $definition) {
+    $columnName = strtok($definition, ' ');
+    if ($columnName !== false && !in_array($columnName, $archiveColumnNames, true)) {
+        $archive->exec('ALTER TABLE archive_items ADD COLUMN ' . $definition);
+    }
+}
+
 $sourceRows = $source->query('SELECT * FROM archive_items')->fetchAll(PDO::FETCH_ASSOC);
 $archive->beginTransaction();
 $archive->exec('DELETE FROM archive_items');

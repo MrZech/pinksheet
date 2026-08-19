@@ -75,8 +75,18 @@ if (!is_array($body)) {
 $eventType = (string)($body['type'] ?? '');
 
 $notificationUrl = squareWebhookNotificationUrl();
+if (
+    $notificationUrl !== ''
+    && (
+        str_starts_with($notificationUrl, 'http://')
+        || str_contains($notificationUrl, '127.0.0.1')
+        || str_contains($notificationUrl, 'localhost')
+    )
+) {
+    squareSyncLog('Webhook notification URL is not a public HTTPS URL (' . $notificationUrl . ') — Square cannot deliver there and signatures will never match. Set SQUARE_WEBHOOK_NOTIFICATION_URL to the exact public HTTPS URL registered in Square.');
+}
 if (!squareWebhookVerify($rawBody, $signatureHeaderRaw, $notificationUrl)) {
-    squareSyncLog('Webhook rejected: invalid signature from ' . ($_SERVER['REMOTE_ADDR'] ?? 'unknown'));
+    squareSyncLog('Webhook rejected: invalid signature from ' . ($_SERVER['REMOTE_ADDR'] ?? 'unknown') . ' (verified against URL ' . $notificationUrl . ')');
     http_response_code(401);
     header('Content-Type: application/json; charset=utf-8');
     echo json_encode(['ok' => false, 'error' => 'Invalid signature']);

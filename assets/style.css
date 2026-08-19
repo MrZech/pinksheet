@@ -5473,4 +5473,57 @@ body.dark-mode .cp-status-sold {
   color: #fecaca;
 }
 
+/* ── eBay Category combobox (intake form) ──────────────────────── */
+.ebay-category-field {
+  position: relative;
+}
+.ebay-category-combo {
+  position: relative;
+  display: block;
+}
+.ebay-category-combo input[type="text"] {
+  width: 100%;
+  box-sizing: border-box;
+}
+.ebay-combo-menu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 50;
+  margin: 4px 0 0;
+  padding: 4px;
+  list-style: none;
+  background: var(--card-bg, #ffffff);
+  border: 1px solid var(--border-color, #d5dce6);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+  max-height: 320px;
+  overflow-y: auto;
+}
+.ebay-combo-option {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.ebay-combo-option:hover,
+.ebay-combo-option.is-active {
+  background: var(--accent-primary-soft, rgba(54, 173, 163, 0.12));
+}
+.ebay-combo-name {
+  font-weight: 600;
+  color: var(--text-primary, #1a1f26);
+}
+.ebay-combo-path {
+  font-size: 0.78rem;
+  color: var(--text-secondary, #6b7480);
+}
+.ebay-combo-empty {
+  padding: 8px 10px;
+  color: var(--text-secondary, #6b7480);
+}
+
 

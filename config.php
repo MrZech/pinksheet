@@ -377,6 +377,7 @@ function getAssetVersion(): int
         'assets/print.css',
         'assets/theme.js',
         'assets/app.js',
+        'assets/ebay-category.js',
         'assets/nav.js',
         'assets/command-palette.js',
         'assets/qz-tray.js',

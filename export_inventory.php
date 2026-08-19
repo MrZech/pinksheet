@@ -28,12 +28,19 @@ function exportCsvCell(mixed $value): string
     return (string)($value ?? '');
 }
 
+function exportEbayCategory(array $row): string
+{
+    $name = trim((string)($row['ebay_category'] ?? ''));
+    return $name !== '' ? $name : trim((string)($row['ebay_category_path'] ?? ''));
+}
+
 function exportRowToCsv(array $row): string
 {
     $cells = [
         exportCsvCell($row['sku'] ?? ''),
         exportCsvCell($row['status'] ?? ''),
         exportCsvCell($row['what_is_it'] ?? ''),
+        exportCsvCell(exportEbayCategory($row)),
         exportCsvCell($row['quantity'] ?? 1),
         exportCsvCell($row['dispotech_price'] ?? ''),
         exportCsvCell($row['ebay_price'] ?? ''),
@@ -68,6 +75,16 @@ if (!is_readable(EXPORT_DB_PATH)) {
 
 try {
     $pdo = pdoConnect(EXPORT_DB_PATH);
+
+    // The intake page adds the eBay category columns on load, but this
+    // endpoint can be hit directly (e.g. a bookmarked export link), so
+    // self-heal the schema here too.
+    $exportCols = array_column($pdo->query('PRAGMA table_info(intake_items)')->fetchAll(PDO::FETCH_ASSOC), 'name');
+    foreach (['ebay_category' => 'TEXT', 'ebay_category_path' => 'TEXT', 'ebay_category_id' => 'TEXT'] as $exportCol => $exportColDef) {
+        if (!in_array($exportCol, $exportCols, true)) {
+            $pdo->exec("ALTER TABLE intake_items ADD COLUMN $exportCol $exportColDef");
+        }
+    }
 
     $conditions = [];
     $params = [];
@@ -110,7 +127,7 @@ try {
         $conditions[] = '(' . implode(' AND ', $priceConds) . ')';
     }
 
-    $sql = 'SELECT sku, status, what_is_it, quantity, dispotech_price, ebay_price, updated_at
+    $sql = 'SELECT sku, status, what_is_it, ebay_category, ebay_category_path, quantity, dispotech_price, ebay_price, updated_at
             FROM intake_items';
     if ($conditions) {
         $sql .= ' WHERE ' . implode(' AND ', $conditions);
@@ -130,7 +147,7 @@ try {
 
     // UTF-8 BOM so Excel opens the file with correct encoding.
     echo "\xEF\xBB\xBF";
-    echo "SKU,Status,What is it?,Qty,Dispotech Price,eBay Price,Updated\r\n";
+    echo "SKU,Status,What is it?,eBay Category,Qty,Dispotech Price,eBay Price,Updated\r\n";
     foreach ($rows as $row) {
         echo exportRowToCsv($row);
     }

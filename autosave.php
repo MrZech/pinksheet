@@ -54,6 +54,7 @@ function sanitizePayload(array $raw): array
         'diagnostics_test_ran', 'wifi_card_installed', 'compatible_os',
         'where_it_goes', 'ebay_status', 'ebay_price', 'dispotech_price',
         'in_ebay_room', 'what_box', 'notes',
+        'ebay_category', 'ebay_category_path', 'ebay_category_id',
         'prompt_sku', 'prompt_output', 'chatgpt_output', 'final_output',
     ];
     $clean = [];

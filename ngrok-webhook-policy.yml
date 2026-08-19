@@ -1,6 +1,6 @@
 on_http_request:
   - expressions:
-      - "req.url.path != '/square_webhook.php'"
+      - "req.url.path != '/webhooks/square.php' || req.method != 'POST'"
     actions:
       - type: deny
         config:
