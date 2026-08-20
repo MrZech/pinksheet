@@ -15,8 +15,13 @@ declare(strict_types=1);
  *
  * The same optional filters as the CSV export are supported and combined:
  *   sku, status, min_price, max_price
+ *
+ * The ZIP is built with ZipArchive when the extension is available, and falls
+ * back to a pure-PHP (store-only) writer otherwise, so the export works even
+ * on minimal PHP builds without the zip extension.
  */
 require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/lib/bundle_zip.php';
 checkMaintenance();
 ensureStorageWritable();
 
@@ -114,13 +119,6 @@ if (!is_readable(BUNDLE_DB_PATH)) {
     http_response_code(500);
     header('Content-Type: text/plain; charset=utf-8');
     echo 'Inventory database is not readable.';
-    exit;
-}
-
-if (!class_exists('ZipArchive')) {
-    http_response_code(500);
-    header('Content-Type: text/plain; charset=utf-8');
-    echo 'ZIP support is not available on this server.';
     exit;
 }
 
@@ -223,20 +221,10 @@ try {
         $csv .= bundleRowToCsv($items[$key]);
     }
 
-    $tmpZip = tempnam(sys_get_temp_dir(), 'inventory_export_');
-    if ($tmpZip === false) {
-        throw new RuntimeException('Could not create a temporary file for the export.');
-    }
-    $tmpZipPath = $tmpZip . '.zip';
-    @unlink($tmpZip);
-
-    $zip = new ZipArchive();
-    if ($zip->open($tmpZipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
-        @unlink($tmpZipPath);
-        throw new RuntimeException('Could not create the ZIP archive.');
-    }
-
-    $zip->addFromString($csvName, $csv);
+    // Collect every archive entry first, then write them with ZipArchive when
+    // available or the pure-PHP fallback writer otherwise.
+    $entries = [];
+    $entries[] = ['name' => $csvName, 'content' => $csv];
 
     $usedFolders = [];
     foreach ($order as $key) {
@@ -254,7 +242,7 @@ try {
         $usedFolders[strtolower($candidate)] = true;
         $folder = $candidate;
 
-        $zip->addEmptyDir($folder);
+        $entries[] = ['name' => $folder . '/', 'is_dir' => true];
 
         $norm = strtoupper(trim((string)($row['sku_normalized'] ?? '')));
         if ($norm === '') {
@@ -273,17 +261,29 @@ try {
                 $ext = strtolower(pathinfo($storedName, PATHINFO_EXTENSION));
                 $photoIndex++;
                 $label = bundlePhotoLabel($photoIndex, (string)($photoRow['original_name'] ?? ''));
-                $zipNameInFolder = $label . ($ext !== '' ? '.' . $ext : '');
-                if ($zip->addFile($diskPath, $folder . '/' . $zipNameInFolder)) {
-                    $photoCount++;
-                }
+                $entries[] = [
+                    'name' => $folder . '/' . $label . ($ext !== '' ? '.' . $ext : ''),
+                    'path' => $diskPath,
+                ];
+                $photoCount++;
             }
         }
 
-        $zip->addFromString($folder . '/info.txt', bundleInfoText($row, $photoCount));
+        $entries[] = ['name' => $folder . '/info.txt', 'content' => bundleInfoText($row, $photoCount)];
     }
 
-    $zip->close();
+    $tmpZip = tempnam(sys_get_temp_dir(), 'inventory_export_');
+    if ($tmpZip === false) {
+        throw new RuntimeException('Could not create a temporary file for the export.');
+    }
+    $tmpZipPath = $tmpZip . '.zip';
+    @unlink($tmpZip);
+
+    if (class_exists('ZipArchive')) {
+        bundleWriteWithZipArchive($tmpZipPath, $entries);
+    } else {
+        bundleWritePureZip($tmpZipPath, $entries);
+    }
 
     header('Content-Type: application/zip');
     header('Content-Disposition: attachment; filename="' . $zipName . '"');
