@@ -420,6 +420,8 @@ if (!$isPartial):
             <div class="lookup-results-actions">
               <span class="badge subtle" id="inventory-badge"><?php echo count($listedItems); ?> items</span>
               <span class="badge subtle" id="total-value-badge">Total: $0.00</span>
+              <a class="button-link ghost" href="export_bundle.php" download data-file-export>Export with photos (ZIP)</a>
+              <a class="button-link ghost" href="export_bundle.php?scope=active" download data-file-export>Export active with photos (ZIP)</a>
               <a class="button-link ghost" href="export_inventory.php" download data-csv-export>Export inventory (CSV)</a>
               <a class="button-link ghost" href="export_inventory.php?scope=active" download data-csv-export>Export active (CSV)</a>
             </div>

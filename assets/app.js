@@ -564,20 +564,21 @@
     });
   };
 
-  /* ── CSV export: force a file download instead of navigating ──
+  /* ── File export: force a file download instead of navigating ──
    *
-   * Links marked with data-csv-export point at server-side CSV endpoints
-   * (export_inventory.php / export_archive.php).  A plain anchor navigates
-   * to the CSV, which some browsers render in the tab instead of saving.
-   * Intercept the click, fetch the file, and trigger a Blob download so it
-   * always saves with the server-provided filename.
+   * Links marked with data-csv-export or data-file-export point at
+   * server-side download endpoints (export_inventory.php / export_archive.php /
+   * export_bundle.php).  A plain anchor navigates to the file, which some
+   * browsers render in the tab instead of saving.  Intercept the click, fetch
+   * the file, and trigger a Blob download so it always saves with the
+   * server-provided filename.
    */
   document.addEventListener('click', function (e) {
     // e.target may be a text node inside the anchor (some webviews/browsers
     // report it as such), which has no .closest().  Walk up from the element.
     var node = e.target && e.target.nodeType === 1 ? e.target
             : (e.target && e.target.parentElement ? e.target.parentElement : null);
-    var link = node ? node.closest('a[data-csv-export]') : null;
+    var link = node ? node.closest('a[data-csv-export], a[data-file-export]') : null;
     if (!link) return;
     e.preventDefault();
     var url = link.getAttribute('href');
@@ -589,7 +590,7 @@
     fetch(url, { credentials: 'same-origin' })
       .then(function (r) {
         if (!r.ok) throw new Error('HTTP ' + r.status);
-        var filename = 'export.csv';
+        var filename = link.hasAttribute('data-file-export') ? 'export.zip' : 'export.csv';
         var disposition = r.headers.get('Content-Disposition') || '';
         var m = disposition.match(/filename="?([^";]+)"?/i);
         if (m && m[1]) filename = m[1];

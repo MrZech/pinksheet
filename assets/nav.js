@@ -75,8 +75,8 @@
     var link = e.target.closest('a');
     if (!link) return;
     if (link.hasAttribute('data-new-intake') || link.getAttribute('data-run-square-sync') !== null) return;
-    /* CSV export links trigger their own download handling (assets/app.js) and must not be AJAX-navigated. */
-    if (link.hasAttribute('data-csv-export')) return;
+    /* File export links (CSV/ZIP) trigger their own download handling (assets/app.js) and must not be AJAX-navigated. */
+    if (link.hasAttribute('data-csv-export') || link.hasAttribute('data-file-export')) return;
     var href = link.getAttribute('href');
     if (!href || href === '#' || href.indexOf('//') !== -1 || href.indexOf('http') === 0) return;
     if (href.indexOf('?') === 0 || href.indexOf('#') === 0) return;
