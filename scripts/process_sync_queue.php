@@ -12,6 +12,21 @@ require_once __DIR__ . '/../square_sync.php';
 require_once __DIR__ . '/../square_sync_queue.php';
 require_once __DIR__ . '/../square_audit.php';
 
+/* ── Single-instance guard ────────────────────────────────────────────
+ * The cron fires this script every 2 minutes. If one run takes longer
+ * than that (slow disk, a hanging Square API call, DB lock, ...), the
+ * next run starts anyway and the php processes pile up until the
+ * container hits its memory limit and the OOM killer starts killing the
+ * app. Hold an exclusive non-blocking lock for the whole run so an
+ * overlapping run exits immediately instead of stacking.
+ */
+$syncQueueLockPath = __DIR__ . '/../data/.sync_queue.lock';
+$syncQueueLock = @fopen($syncQueueLockPath, 'c');
+if ($syncQueueLock === false || !flock($syncQueueLock, LOCK_EX | LOCK_NB)) {
+    echo "Another sync queue run is already in progress; exiting.\n";
+    exit(0);
+}
+
 $limit = 10;
 $daemon = false;
 
@@ -94,6 +109,11 @@ do {
         }
     }
 } while ($daemon);
+
+if ($syncQueueLock !== false) {
+    flock($syncQueueLock, LOCK_UN);
+    fclose($syncQueueLock);
+}
 
 exit(0);
 

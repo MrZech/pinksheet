@@ -564,14 +564,19 @@
     });
   };
 
-  /* ── File export: force a file download instead of navigating ──
+  /* ── File export downloads ──
    *
-   * Links marked with data-csv-export or data-file-export point at
-   * server-side download endpoints (export_inventory.php / export_archive.php /
-   * export_bundle.php).  A plain anchor navigates to the file, which some
-   * browsers render in the tab instead of saving.  Intercept the click, fetch
-   * the file, and trigger a Blob download so it always saves with the
-   * server-provided filename.
+   * Links marked with data-csv-export or data-file-export point at server-side
+   * download endpoints (export_inventory.php / export_archive.php /
+   * export_bundle.php).  nav.js already skips both so they are never
+   * AJAX-navigated.
+   *
+   * CSVs are fetched and saved as a Blob so they never render in the tab.
+   * ZIPs (data-file-export) download natively instead: the browser streams the
+   * archive straight to disk with a visible progress bar.  That matters
+   * because photo bundles can be very large — fetching them into memory first
+   * made clicks look like "nothing happened" until the whole file finished
+   * buffering.
    */
   document.addEventListener('click', function (e) {
     // e.target may be a text node inside the anchor (some webviews/browsers
@@ -580,9 +585,23 @@
             : (e.target && e.target.parentElement ? e.target.parentElement : null);
     var link = node ? node.closest('a[data-csv-export], a[data-file-export]') : null;
     if (!link) return;
+
+    /* ZIP exports: let the browser download natively (streams with progress).
+       Only guard against accidental double-clicks. */
+    if (link.hasAttribute('data-file-export')) {
+      if (link.getAttribute('data-exporting') !== '1') {
+        link.setAttribute('data-exporting', '1');
+        /* A photo bundle can take minutes to download; keep the guard up the
+           whole time so an accidental re-click can't fire a second export
+           (the server would 429 it anyway while one is running). */
+        setTimeout(function () { link.removeAttribute('data-exporting'); }, 600000);
+      }
+      return;
+    }
+
     e.preventDefault();
     var url = link.getAttribute('href');
-    /* Prevent stacking exports: ignore re-clicks while a download is in flight. */
+    /* Prevent stacking CSV exports: ignore re-clicks while a download is in flight. */
     if (link.getAttribute('data-exporting') === '1') return;
     link.setAttribute('data-exporting', '1');
     var clearExporting = function () {
@@ -597,7 +616,7 @@
     fetch(url, { credentials: 'same-origin' })
       .then(function (r) {
         if (!r.ok) throw new Error('HTTP ' + r.status);
-        var filename = link.hasAttribute('data-file-export') ? 'export.zip' : 'export.csv';
+        var filename = 'export.csv';
         var disposition = r.headers.get('Content-Disposition') || '';
         var m = disposition.match(/filename="?([^";]+)"?/i);
         if (m && m[1]) filename = m[1];
