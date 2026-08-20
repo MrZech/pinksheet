@@ -11,7 +11,9 @@ declare(strict_types=1);
  *
  * The zip extension may be missing on minimal server builds, so a pure-PHP
  * (store-only) writer is provided as a fallback. Both writers emit standard
- * ZIP archives that any extractor can open.
+ * ZIP archives that any extractor can open. The pure writer can target any
+ * writable stream, which lets export_bundle.php stream the archive straight
+ * to the browser instead of buffering the whole thing on disk first.
  */
 
 /**
@@ -50,22 +52,19 @@ function bundleWriteWithZipArchive(string $zipPath, array $entries): void
 }
 
 /**
- * Pure-PHP ZIP writer (store-only, no compression) used when the zip
- * extension is not installed. Produces a standard, extractable ZIP:
- * local file headers, central directory, and end-of-central-directory
- * record, with CRC-32 computed incrementally so photos stream through
- * without loading whole files into memory.
+ * Core store-only ZIP writer. Writes local entries, then the central
+ * directory and end-of-central-directory record, to any writable stream.
  *
- * @param string $zipPath Destination path for the ZIP file.
- * @param array  $entries List of entry descriptors (see file docblock).
+ * CRC-32 for file entries is computed in a first pass over the file, the
+ * file is rewound, and its bytes are then streamed out — one open per file,
+ * never more than a 1 MiB chunk in memory. If the client disconnects the
+ * writer stops as soon as the next chunk boundary is reached.
+ *
+ * @param resource $out     Writable stream (file handle or php://output).
+ * @param array    $entries List of entry descriptors (see file docblock).
  */
-function bundleWritePureZip(string $zipPath, array $entries): void
+function bundleWritePureZipToStream($out, array $entries): void
 {
-    $out = @fopen($zipPath, 'wb');
-    if ($out === false) {
-        throw new RuntimeException('Could not create the ZIP archive.');
-    }
-
     [$dosTime, $dosDate] = bundleDosDateTime(time());
 
     $central = '';
@@ -88,15 +87,15 @@ function bundleWritePureZip(string $zipPath, array $entries): void
         } else {
             $source = $entry['path'];
             $size = (int)@filesize($source);
-            $ctx = hash_init('crc32b');
             $fh = @fopen($source, 'rb');
             if ($fh === false) {
                 continue; // skip a file that vanished after collection
             }
+            $ctx = hash_init('crc32b');
             while (!feof($fh)) {
                 hash_update($ctx, (string)fread($fh, 1048576));
             }
-            fclose($fh);
+            rewind($fh);
             $crc = (int)hexdec(hash_final($ctx));
         }
 
@@ -106,23 +105,48 @@ function bundleWritePureZip(string $zipPath, array $entries): void
         if ($data !== null) {
             fwrite($out, $data);
         } elseif ($source !== null) {
-            $fh = @fopen($source, 'rb');
-            if ($fh !== false) {
-                while (!feof($fh)) {
-                    fwrite($out, (string)fread($fh, 1048576));
+            while (!feof($fh)) {
+                fwrite($out, (string)fread($fh, 1048576));
+                if (connection_aborted()) {
+                    fclose($fh);
+                    fwrite($out, $central);
+                    fwrite($out, pack('VvvvvVVv', 0x06054b50, 0, 0, $written, $written, strlen($central), $offset, 0));
+                    return;
                 }
-                fclose($fh);
             }
+            fclose($fh);
         }
 
         $central .= pack('VvvvvvvVVVvvvvvVV', 0x02014b50, 20, 20, 0, 0, $dosTime, $dosDate, $crc, $size, $size, strlen($name), 0, 0, 0, 0, $isDir ? 0x10 : 0, $offset) . $name;
         $offset += strlen($localHeader) + strlen($name) + $size;
         $written++;
+
+        // Push bytes out as they are produced so clients (and any proxy in
+        // front of the app) see a live stream instead of a silent build.
+        if (function_exists('flush')) {
+            flush();
+        }
     }
 
     // Correct layout: local entries, then the central directory, then the
     // end-of-central-directory record.
     fwrite($out, $central);
     fwrite($out, pack('VvvvvVVv', 0x06054b50, 0, 0, $written, $written, strlen($central), $offset, 0));
+}
+
+/**
+ * Pure-PHP ZIP writer (store-only) that targets a real file — used by tests
+ * and by the ZipArchive-less path when a temp file is acceptable.
+ *
+ * @param string $zipPath Destination path for the ZIP file.
+ * @param array  $entries List of entry descriptors (see file docblock).
+ */
+function bundleWritePureZip(string $zipPath, array $entries): void
+{
+    $out = @fopen($zipPath, 'wb');
+    if ($out === false) {
+        throw new RuntimeException('Could not create the ZIP archive.');
+    }
+    bundleWritePureZipToStream($out, $entries);
     fclose($out);
 }

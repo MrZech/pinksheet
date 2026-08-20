@@ -72,7 +72,26 @@ final class ExportBundleTest extends TestCase
     {
         $source = $this->source();
         $this->assertStringContainsString("class_exists('ZipArchive')", $source);
-        $this->assertStringContainsString('bundleWritePureZip', $source);
+        $this->assertStringContainsString('bundleWritePureZipToStream', $source);
+    }
+
+    public function test_streams_when_zip_extension_is_missing(): void
+    {
+        // With no zip extension the archive must stream straight to the
+        // browser so a large export never sits silently building (which
+        // trips proxy read timeouts and stalls single-worker servers).
+        $source = $this->source();
+        $this->assertStringContainsString("fopen('php://output', 'wb')", $source);
+        $this->assertStringContainsString('set_time_limit(0)', $source);
+        $this->assertStringContainsString('zlib.output_compression', $source);
+    }
+
+    public function test_rejects_concurrent_exports(): void
+    {
+        $source = $this->source();
+        $this->assertStringContainsString('.bundle_export.lock', $source);
+        $this->assertStringContainsString('LOCK_EX | LOCK_NB', $source);
+        $this->assertStringContainsString('An export is already running', $source);
     }
 
     public function test_manifest_matches_the_csv_export_columns(): void

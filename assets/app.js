@@ -582,8 +582,15 @@
     if (!link) return;
     e.preventDefault();
     var url = link.getAttribute('href');
+    /* Prevent stacking exports: ignore re-clicks while a download is in flight. */
+    if (link.getAttribute('data-exporting') === '1') return;
+    link.setAttribute('data-exporting', '1');
+    var clearExporting = function () {
+      setTimeout(function () { link.removeAttribute('data-exporting'); }, 1500);
+    };
     if (!url || !window.fetch) {
       // No fetch support — fall back to plain navigation.
+      clearExporting();
       window.location.href = url;
       return;
     }
@@ -607,7 +614,11 @@
       })
       .catch(function () {
         // Fall back to plain navigation on any failure.
+        clearExporting();
         window.location.href = url;
+      })
+      .finally(function () {
+        clearExporting();
       });
   });
 

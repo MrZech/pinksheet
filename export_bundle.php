@@ -123,6 +123,28 @@ if (!is_readable(BUNDLE_DB_PATH)) {
 }
 
 try {
+    // A full export can legitimately take a while (large photo libraries);
+    // do not let PHP kill it mid-stream, and do not let zlib re-encode a
+    // download that is being streamed.
+    @set_time_limit(0);
+    @ini_set('zlib.output_compression', 'Off');
+
+    // Concurrency guard: never stack two bundle exports. On a single-worker
+    // server a second export request would queue behind the first and stall
+    // every other page, so reject it immediately with a fast 429 instead.
+    $bundleLockPath = __DIR__ . '/data/.bundle_export.lock';
+    $bundleLock = @fopen($bundleLockPath, 'c');
+    $bundleLockHeld = false;
+    if ($bundleLock !== false) {
+        $bundleLockHeld = flock($bundleLock, LOCK_EX | LOCK_NB);
+    }
+    if ($bundleLock !== false && !$bundleLockHeld) {
+        http_response_code(429);
+        header('Content-Type: text/plain; charset=utf-8');
+        echo 'An export is already running. Please wait a moment and try again.';
+        exit;
+    }
+
     $pdo = pdoConnect(BUNDLE_DB_PATH);
 
     // Self-heal the eBay category columns, matching export_inventory.php so a
@@ -272,32 +294,55 @@ try {
         $entries[] = ['name' => $folder . '/info.txt', 'content' => bundleInfoText($row, $photoCount)];
     }
 
-    $tmpZip = tempnam(sys_get_temp_dir(), 'inventory_export_');
-    if ($tmpZip === false) {
-        throw new RuntimeException('Could not create a temporary file for the export.');
-    }
-    $tmpZipPath = $tmpZip . '.zip';
-    @unlink($tmpZip);
-
     if (class_exists('ZipArchive')) {
+        // Zip extension available: build to a temp file (compressed), then
+        // stream the finished archive.
+        $tmpZip = tempnam(sys_get_temp_dir(), 'inventory_export_');
+        if ($tmpZip === false) {
+            throw new RuntimeException('Could not create a temporary file for the export.');
+        }
+        $tmpZipPath = $tmpZip . '.zip';
+        @unlink($tmpZip);
         bundleWriteWithZipArchive($tmpZipPath, $entries);
-    } else {
-        bundleWritePureZip($tmpZipPath, $entries);
-    }
 
-    header('Content-Type: application/zip');
-    header('Content-Disposition: attachment; filename="' . $zipName . '"');
-    header('Content-Length: ' . (string)filesize($tmpZipPath));
-    header('Cache-Control: no-store');
+        header('Content-Type: application/zip');
+        header('Content-Disposition: attachment; filename="' . $zipName . '"');
+        header('Content-Length: ' . (string)filesize($tmpZipPath));
+        header('Cache-Control: no-store');
 
-    $out = fopen($tmpZipPath, 'rb');
-    if ($out === false) {
+        $out = fopen($tmpZipPath, 'rb');
+        if ($out === false) {
+            @unlink($tmpZipPath);
+            throw new RuntimeException('Could not read the generated ZIP archive.');
+        }
+        fpassthru($out);
+        fclose($out);
         @unlink($tmpZipPath);
-        throw new RuntimeException('Could not read the generated ZIP archive.');
+    } else {
+        // No zip extension: stream a store-only ZIP straight to the browser.
+        // Bytes start flowing immediately, so a big export can never sit
+        // silently building (which trips proxy read timeouts and stalls
+        // single-worker servers like the built-in `php -S`).
+        header('Content-Type: application/zip');
+        header('Content-Disposition: attachment; filename="' . $zipName . '"');
+        header('Cache-Control: no-store');
+        while (ob_get_level() > 0) {
+            ob_end_flush();
+        }
+        flush();
+
+        $out = fopen('php://output', 'wb');
+        if ($out === false) {
+            throw new RuntimeException('Could not stream the ZIP archive.');
+        }
+        bundleWritePureZipToStream($out, $entries);
+        fclose($out);
     }
-    fpassthru($out);
-    fclose($out);
-    @unlink($tmpZipPath);
+
+    if ($bundleLock !== false && $bundleLockHeld) {
+        flock($bundleLock, LOCK_UN);
+        fclose($bundleLock);
+    }
     exit;
 } catch (Throwable $error) {
     http_response_code(500);
