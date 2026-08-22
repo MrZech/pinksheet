@@ -131,7 +131,7 @@ try {
         'sku', 'status', 'what_is_it', 'brand_model', 'source',
         'date_received', 'condition', 'functional', 'power_on',
         'dispotech_price', 'ebay_price', 'quantity',
-        'ebay_category', 'ebay_status', 'where_it_goes', 'notes',
+        'ebay_category', 'ebay_status', 'where_it_goes',
         'cpu', 'ram', 'ssd_gb', 'graphics_card', 'screen_resolution',
         'battery_health', 'os', 'compatible_os', 'wifi_card_installed',
         'picture_taken', 'cords_adapters', 'keep_items_together',
@@ -144,9 +144,9 @@ try {
     $exportCols = array_values(array_filter($exportCols, static function (string $col) use ($existingCols): bool {
         return in_array($col, $existingCols, true);
     }));
-    $sql = 'SELECT ' . implode(', ', array_map(static function (string $c): string {
-        return "$c";
-    }, $exportCols)) . ' FROM intake_items';
+    $sql = 'SELECT ' . implode(', ', $exportCols) . ' FROM intake_items';
+    // Exclude blank SKU rows so the export stays clean.
+    $conditions[] = "(sku IS NOT NULL AND TRIM(sku) <> '')";
     if ($conditions) {
         $sql .= ' WHERE ' . implode(' AND ', $conditions);
     }

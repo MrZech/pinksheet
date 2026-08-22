@@ -152,9 +152,13 @@ try {
         }
     }
 
+    $conditions = ["(sku IS NOT NULL AND TRIM(sku) <> '')"];
     $sql = 'SELECT * FROM intake_items';
     if ($scope === 'active') {
-        $sql .= " WHERE (status IS NULL OR LOWER(TRIM(status)) != 'sold')";
+        $conditions[] = "(status IS NULL OR LOWER(TRIM(status)) != 'sold')";
+    }
+    if ($conditions) {
+        $sql .= ' WHERE ' . implode(' AND ', $conditions);
     }
     $sql .= ' ORDER BY updated_at DESC, id DESC';
 
@@ -194,7 +198,7 @@ try {
         'sku', 'status', 'what_is_it', 'brand_model', 'source',
         'date_received', 'condition', 'functional', 'power_on',
         'dispotech_price', 'ebay_price', 'quantity',
-        'ebay_category', 'ebay_status', 'where_it_goes', 'notes',
+        'ebay_category', 'ebay_status', 'where_it_goes',
         'cpu', 'ram', 'ssd_gb', 'graphics_card', 'screen_resolution',
         'battery_health', 'os', 'compatible_os', 'wifi_card_installed',
         'picture_taken', 'cords_adapters', 'keep_items_together',
