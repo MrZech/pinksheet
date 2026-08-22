@@ -1418,6 +1418,12 @@ if (!$isPartial):
 
         // Build gallery from first 4 supplementary photos (skip thumbnail)
         var galleryRow = grid.querySelector('#print-gallery-row');
+        if (!galleryRow) return;
+        // populatePrintGrid() runs on the Print button click AND on the
+        // browser's beforeprint / print media-query events, so always clear
+        // the row first or every photo gets duplicated (tripled on browsers
+        // that fire both events) in the printed output.
+        galleryRow.innerHTML = '';
         var thumbImgEl = grid.querySelector('.print-thumb-cell img');
         var thumbId = thumbImgEl ? extractPhotoIdFromSrc(thumbImgEl.getAttribute('src')) : '';
         var photoItems = document.querySelectorAll('.section.sku-photos .sku-photo-item');
