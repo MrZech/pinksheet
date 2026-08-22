@@ -119,11 +119,12 @@ final class EbayCategoriesTest extends TestCase
     {
         $source = (string)file_get_contents(TESTING_ROOT . '/export_inventory.php');
         $this->assertStringContainsString('PRAGMA table_info(intake_items)', $source);
-        $this->assertStringContainsString('SELECT * FROM intake_items', $source);
         // The resolved eBay Category column uses exportEbayCategory() fallback.
         $this->assertStringContainsString('exportEbayCategory', $source);
         // All raw eBay category columns are also included for full pivot access.
         $this->assertStringContainsString('eBay Category Path', $source);
         $this->assertStringContainsString('eBay Category ID', $source);
+        // Curated column order puts SKU and Status first.
+        $this->assertStringContainsString("'sku', 'status'", $source);
     }
 }

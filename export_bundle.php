@@ -269,8 +269,24 @@ try {
     $csvName = 'inventory_' . $suffix . $date . '.csv';
     $zipName = 'inventory_' . $suffix . 'photos_' . $date . '.zip';
 
-    // Discover all columns for the CSV header and rows.
-    $exportCols = array_column($pdo->query('PRAGMA table_info(intake_items)')->fetchAll(PDO::FETCH_ASSOC), 'name');
+    // Curated column order: most useful first, internal/technical last.
+    $exportCols = [
+        'sku', 'status', 'what_is_it', 'brand_model', 'source',
+        'date_received', 'condition', 'functional', 'power_on',
+        'dispotech_price', 'ebay_price', 'quantity',
+        'ebay_category', 'ebay_status', 'where_it_goes', 'notes',
+        'cpu', 'ram', 'ssd_gb', 'graphics_card', 'screen_resolution',
+        'battery_health', 'os', 'compatible_os', 'wifi_card_installed',
+        'picture_taken', 'cords_adapters', 'keep_items_together',
+        'what_box', 'in_ebay_room', 'is_square', 'care_if_square',
+        'diagnostics_test_ran',
+        'ebay_category_path', 'ebay_category_id',
+        'id', 'created_at', 'updated_at',
+    ];
+    $existingCols = array_column($pdo->query('PRAGMA table_info(intake_items)')->fetchAll(PDO::FETCH_ASSOC), 'name');
+    $exportCols = array_values(array_filter($exportCols, static function (string $col) use ($existingCols): bool {
+        return in_array($col, $existingCols, true);
+    }));
     $headerLabels = array_map(static function (string $col): string {
         return match($col) {
             'id' => 'ID',
