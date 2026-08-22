@@ -94,12 +94,12 @@ final class ExportBundleTest extends TestCase
         $this->assertStringContainsString('An export is already running', $source);
     }
 
-    public function test_manifest_matches_the_csv_export_columns(): void
+    public function test_manifest_has_dynamic_csv_header(): void
     {
-        $this->assertStringContainsString(
-            'SKU,Status,What is it?,eBay Category,Qty,Dispotech Price,eBay Price,Updated',
-            $this->source()
-        );
+        $source = $this->source();
+        $this->assertStringContainsString('PRAGMA table_info(intake_items)', $source);
+        $this->assertStringContainsString('SELECT * FROM intake_items', $source);
+        $this->assertStringContainsString('headerLabels', $source);
     }
 
     public function test_pure_php_writer_produces_valid_extractable_zip(): void

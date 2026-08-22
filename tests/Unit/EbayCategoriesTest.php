@@ -115,11 +115,15 @@ final class EbayCategoriesTest extends TestCase
         $this->assertNotSame(squareSyncPayloadHash($item, null), squareSyncPayloadHash($withCategory, null));
     }
 
-    public function test_export_inventory_has_single_ebay_category_column(): void
+    public function test_export_inventory_exports_all_columns_dynamically(): void
     {
         $source = (string)file_get_contents(TESTING_ROOT . '/export_inventory.php');
-        $this->assertStringContainsString('eBay Category', $source);
-        $this->assertStringNotContainsString('eBay Category Path', $source);
-        $this->assertStringNotContainsString('eBay Category ID', $source);
+        $this->assertStringContainsString('PRAGMA table_info(intake_items)', $source);
+        $this->assertStringContainsString('SELECT * FROM intake_items', $source);
+        // The resolved eBay Category column uses exportEbayCategory() fallback.
+        $this->assertStringContainsString('exportEbayCategory', $source);
+        // All raw eBay category columns are also included for full pivot access.
+        $this->assertStringContainsString('eBay Category Path', $source);
+        $this->assertStringContainsString('eBay Category ID', $source);
     }
 }

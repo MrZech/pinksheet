@@ -420,10 +420,17 @@ if (!$isPartial):
             <div class="lookup-results-actions">
               <span class="badge subtle" id="inventory-badge"><?php echo count($listedItems); ?> items</span>
               <span class="badge subtle" id="total-value-badge">Total: $0.00</span>
-              <a class="button-link ghost" href="export_bundle.php" download data-file-export>Export with photos (ZIP)</a>
-              <a class="button-link ghost" href="export_bundle.php?scope=active" download data-file-export>Export active with photos (ZIP)</a>
-              <a class="button-link ghost" href="export_inventory.php" download data-csv-export>Export inventory (CSV)</a>
-              <a class="button-link ghost" href="export_inventory.php?scope=active" download data-csv-export>Export active (CSV)</a>
+              <details class="export-dropdown">
+                <summary class="button-link ghost">⬇ Export</summary>
+                <div class="export-dropdown-menu">
+                  <a href="export_spreadsheet.php" download data-file-export>Spreadsheet with photos (XLSX)</a>
+                  <a href="export_spreadsheet.php?scope=active" download data-file-export>Active only (XLSX)</a>
+                  <a href="export_bundle.php" download data-file-export>With photos (ZIP)</a>
+                  <a href="export_bundle.php?scope=active" download data-file-export>Active with photos (ZIP)</a>
+                  <a href="export_inventory.php" download data-csv-export>Full inventory (CSV)</a>
+                  <a href="export_inventory.php?scope=active" download data-csv-export>Active inventory (CSV)</a>
+                </div>
+              </details>
             </div>
           </div>
           <div class="table-wrap">
@@ -583,6 +590,17 @@ if (!$isPartial):
           link.addEventListener('click', clearIntakeDraft);
         });
       }
+
+      /* Auto-close the export dropdown after a download link is clicked. */
+      var exportDropdown = document.querySelector('.export-dropdown');
+      if (exportDropdown) {
+        exportDropdown.addEventListener('click', function (e) {
+          if (e.target.closest('a[data-file-export], a[data-csv-export]')) {
+            exportDropdown.removeAttribute('open');
+          }
+        });
+      }
+
       document.addEventListener('keydown', function (event) {
         if (event.ctrlKey && event.key.toLowerCase() === 'l') {
           if (event.target && (event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA')) return;

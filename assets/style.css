@@ -4606,6 +4606,48 @@ button.secondary:hover,
   justify-content: flex-end;
 }
 
+/* Export dropdown: keeps the header clean by collapsing 6 links into one trigger. */
+.export-dropdown {
+  position: relative;
+}
+
+.export-dropdown > summary {
+  list-style: none;
+  cursor: pointer;
+}
+
+.export-dropdown > summary::-webkit-details-marker {
+  display: none;
+}
+
+.export-dropdown-menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 6px);
+  z-index: 100;
+  min-width: 220px;
+  background: var(--surface-panel, #fff);
+  border: 1px solid var(--border-subtle, #e2e8f0);
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+  padding: 4px 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.export-dropdown-menu > a {
+  display: block;
+  padding: 7px 14px;
+  color: inherit;
+  text-decoration: none;
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+
+.export-dropdown-menu > a:hover {
+  background: rgba(148, 163, 184, 0.12);
+}
+
 .table-wrap {
   overflow: hidden;
 }

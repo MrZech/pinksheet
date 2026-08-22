@@ -34,18 +34,16 @@ function exportEbayCategory(array $row): string
     return $name !== '' ? $name : trim((string)($row['ebay_category_path'] ?? ''));
 }
 
-function exportRowToCsv(array $row): string
+function exportRowToCsv(array $row, array $columns): string
 {
-    $cells = [
-        exportCsvCell($row['sku'] ?? ''),
-        exportCsvCell($row['status'] ?? ''),
-        exportCsvCell($row['what_is_it'] ?? ''),
-        exportCsvCell(exportEbayCategory($row)),
-        exportCsvCell($row['quantity'] ?? 1),
-        exportCsvCell($row['dispotech_price'] ?? ''),
-        exportCsvCell($row['ebay_price'] ?? ''),
-        exportCsvCell($row['updated_at'] ?? ''),
-    ];
+    $cells = [];
+    foreach ($columns as $col) {
+        if ($col === 'ebay_category') {
+            $cells[] = exportCsvCell(exportEbayCategory($row));
+        } else {
+            $cells[] = exportCsvCell($row[$col] ?? '');
+        }
+    }
     // Escape each cell per RFC 4180 (quote fields containing , " or newlines,
     // double any embedded quotes).
     return implode(',', array_map(static function (string $cell): string {
@@ -79,9 +77,9 @@ try {
     // The intake page adds the eBay category columns on load, but this
     // endpoint can be hit directly (e.g. a bookmarked export link), so
     // self-heal the schema here too.
-    $exportCols = array_column($pdo->query('PRAGMA table_info(intake_items)')->fetchAll(PDO::FETCH_ASSOC), 'name');
+    $existingCols = array_column($pdo->query('PRAGMA table_info(intake_items)')->fetchAll(PDO::FETCH_ASSOC), 'name');
     foreach (['ebay_category' => 'TEXT', 'ebay_category_path' => 'TEXT', 'ebay_category_id' => 'TEXT'] as $exportCol => $exportColDef) {
-        if (!in_array($exportCol, $exportCols, true)) {
+        if (!in_array($exportCol, $existingCols, true)) {
             $pdo->exec("ALTER TABLE intake_items ADD COLUMN $exportCol $exportColDef");
         }
     }
@@ -127,8 +125,8 @@ try {
         $conditions[] = '(' . implode(' AND ', $priceConds) . ')';
     }
 
-    $sql = 'SELECT sku, status, what_is_it, ebay_category, ebay_category_path, quantity, dispotech_price, ebay_price, updated_at
-            FROM intake_items';
+    $exportCols = array_column($pdo->query('PRAGMA table_info(intake_items)')->fetchAll(PDO::FETCH_ASSOC), 'name');
+    $sql = 'SELECT * FROM intake_items';
     if ($conditions) {
         $sql .= ' WHERE ' . implode(' AND ', $conditions);
     }
@@ -137,6 +135,52 @@ try {
     $stmt = $pdo->prepare($sql);
     $stmt->execute($params);
     $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    // Build a human-friendly header row from the discovered columns.
+    $headerLabels = array_map(static function (string $col): string {
+        return match($col) {
+            'id' => 'ID',
+            'created_at' => 'Created',
+            'updated_at' => 'Updated',
+            'sku' => 'SKU',
+            'sku_normalized' => 'SKU (Normalized)',
+            'status' => 'Status',
+            'what_is_it' => 'What is it?',
+            'date_received' => 'Date Received',
+            'source' => 'Source',
+            'functional' => 'Functional',
+            'condition' => 'Condition',
+            'is_square' => 'Is Square',
+            'care_if_square' => 'Care if Square',
+            'cords_adapters' => 'Cords/Adapters',
+            'keep_items_together' => 'Keep Items Together',
+            'picture_taken' => 'Picture Taken',
+            'power_on' => 'Power On',
+            'brand_model' => 'Brand/Model',
+            'ram' => 'RAM',
+            'ssd_gb' => 'SSD (GB)',
+            'cpu' => 'CPU',
+            'os' => 'OS',
+            'battery_health' => 'Battery Health',
+            'graphics_card' => 'Graphics Card',
+            'screen_resolution' => 'Screen Resolution',
+            'diagnostics_test_ran' => 'Diagnostics Ran',
+            'where_it_goes' => 'Where It Goes',
+            'ebay_status' => 'eBay Status',
+            'ebay_price' => 'eBay Price',
+            'dispotech_price' => 'Dispotech Price',
+            'ebay_category' => 'eBay Category',
+            'ebay_category_path' => 'eBay Category Path',
+            'ebay_category_id' => 'eBay Category ID',
+            'in_ebay_room' => 'In eBay Room',
+            'what_box' => 'What Box',
+            'notes' => 'Notes',
+            'quantity' => 'Qty',
+            'wifi_card_installed' => 'WiFi Card Installed',
+            'compatible_os' => 'Compatible OS',
+            default => ucfirst(str_replace('_', ' ', $col)),
+        };
+    }, $exportCols);
 
     $suffix = $scope === 'active' ? 'active_' : '';
     $filename = 'inventory_' . $suffix . date('Y-m-d') . '.csv';
@@ -147,9 +191,9 @@ try {
 
     // UTF-8 BOM so Excel opens the file with correct encoding.
     echo "\xEF\xBB\xBF";
-    echo "SKU,Status,What is it?,eBay Category,Qty,Dispotech Price,eBay Price,Updated\r\n";
+    echo implode(',', array_map('exportCsvCell', $headerLabels)) . "\r\n";
     foreach ($rows as $row) {
-        echo exportRowToCsv($row);
+        echo exportRowToCsv($row, $exportCols);
     }
     exit;
 } catch (Throwable $error) {

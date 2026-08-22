@@ -47,18 +47,16 @@ function bundleEbayCategory(array $row): string
     return $name !== '' ? $name : trim((string)($row['ebay_category_path'] ?? ''));
 }
 
-function bundleRowToCsv(array $row): string
+function bundleRowToCsv(array $row, array $columns): string
 {
-    $cells = [
-        bundleCsvCell($row['sku'] ?? ''),
-        bundleCsvCell($row['status'] ?? ''),
-        bundleCsvCell($row['what_is_it'] ?? ''),
-        bundleCsvCell(bundleEbayCategory($row)),
-        bundleCsvCell($row['quantity'] ?? 1),
-        bundleCsvCell($row['dispotech_price'] ?? ''),
-        bundleCsvCell($row['ebay_price'] ?? ''),
-        bundleCsvCell($row['updated_at'] ?? ''),
-    ];
+    $cells = [];
+    foreach ($columns as $col) {
+        if ($col === 'ebay_category') {
+            $cells[] = bundleCsvCell(bundleEbayCategory($row));
+        } else {
+            $cells[] = bundleCsvCell($row[$col] ?? '');
+        }
+    }
     return implode(',', array_map('bundleCsvEscape', $cells)) . "\r\n";
 }
 
@@ -82,19 +80,55 @@ function bundleFolderName(array $row): string
 /**
  * Human-readable info.txt for one item folder.
  */
-function bundleInfoText(array $row, int $photoCount): string
+function bundleInfoText(array $row, int $photoCount, array $columns): string
 {
-    $lines = [
-        'SKU: ' . (string)($row['sku'] ?? ''),
-        'Status: ' . (string)($row['status'] ?? ''),
-        'What is it?: ' . (string)($row['what_is_it'] ?? ''),
-        'eBay Category: ' . bundleEbayCategory($row),
-        'Qty: ' . (string)($row['quantity'] ?? 1),
-        'Dispotech Price: ' . (string)($row['dispotech_price'] ?? ''),
-        'eBay Price: ' . (string)($row['ebay_price'] ?? ''),
-        'Updated: ' . (string)($row['updated_at'] ?? ''),
-        'Photos: ' . $photoCount,
-    ];
+    $lines = ['Photos: ' . $photoCount];
+    foreach ($columns as $col) {
+        $label = match($col) {
+            'id' => 'ID',
+            'created_at' => 'Created',
+            'updated_at' => 'Updated',
+            'sku' => 'SKU',
+            'sku_normalized' => 'SKU (Normalized)',
+            'status' => 'Status',
+            'what_is_it' => 'What is it?',
+            'date_received' => 'Date Received',
+            'source' => 'Source',
+            'functional' => 'Functional',
+            'condition' => 'Condition',
+            'is_square' => 'Is Square',
+            'care_if_square' => 'Care if Square',
+            'cords_adapters' => 'Cords/Adapters',
+            'keep_items_together' => 'Keep Items Together',
+            'picture_taken' => 'Picture Taken',
+            'power_on' => 'Power On',
+            'brand_model' => 'Brand/Model',
+            'ram' => 'RAM',
+            'ssd_gb' => 'SSD (GB)',
+            'cpu' => 'CPU',
+            'os' => 'OS',
+            'battery_health' => 'Battery Health',
+            'graphics_card' => 'Graphics Card',
+            'screen_resolution' => 'Screen Resolution',
+            'diagnostics_test_ran' => 'Diagnostics Ran',
+            'where_it_goes' => 'Where It Goes',
+            'ebay_status' => 'eBay Status',
+            'ebay_price' => 'eBay Price',
+            'dispotech_price' => 'Dispotech Price',
+            'ebay_category' => 'eBay Category',
+            'ebay_category_path' => 'eBay Category Path',
+            'ebay_category_id' => 'eBay Category ID',
+            'in_ebay_room' => 'In eBay Room',
+            'what_box' => 'What Box',
+            'notes' => 'Notes',
+            'quantity' => 'Qty',
+            'wifi_card_installed' => 'WiFi Card Installed',
+            'compatible_os' => 'Compatible OS',
+            default => ucfirst(str_replace('_', ' ', $col)),
+        };
+        $value = $col === 'ebay_category' ? bundleEbayCategory($row) : (string)($row[$col] ?? '');
+        $lines[] = $label . ': ' . $value;
+    }
     return implode("\n", $lines) . "\n";
 }
 
@@ -194,8 +228,7 @@ try {
         $conditions[] = '(' . implode(' AND ', $priceConds) . ')';
     }
 
-    $sql = 'SELECT id, sku, sku_normalized, status, what_is_it, ebay_category, ebay_category_path, quantity, dispotech_price, ebay_price, updated_at
-            FROM intake_items';
+    $sql = 'SELECT * FROM intake_items';
     if ($conditions) {
         $sql .= ' WHERE ' . implode(' AND ', $conditions);
     }
@@ -236,11 +269,58 @@ try {
     $csvName = 'inventory_' . $suffix . $date . '.csv';
     $zipName = 'inventory_' . $suffix . 'photos_' . $date . '.zip';
 
+    // Discover all columns for the CSV header and rows.
+    $exportCols = array_column($pdo->query('PRAGMA table_info(intake_items)')->fetchAll(PDO::FETCH_ASSOC), 'name');
+    $headerLabels = array_map(static function (string $col): string {
+        return match($col) {
+            'id' => 'ID',
+            'created_at' => 'Created',
+            'updated_at' => 'Updated',
+            'sku' => 'SKU',
+            'sku_normalized' => 'SKU (Normalized)',
+            'status' => 'Status',
+            'what_is_it' => 'What is it?',
+            'date_received' => 'Date Received',
+            'source' => 'Source',
+            'functional' => 'Functional',
+            'condition' => 'Condition',
+            'is_square' => 'Is Square',
+            'care_if_square' => 'Care if Square',
+            'cords_adapters' => 'Cords/Adapters',
+            'keep_items_together' => 'Keep Items Together',
+            'picture_taken' => 'Picture Taken',
+            'power_on' => 'Power On',
+            'brand_model' => 'Brand/Model',
+            'ram' => 'RAM',
+            'ssd_gb' => 'SSD (GB)',
+            'cpu' => 'CPU',
+            'os' => 'OS',
+            'battery_health' => 'Battery Health',
+            'graphics_card' => 'Graphics Card',
+            'screen_resolution' => 'Screen Resolution',
+            'diagnostics_test_ran' => 'Diagnostics Ran',
+            'where_it_goes' => 'Where It Goes',
+            'ebay_status' => 'eBay Status',
+            'ebay_price' => 'eBay Price',
+            'dispotech_price' => 'Dispotech Price',
+            'ebay_category' => 'eBay Category',
+            'ebay_category_path' => 'eBay Category Path',
+            'ebay_category_id' => 'eBay Category ID',
+            'in_ebay_room' => 'In eBay Room',
+            'what_box' => 'What Box',
+            'notes' => 'Notes',
+            'quantity' => 'Qty',
+            'wifi_card_installed' => 'WiFi Card Installed',
+            'compatible_os' => 'Compatible OS',
+            default => ucfirst(str_replace('_', ' ', $col)),
+        };
+    }, $exportCols);
+
     // UTF-8 BOM so Excel opens the manifest with correct encoding.
     $csv = "\xEF\xBB\xBF";
-    $csv .= "SKU,Status,What is it?,eBay Category,Qty,Dispotech Price,eBay Price,Updated\r\n";
+    $csv .= implode(',', array_map('bundleCsvCell', $headerLabels)) . "\r\n";
     foreach ($order as $key) {
-        $csv .= bundleRowToCsv($items[$key]);
+        $csv .= bundleRowToCsv($items[$key], $exportCols);
     }
 
     // Collect every archive entry first, then write them with ZipArchive when
@@ -291,7 +371,7 @@ try {
             }
         }
 
-        $entries[] = ['name' => $folder . '/info.txt', 'content' => bundleInfoText($row, $photoCount)];
+        $entries[] = ['name' => $folder . '/info.txt', 'content' => bundleInfoText($row, $photoCount, $exportCols)];
     }
 
     if (class_exists('ZipArchive')) {
