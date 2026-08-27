@@ -39,11 +39,23 @@ if (!$item) {
 $stmt = $pdo->prepare("
     SELECT id FROM sku_photos
     WHERE sku_normalized = ?
-    ORDER BY is_thumb DESC, id ASC
+    ORDER BY is_thumb DESC, sort_order ASC, id ASC
     LIMIT 4
 ");
 $stmt->execute([strtoupper($sku)]);
 $photos = $stmt->fetchAll();
+
+// Avoid rendering the same photo more than once when legacy records contain
+// duplicate references for a SKU.
+$seenPhotoIds = [];
+$photos = array_values(array_filter($photos, static function (array $photo) use (&$seenPhotoIds): bool {
+    $id = (int)($photo['id'] ?? 0);
+    if ($id <= 0 || isset($seenPhotoIds[$id])) {
+        return false;
+    }
+    $seenPhotoIds[$id] = true;
+    return true;
+}));
 
 $laneStatus = htmlspecialchars((string)($item['status'] ?? '') !== '' ? statusLabel((string)$item['status']) : 'Intake', ENT_QUOTES, 'UTF-8');
 $reviewedVal = (int)($item['reviewed'] ?? 0);
