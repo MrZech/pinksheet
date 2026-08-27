@@ -128,12 +128,10 @@ $thumbId = $photoCount > 0 ? (int)$photos[0]['id'] : 0;
     }
 
     .print-sheet {
-      height: 100vh;
-      max-height: 100vh;
+      min-height: 100vh;
       display: flex;
       flex-direction: column;
       padding: 0.4in;
-      overflow: hidden;
     }
 
     /* ── Header Row: metadata + QR ──────────────────────────── */
@@ -284,10 +282,9 @@ $thumbId = $photoCount > 0 ? (int)$photos[0]['id'] : 0;
 
     /* ── Photos Section ─────────────────────────────────────── */
     .print-photos-section {
-      flex: 1;
-      min-height: 0;
       display: flex;
       flex-direction: column;
+      margin-top: 4pt;
     }
 
     .additional-photos-grid {
@@ -345,11 +342,11 @@ $thumbId = $photoCount > 0 ? (int)$photos[0]['id'] : 0;
 
     @media print {
       html, body {
-        height: 100vh !important;
-        max-height: 100vh !important;
+        min-height: 100% !important;
+        height: auto !important;
         margin: 0 !important;
         padding: 0 !important;
-        overflow: hidden !important;
+        overflow: visible !important;
         background: #ffffff !important;
         color: #000000 !important;
         -webkit-print-color-adjust: exact !important;
@@ -357,13 +354,14 @@ $thumbId = $photoCount > 0 ? (int)$photos[0]['id'] : 0;
       }
 
       .print-sheet {
-        height: 100vh !important;
-        max-height: 100vh !important;
+        min-height: 0 !important;
+        height: auto !important;
+        max-height: none !important;
         padding: 0.4in !important;
-        page-break-inside: avoid !important;
-        break-inside: avoid !important;
-        page-break-after: avoid !important;
-        page-break-before: avoid !important;
+        page-break-inside: auto !important;
+        break-inside: auto !important;
+        page-break-after: auto !important;
+        page-break-before: auto !important;
         display: flex !important;
         flex-direction: column !important;
       }
@@ -485,7 +483,7 @@ $thumbId = $photoCount > 0 ? (int)$photos[0]['id'] : 0;
       <div class="field-label" style="margin-bottom: 4px;">PHOTOS (<?= $photoCount ?>)</div>
       <div class="additional-photos-grid">
         <?php for ($i = 1; $i < $photoCount; $i++): ?>
-          <img src="photo.php?id=<?= (int)$photos[$i]['id'] ?>" alt="" loading="lazy">
+          <img src="photo.php?id=<?= (int)$photos[$i]['id'] ?>" alt="" loading="eager">
         <?php endfor; ?>
       </div>
     </div>
