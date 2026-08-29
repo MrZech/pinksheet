@@ -68,6 +68,11 @@ if (isset($_GET['thumb']) && $_GET['thumb'] === '1') {
             $path = $thumbPath;
         }
     }
+    // Thumbnails are immutable for a given photo version and can be reused
+    // for a full day without another PHP/SQLite request.
+    if ($path === $thumbPath && is_file($path)) {
+        header('Cache-Control: public, max-age=86400, immutable');
+    }
 }
 
 $ext = strtolower(pathinfo($path, PATHINFO_EXTENSION));
@@ -92,7 +97,9 @@ if (isset($_SERVER['HTTP_IF_NONE_MATCH']) && trim((string)$_SERVER['HTTP_IF_NONE
     exit;
 }
 
-header('Cache-Control: public, max-age=86400');
+if (!headers_sent() && !isset($_GET['thumb'])) {
+    header('Cache-Control: public, max-age=86400');
+}
 header('ETag: ' . $etag);
 header('Content-Length: ' . $fileSize);
 

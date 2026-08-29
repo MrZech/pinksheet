@@ -950,6 +950,12 @@ if (!$isPartial):
         <span class="autosave-status" id="autosave-status" hidden>Autosave ready</span>
         <span class="status-chip warn" id="server-draft-banner" hidden>Restored server draft</span>
       </div>
+      <div class="intake-progress" id="intake-progress" aria-live="polite" hidden>
+        <span class="intake-progress-label" id="intake-progress-label"></span>
+        <div class="intake-progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-label="Required fields completed">
+          <span id="intake-progress-fill"></span>
+        </div>
+      </div>
 
       <form id="photo-delete-form" method="post" class="visually-hidden"><?= csrf_field() ?>
         <input type="hidden" name="delete_photo_id" id="delete-photo-id">
@@ -1034,11 +1040,12 @@ if (!$isPartial):
 
           <div class="section sku-photos" id="sku-photos">
             <h2>SKU Photos</h2>
-            <div class="sku-photo-dropzone" id="sku-photo-dropzone">
+            <div class="sku-photo-dropzone" id="sku-photo-dropzone" tabindex="0" role="button" aria-label="Add photos for this SKU">
               <label>Add photos for this SKU
-                <input type="file" name="sku_photos[]" accept="image/jpeg,image/png,image/webp,image/gif" multiple id="sku-photo-input">
+                <input type="file" name="sku_photos[]" accept="image/jpeg,image/png,image/webp,image/gif" multiple capture="environment" id="sku-photo-input">
               </label>
-              <p class="hint">Drop, paste, or click to add images.</p>
+              <p class="hint">Drop, paste, or click to add images. You can also paste screenshots or use your camera on mobile.</p>
+              <p class="photo-selection-hint" id="photo-selection-hint" hidden></p>
             </div>
             <div class="sku-photo-preview" id="sku-photo-preview" hidden>
               <p class="hint">Queued — these attach to the SKU automatically once you enter it.</p>
@@ -1060,8 +1067,10 @@ if (!$isPartial):
                   <div class="sku-photo-item" draggable="true" data-photo-id="<?php echo isset($photo['id']) ? (int)$photo['id'] : 0; ?>">
                     <a class="sku-photo-link" href="photo.php?id=<?php echo isset($photo['id']) ? (int)$photo['id'] : 0; ?>" target="_blank" rel="noopener" title="Open photo in new tab">
                       <span class="sku-photo-badge">SKU <?php echo h($activeSkuNormalized); ?></span>
-                      <img src="photo.php?id=<?php echo isset($photo['id']) ? (int)$photo['id'] : 0; ?>"
-                           alt="Photo for SKU <?php echo h($activeSkuNormalized); ?> — <?php echo h($photo['original_name'] ?? 'Photo'); ?>">
+                      <img src="photo.php?id=<?php echo isset($photo['id']) ? (int)$photo['id'] : 0; ?>&amp;thumb=1"
+                           data-full-src="photo.php?id=<?php echo isset($photo['id']) ? (int)$photo['id'] : 0; ?>"
+                           alt="Photo for SKU <?php echo h($activeSkuNormalized); ?> — <?php echo h($photo['original_name'] ?? 'Photo'); ?>"
+                           loading="lazy">
                     </a>
                     <div class="sku-photo-meta">
                       <span class="sku-photo-name"><?php echo h($photo['original_name'] ?? 'Photo'); ?></span>
@@ -1694,8 +1703,44 @@ if (!$isPartial):
           var el = form.querySelector('[name="' + name + '"]');
           if (el) {
             el.classList.toggle('required-missing', missing);
+            el.setAttribute('aria-invalid', missing ? 'true' : 'false');
           }
         };
+
+        var progressWrap = document.getElementById('intake-progress');
+        var progressLabel = document.getElementById('intake-progress-label');
+        var progressFill = document.getElementById('intake-progress-fill');
+        var requiredFields = [
+          { name: 'sku', label: 'SKU' },
+          { name: 'what_is_it', label: 'What is it?' }
+        ];
+        var updateRequiredProgress = function () {
+          var complete = 0;
+          var missingLabels = [];
+          requiredFields.forEach(function (required) {
+            var field = form.querySelector('[name="' + required.name + '"]');
+            var value = field ? (field.value || '').trim() : '';
+            var missing = value === '';
+            applyRequiredState(required.name, missing);
+            if (missing) missingLabels.push(required.label);
+            else complete += 1;
+          });
+          var percent = Math.round((complete / requiredFields.length) * 100);
+          if (progressWrap) progressWrap.hidden = false;
+          if (progressLabel) {
+            progressLabel.textContent = missingLabels.length
+              ? complete + ' of ' + requiredFields.length + ' required fields complete — missing: ' + missingLabels.join(', ')
+              : 'Required fields complete — ready to save';
+          }
+          if (progressFill) {
+            progressFill.style.width = percent + '%';
+            var track = progressFill.parentNode;
+            if (track) track.setAttribute('aria-valuenow', String(percent));
+          }
+        };
+        form.addEventListener('input', updateRequiredProgress);
+        form.addEventListener('change', updateRequiredProgress);
+        updateRequiredProgress();
 
         // Offer restore if we have a backup and the form is mostly empty.
         var formLooksEmpty = function () {
@@ -1775,8 +1820,8 @@ if (!$isPartial):
             skuField.value = sku;
           }
           var missingSku = sku === '';
-          applyRequiredState('sku', missingSku);
           var whatVal = (whatInput && whatInput.value.trim()) || '';
+          updateRequiredProgress();
           if (missingSku || whatVal === '') {
             event.preventDefault();
             if (errorEl) {
@@ -1841,6 +1886,7 @@ if (!$isPartial):
         });
       }
       var uploadMessages = document.getElementById('photo-upload-messages');
+      var photoSelectionHint = document.getElementById('photo-selection-hint');
       var pushUploadMessage = function (text, type) {
         if (!uploadMessages) return;
         var div = document.createElement('div');
@@ -1989,6 +2035,12 @@ if (!$isPartial):
         photoInput.addEventListener('change', function () {
           var files = photoInput.files || [];
           var remaining = files.length;
+          if (photoSelectionHint) {
+            photoSelectionHint.hidden = !files.length;
+            photoSelectionHint.textContent = files.length
+              ? files.length + ' photo' + (files.length === 1 ? '' : 's') + ' selected. Preparing preview…'
+              : '';
+          }
           if (!remaining) return;
           Array.prototype.forEach.call(files, function (file) {
             resizeIfNeeded(file, function (processed) {
@@ -2001,6 +2053,10 @@ if (!$isPartial):
               if (remaining === 0) {
                 syncInputFromQueue();
                 renderPreview();
+                if (photoSelectionHint) {
+                  photoSelectionHint.hidden = false;
+                  photoSelectionHint.textContent = photoQueue.length + ' photo' + (photoQueue.length === 1 ? '' : 's') + ' ready. Uploading…';
+                }
                 processQueue();
               }
             });
@@ -2118,7 +2174,7 @@ if (!$isPartial):
           item.className = 'sku-photo-item';
           item.draggable = true;
           item.setAttribute('data-photo-id', photoId);
-          item.innerHTML = '<a class="sku-photo-link" href="photo.php?id=' + photoId + '" target="_blank" rel="noopener" title="Open photo in new tab"><span class="sku-photo-badge">SKU ' + escapeHtml(sku) + '</span><img src="photo.php?id=' + photoId + '" alt="Photo for SKU ' + escapeHtml(sku) + ' — ' + escapeHtml(fileName) + '"></a><div class="sku-photo-meta"><span class="sku-photo-name">' + escapeHtml(fileName) + '</span></div><div class="sku-photo-actions"><button type="button" class="ghost danger js-delete-photo" data-photo-id="' + photoId + '">Delete</button><button type="button" class="ghost js-set-thumb" data-photo-id="' + photoId + '" data-photo-sku="' + escapeHtml(sku) + '">Set thumbnail</button></div>';
+          item.innerHTML = '<a class="sku-photo-link" href="photo.php?id=' + photoId + '" target="_blank" rel="noopener" title="Open photo in new tab"><span class="sku-photo-badge">SKU ' + escapeHtml(sku) + '</span><img src="photo.php?id=' + photoId + '&amp;thumb=1" data-full-src="photo.php?id=' + photoId + '" alt="Photo for SKU ' + escapeHtml(sku) + ' — ' + escapeHtml(fileName) + '" loading="lazy"></a><div class="sku-photo-meta"><span class="sku-photo-name">' + escapeHtml(fileName) + '</span></div><div class="sku-photo-actions"><button type="button" class="ghost danger js-delete-photo" data-photo-id="' + photoId + '">Delete</button><button type="button" class="ghost js-set-thumb" data-photo-id="' + photoId + '" data-photo-sku="' + escapeHtml(sku) + '">Set thumbnail</button></div>';
           grid.appendChild(item);
         };
 
@@ -2135,6 +2191,10 @@ if (!$isPartial):
             syncInputFromQueue();
             clearFileInput();
             renderPreview();
+            if (photoSelectionHint) {
+              photoSelectionHint.hidden = true;
+              photoSelectionHint.textContent = '';
+            }
             return;
           }
           var entry = photoQueue[idx];
@@ -2149,6 +2209,10 @@ if (!$isPartial):
             if (submitButton) {
               submitButton.disabled = false;
               submitButton.textContent = 'Save Intake Item';
+            }
+            if (photoSelectionHint) {
+              photoSelectionHint.hidden = false;
+              photoSelectionHint.textContent = 'Upload stopped. Fix the problem and try again.';
             }
             pushUploadMessage('Failed: ' + (entry.file.name || 'photo') + ' — ' + msg, 'error');
           });
@@ -2188,6 +2252,12 @@ if (!$isPartial):
       }
       if (photoDropzone) {
         var dz = photoDropzone;
+        photoDropzone.addEventListener('keydown', function (evt) {
+          if ((evt.key === 'Enter' || evt.key === ' ') && photoInput) {
+            evt.preventDefault();
+            photoInput.click();
+          }
+        });
         ['dragenter', 'dragover'].forEach(function (evtName) {
           dz.addEventListener(evtName, function (evt) {
             evt.preventDefault();
@@ -2376,6 +2446,19 @@ if (!$isPartial):
           });
         });
       }
+      /* Upgrade visible saved-photo thumbnails to full resolution only after
+         the fast cached thumbnails have rendered. This keeps the intake form
+         responsive without changing the full-resolution link behavior. */
+      document.querySelectorAll('.sku-photos img[data-full-src]').forEach(function (img) {
+        var fullSrc = img.getAttribute('data-full-src');
+        if (!fullSrc) return;
+        var fullImage = new Image();
+        fullImage.onload = function () {
+          if (img.isConnected) img.src = fullSrc;
+        };
+        fullImage.src = fullSrc;
+      });
+
       document.addEventListener('click', function (e) {
         var delBtn = e.target.closest('.js-delete-photo');
         if (delBtn) {
