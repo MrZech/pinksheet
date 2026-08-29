@@ -89,6 +89,7 @@ $etag = sprintf('W/"v2-%x-%x-%s"', $photoId, $fileMtime, substr(hash_file('sha25
 ini_set('default_mimetype', $mimeType);
 header_remove('Content-Type');
 header('Content-Type: ' . $mimeType, true);
+header('Content-Disposition: inline; filename="' . addcslashes($storedName, '\"') . '"');
 
 if (isset($_SERVER['HTTP_IF_NONE_MATCH']) && trim((string)$_SERVER['HTTP_IF_NONE_MATCH']) === $etag) {
     http_response_code(304);
