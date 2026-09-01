@@ -1042,7 +1042,7 @@ if (!$isPartial):
             <h2>SKU Photos</h2>
             <div class="sku-photo-dropzone" id="sku-photo-dropzone" tabindex="0" role="button" aria-label="Add photos for this SKU">
               <label>Add photos for this SKU
-                <input type="file" name="sku_photos[]" accept="image/jpeg,image/png,image/webp,image/gif" multiple capture="environment" id="sku-photo-input">
+                <input type="file" name="sku_photos[]" accept="image/jpeg,image/png,image/webp,image/gif" multiple id="sku-photo-input">
               </label>
               <p class="hint">Drop, paste, or click to add images. You can also paste screenshots or use your camera on mobile.</p>
               <p class="photo-selection-hint" id="photo-selection-hint" hidden></p>
