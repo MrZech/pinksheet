@@ -241,7 +241,17 @@ $uploadToken = csrf_token();
     .upload-status.is-visible { display: block; }
     .upload-status.ok { background: var(--ok-bg); color: var(--ok-text); border: 1px solid var(--border); }
     .upload-status.err { background: var(--err-bg); color: var(--err-text); border: 1px solid var(--border); }
-    .file-input-wrap { display: none; }
+    .file-input-wrap input[type="file"] {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
     .spinner {
       display: inline-block;
       width: 18px;
