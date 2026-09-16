@@ -124,9 +124,7 @@ if (!move_uploaded_file($tmp, $chunkPath)) {
 // If last chunk, assemble
 $assembled = false;
 if ($chunkIndex === $chunkTotal - 1) {
-$pdo = new PDO('sqlite:' . DB_PATH, null, null, [
-    PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-]);
+$pdo = pdoConnect(DB_PATH);
 squareSyncEnsureSchema($pdo);
 $pdo->exec(<<<'SQL'
 CREATE TABLE IF NOT EXISTS sku_photos (

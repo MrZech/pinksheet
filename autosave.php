@@ -10,9 +10,7 @@ if (!is_dir(DB_DIR)) {
     mkdir(DB_DIR, 0777, true);
 }
 
-$pdo = new PDO('sqlite:' . DB_PATH, null, null, [
-    PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-]);
+$pdo = pdoConnect(DB_PATH);
 
 $pdo->exec(<<<'SQL'
 CREATE TABLE IF NOT EXISTS intake_drafts (

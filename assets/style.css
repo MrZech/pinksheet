@@ -1607,6 +1607,16 @@ body.dark-mode .conjoined .segment {
   min-height: 60px;
 }
 
+.item-type-form {
+  display: grid;
+  gap: 8px;
+}
+
+.item-type-actions {
+  align-self: end;
+  padding-top: 0;
+}
+
 button,
 .button-link {
   background: linear-gradient(180deg, var(--accent) 0%, var(--accent-strong) 100%);

@@ -64,6 +64,21 @@ Read-only historical store for legacy exports and sold inventory. Photos are int
 | `legacy_id` | TEXT | Original row identifier |
 | `legacy_payload` | TEXT | Raw row JSON preserved for audit/search |
 
+## item_type_options (SQLite)
+
+| Column | Type | Notes |
+|--------|------|--------|
+| `id` | INTEGER | PK, autoincrement |
+| `name` | TEXT | Display label for the dropdown |
+| `normalized_name` | TEXT | Uppercase trimmed value, **unique** |
+| `created_at` | TEXT | ISO timestamp (default now) |
+
+Indexes:
+- `idx_item_type_options_normalized_name` on `normalized_name` (unique).
+
+Notes:
+- Item types are seeded with Laptop, Desktop, and Mini PC, and new options can be added from the intake page.
+
 ## square_catalog_sync (SQLite)
 
 Tracks which Square catalog objects belong to each pinksheet SKU. The Square access token is never stored here; only returned object IDs, versions, the last synced payload hash, and the last sync error are retained.

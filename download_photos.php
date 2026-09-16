@@ -104,9 +104,7 @@ function buildStoreOnlyZip(array $files): string
     return $zipData . $central . $end;
 }
 
-$pdo = new PDO('sqlite:' . DB_PATH, null, null, [
-    PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-]);
+$pdo = pdoConnect(DB_PATH);
 $pdo->exec(<<<'SQL'
 CREATE TABLE IF NOT EXISTS sku_photos (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -115,7 +113,8 @@ CREATE TABLE IF NOT EXISTS sku_photos (
     stored_name TEXT NOT NULL,
     mime_type TEXT NOT NULL,
     file_size INTEGER NOT NULL DEFAULT 0,
-    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    is_thumb INTEGER NOT NULL DEFAULT 0
 );
 SQL);
 $stmt = $pdo->prepare('SELECT original_name, stored_name FROM sku_photos WHERE sku_normalized = :sku ORDER BY id ASC');

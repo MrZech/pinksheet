@@ -31,10 +31,7 @@ function readInput(): array
     return is_array($input) ? $input : [];
 }
 
-$pdo = new PDO('sqlite:' . DB_PATH, null, null, [
-    PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-    PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-]);
+$pdo = pdoConnect(DB_PATH);
 
 $pdo->exec(<<<'SQL'
 CREATE TABLE IF NOT EXISTS script_cache (

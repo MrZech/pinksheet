@@ -22,6 +22,11 @@ const ALLOWED_PHOTO_MIME_TYPES = [
     'image/webp' => 'webp',
     'image/gif' => 'gif',
 ];
+const DEFAULT_ITEM_TYPE_OPTIONS = [
+    'Laptop',
+    'Desktop',
+    'Mini PC',
+];
 $currentPage = 'intake';
 
 if (!is_dir(DB_DIR)) {
@@ -31,9 +36,7 @@ if (!is_dir(PHOTO_UPLOAD_DIR)) {
     mkdir(PHOTO_UPLOAD_DIR, 0777, true);
 }
 
-$pdo = new PDO('sqlite:' . DB_PATH, null, null, [
-    PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-]);
+$pdo = pdoConnect(DB_PATH);
 
 $pdo->exec(<<<'SQL'
 CREATE TABLE IF NOT EXISTS intake_items (
@@ -78,10 +81,20 @@ CREATE TABLE IF NOT EXISTS sku_photos (
     stored_name TEXT NOT NULL,
     mime_type TEXT NOT NULL,
     file_size INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    is_thumb INTEGER NOT NULL DEFAULT 0
+);
+SQL);
+$pdo->exec(<<<'SQL'
+CREATE TABLE IF NOT EXISTS item_type_options (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    normalized_name TEXT NOT NULL UNIQUE,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 SQL);
 $pdo->exec("CREATE INDEX IF NOT EXISTS idx_sku_photos_sku_normalized ON sku_photos (sku_normalized)");
+$pdo->exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_item_type_options_normalized_name ON item_type_options (normalized_name)");
 
 $columns = $pdo->query("PRAGMA table_info(intake_items)")->fetchAll(PDO::FETCH_ASSOC);
 $columnNames = array_map(static fn(array $column): string => (string)$column['name'], $columns);
@@ -109,6 +122,7 @@ function normalizeSku(string $sku): string
 {
     return strtoupper(trim($sku));
 }
+
 
 function ensureArchiveTable(PDO $pdo): void
 {
@@ -155,6 +169,34 @@ function humanBytes(int $bytes): string
         return round($bytes / 1024, 1) . ' KB';
     }
     return $bytes . ' B';
+}
+
+function normalizeItemType(string $value): string
+{
+    $value = trim($value);
+    if ($value === '') {
+        return '';
+    }
+    $value = preg_replace('/\s+/', ' ', $value);
+    return strtoupper((string)$value);
+}
+
+function seedItemTypeOptions(PDO $pdo): void
+{
+    $stmt = $pdo->prepare('INSERT OR IGNORE INTO item_type_options (name, normalized_name, created_at) VALUES (:name, :normalized_name, datetime(\'now\'))');
+    foreach (DEFAULT_ITEM_TYPE_OPTIONS as $name) {
+        $stmt->execute([
+            'name' => $name,
+            'normalized_name' => normalizeItemType($name),
+        ]);
+    }
+}
+
+function loadItemTypeOptions(PDO $pdo): array
+{
+    $stmt = $pdo->query('SELECT name FROM item_type_options ORDER BY LOWER(name) ASC, id ASC');
+    return array_map(static fn(array $row): string => (string)$row['name'], $stmt->fetchAll(PDO::FETCH_ASSOC));
+
 }
 
 function normalizeUploadedFiles(array $uploaded): array
@@ -241,6 +283,7 @@ function statusOptions(): array
     return ['Intake', 'Description', 'Tested', 'Listed', 'SOLD'];
 }
 
+
 function baseWhatIsItOptions(): array
 {
     return ['Laptop', 'Desktop', 'Mini PC'];
@@ -255,6 +298,7 @@ foreach ($existingWhatIsIt as $label) {
         $whatIsItOptions[] = $label;
     }
 }
+seedItemTypeOptions($pdo);
 
 $saved = isset($_GET['saved']);
 $squareSyncStatus = trim((string)($_GET['square_sync'] ?? ''));
@@ -262,7 +306,10 @@ $squareSyncStatus = trim((string)($_GET['square_sync'] ?? ''));
 $saveMode = trim($_GET['save_mode'] ?? ($_POST['save_mode'] ?? ''));
 $errors = [];
 $photoWarnings = [];
+$itemTypeErrors = [];
+$itemTypeMessage = '';
 $statusOptions = statusOptions();
+$itemTypeOptions = loadItemTypeOptions($pdo);
 $lookupSku = trim($_GET['sku'] ?? '');
 $lookupSkuNormalized = normalizeSku($lookupSku);
 $lookupStatus = trim($_GET['status'] ?? '');
@@ -387,6 +434,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         $saved = false;
         $errors = [];
+    } elseif (isset($_POST['add_item_type'])) {
+        $itemTypeName = trim($_POST['new_item_type'] ?? '');
+        if ($itemTypeName === '') {
+            $itemTypeErrors[] = 'Enter a device type before adding it.';
+        } else {
+            $normalizedItemType = normalizeItemType($itemTypeName);
+            $insertItemTypeStmt = $pdo->prepare('INSERT OR IGNORE INTO item_type_options (name, normalized_name, created_at) VALUES (:name, :normalized_name, datetime(\'now\'))');
+            $insertItemTypeStmt->execute([
+                'name' => preg_replace('/\s+/', ' ', $itemTypeName),
+                'normalized_name' => $normalizedItemType,
+            ]);
+            $itemTypeMessage = $insertItemTypeStmt->rowCount() > 0
+                ? 'Added "' . preg_replace('/\s+/', ' ', $itemTypeName) . '" to the item type list.'
+                : 'That item type is already in the dropdown.';
+        }
+        $itemTypeOptions = loadItemTypeOptions($pdo);
+        $saved = false;
     } else {
         $id = isset($_POST['id']) ? (int)$_POST['id'] : null;
         $sku = trim($_POST['sku'] ?? '');
@@ -615,6 +679,12 @@ if (!$formData && $currentItem) {
 }
 if (!$formData && $lookupSku !== '') {
     $formData = ['sku' => $lookupSku];
+}
+$selectedItemType = trim((string)($formData['what_is_it'] ?? ''));
+if ($selectedItemType !== '' && !in_array($selectedItemType, $itemTypeOptions, true)) {
+    $itemTypeOptions[] = $selectedItemType;
+    natcasesort($itemTypeOptions);
+    $itemTypeOptions = array_values($itemTypeOptions);
 }
 $activeSkuNormalized = normalizeSku(trim((string)($formData['sku'] ?? '')));
 if ($activeSkuNormalized === '') {
@@ -1039,6 +1109,31 @@ function checked(string $name, string $value, array $formData): string
             </div>
           </div>
         </form>
+
+      <section class="section manage-item-types">
+        <h2>Item Type List</h2>
+        <?php if ($itemTypeMessage !== ''): ?>
+          <p class="success"><?php echo h($itemTypeMessage); ?></p>
+        <?php endif; ?>
+        <?php if ($itemTypeErrors): ?>
+          <div class="error-box">
+            <?php foreach ($itemTypeErrors as $error): ?>
+              <p class="error"><?php echo h($error); ?></p>
+            <?php endforeach; ?>
+          </div>
+        <?php endif; ?>
+        <form method="post" class="item-type-form">
+          <div class="row">
+            <label>Add a new item type
+              <input type="text" name="new_item_type" placeholder="e.g., Monitor" value="<?php echo h($_POST['new_item_type'] ?? ''); ?>">
+            </label>
+            <div class="actions item-type-actions">
+              <button type="submit" name="add_item_type" value="1">Add Item Type</button>
+            </div>
+          </div>
+          <p class="hint">Current options: <?php echo h(implode(', ', $itemTypeOptions)); ?></p>
+        </form>
+      </section>
 
       <section class="section recent-items">
         <h2><?php echo $lookupStatus !== '' ? 'Status Results' : 'Recent SKUs'; ?></h2>
@@ -1538,13 +1633,13 @@ function checked(string $name, string $value, array $formData): string
           copySkuStatus.textContent = 'Loading...';
           copySkuStatus.className = 'hint';
           fetchSkuData(sku, function (err, data) {
-            if (err || !data || !data.ok || !data.item) {
+            if (err || !data || data.status !== 'ok' || !data.data) {
               copySkuStatus.hidden = false;
-              copySkuStatus.textContent = data && data.error ? data.error : 'Could not load that SKU.';
+              copySkuStatus.textContent = data && data.message ? data.message : 'Could not load that SKU.';
               copySkuStatus.className = 'hint error';
               return;
             }
-            applyDataFiltered(data.item);
+            applyDataFiltered(data.data);
             copySkuStatus.hidden = false;
             copySkuStatus.textContent = 'Copied fields; SKU and photos left blank.';
             copySkuStatus.className = 'hint ok';
@@ -1698,7 +1793,7 @@ function checked(string $name, string $value, array $formData): string
             applyDraftObject(payload);
             lastSavedDraft = JSON.stringify(payload);
             try { sessionStorage.removeItem(duplicateKey); } catch (e) {}
-            showToast('Duplicated previous item â€” enter new SKU.');
+            showToast('Duplicated previous item — enter new SKU.');
           } catch (e) {}
         };
         applyDuplicatePrefill();
@@ -2374,17 +2469,13 @@ function checked(string $name, string $value, array $formData): string
 
       var checkbox = document.getElementById('print-pink');
       if (checkbox) {
-        var storageKey = 'printPink';
         var apply = function (enabled) {
           document.body.classList.toggle('print-pink', enabled);
         };
-        if (localStorage.getItem(storageKey) === '1') {
-          checkbox.checked = true;
-          apply(true);
-        }
+        checkbox.checked = false;
+        apply(false);
         checkbox.addEventListener('change', function () {
           apply(checkbox.checked);
-          localStorage.setItem(storageKey, checkbox.checked ? '1' : '0');
         });
       }
 

@@ -5,10 +5,7 @@ require_once __DIR__ . '/config.php';
 checkMaintenance();
 ensureStorageWritable();
 
-$pdo = new PDO('sqlite:' . __DIR__ . '/data/intake.sqlite', null, null, [
-    PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-    PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-]);
+$pdo = pdoConnect(__DIR__ . '/data/intake.sqlite');
 
 // Ensure thumbnail column exists.
 try {

@@ -3,10 +3,12 @@ declare(strict_types=1);
 
 loadDotEnv(__DIR__ . '/.env');
 
-// Expose any runtime errors immediately so the server can report the failing endpoint.
-ini_set('display_errors', '1');
-ini_set('display_startup_errors', '1');
+// Log errors to file instead of displaying them (prevents corrupted image/JSON output).
+ini_set('display_errors', '0');
+ini_set('display_startup_errors', '0');
 error_reporting(E_ALL);
+ini_set('log_errors', '1');
+ini_set('error_log', __DIR__ . '/logs/php_errors.log');
 // Increase upload limits for photo handling (may be overridden by server config).
 @ini_set('upload_max_filesize', '16M');
 @ini_set('post_max_size', '64M');
@@ -102,6 +104,26 @@ function storageFatal(string $message): void
     header('Content-Type: text/plain; charset=utf-8');
     echo $message . "\n" . 'Fix: grant write access to data/, data/sku_photos/, data/chunks/, logs/, and data/intake.sqlite for the web/PHP user.';
     exit;
+}
+
+/**
+ * Create a PDO connection with hardened, consistent configuration.
+ * Used by webhook endpoints and anywhere a shared DB handle is needed.
+ */
+function pdoConnect(string $path): PDO
+{
+    $pdo = new PDO('sqlite:' . $path, null, null, [
+        PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
+        PDO::ATTR_EMULATE_PREPARES   => false,
+        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+    ]);
+    try {
+        $pdo->exec('PRAGMA journal_mode = WAL');
+        $pdo->exec('PRAGMA busy_timeout = 5000');
+    } catch (Throwable $e) {
+        error_log('pdoConnect: PRAGMA setup failed for ' . $path . ': ' . $e->getMessage());
+    }
+    return $pdo;
 }
 
 function checkMaintenance(bool $json = false): void

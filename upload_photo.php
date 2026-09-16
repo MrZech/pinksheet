@@ -88,9 +88,7 @@ if ($extension === null) {
     errorResponse($originalDisplayName . ' is not JPG/PNG/WEBP/GIF.');
 }
 
-$pdo = new PDO('sqlite:' . DB_PATH, null, null, [
-    PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-]);
+$pdo = pdoConnect(DB_PATH);
 squareSyncEnsureSchema($pdo);
 $pdo->exec(<<<'SQL'
 CREATE TABLE IF NOT EXISTS sku_photos (
