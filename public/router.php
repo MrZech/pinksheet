@@ -68,6 +68,11 @@ if ($path === '/') {
     $target = $repoRoot . '/api/qz/' . $m[1];
 } elseif ($path === '/assets/zpl.php') {
     $target = $repoRoot . '/assets/zpl.php';
+} elseif ($path === '/square_webhook.php' || $path === '/webhooks/square.php') {
+    // Both the historical and canonical Square subscription URLs use the same receiver.
+    $target = $repoRoot . '/webhooks/square.php';
+} elseif ($path === '/square_webhook_status.php') {
+    $target = $repoRoot . '/square_webhook_status.php';
 } elseif (preg_match('#^/([A-Za-z0-9_\-]+\.php)$#', $path, $m)) {
     $name = $m[1];
     /* Library / CLI-only files must never be reachable over HTTP. */
@@ -75,7 +80,6 @@ if ($path === '/') {
         'square_sync.php',
         'square_sync_queue.php',
         'square_webhook_service.php',
-        'square_webhook.php', // legacy receiver, superseded by webhooks/square.php
         'square_audit.php',
         'migrate_ebay_status.php',
     ];

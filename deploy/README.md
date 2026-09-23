@@ -69,6 +69,45 @@ Then, in the Square Dashboard → Webhooks → **Send test event**. Watch
 low-value item on the Square register and confirm the mapped SKU moves to
 `sold` and a row lands in `sales_history`.
 
+### 6. Live Google Sheet mirror (optional, for the boss)
+
+`scripts/sync_google_sheet.php` pushes the inventory to a Google Sheet on a
+schedule, so the boss opens one spreadsheet link and always sees current data
+(SKU, status, description, category, qty, prices, last update). The app calls
+**out** to Google, so this works even though Pinksheet is LAN-only. Photos are
+not pushed — the sheet is tabular data; images stay in the app and the photo
+ZIP export.
+
+One-time setup (needs a Google account):
+
+1. [Google Cloud console](https://console.cloud.google.com) → create a
+   project → **APIs & Services → Enable APIs** → enable **Google Sheets API**.
+2. **APIs & Services → Credentials → Create credentials → Service account**
+   → note its e-mail. Then open it → **Keys → Add key → Create new key →
+   JSON** → download the file.
+3. Create the spreadsheet in Google Sheets (e.g. "Pinksheet Inventory"),
+   click **Share**, add the service account e-mail with **Editor** access, and
+   copy the spreadsheet id from the URL (the long `1AbC…` between `/d/` and
+   `/edit`). Rename the first tab "Inventory" (or set `GOOGLE_SHEET_TAB`).
+4. Put the key file on the server (keep it out of git) and add to `.env`:
+
+   ```bash
+   GOOGLE_SERVICE_ACCOUNT_FILE=/opt/pinksheet/data/google-sheets-key.json
+   GOOGLE_SPREADSHEET_ID=1AbC…
+   GOOGLE_SHEET_TAB=Inventory
+   ```
+
+5. Install the cron job (re-run the idempotent setup script) and test once:
+
+   ```bash
+   bash /opt/pinksheet/scripts/setup_linux_cron.sh
+   php /opt/pinksheet/scripts/sync_google_sheet.php
+   ```
+
+   Expect `OK: pushed N rows`. The sheet now refreshes every 15 minutes;
+   errors land in `logs/cron_sheet_sync.log`. Until configured, the script
+   prints a short note and exits 0, so it is safe to leave in cron.
+
 ## If Square still reports failed deliveries
 
 Check, in order:

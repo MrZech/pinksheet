@@ -499,6 +499,11 @@ $uploadToken = csrf_token();
         fetch('update_item.php', {
           method: 'POST',
           headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          // keepalive lets this finish even if the visitor taps a nav link
+          // or the browser back button right after changing a field —
+          // without it the request is cancelled mid-flight and the edit
+          // is silently lost (same failure mode fixed in assets/app.js).
+          keepalive: true,
           body: 'sku=' + encodeURIComponent(sku) + '&field=' + encodeURIComponent(field) + '&value=' + encodeURIComponent(value) + '&csrf_token=' + encodeURIComponent(csrfToken)
         })
           .then(function (r) { return r.json(); })
@@ -539,9 +544,28 @@ $uploadToken = csrf_token();
       }
 
       if (notesInput) {
-        notesInput.addEventListener('blur', function () {
+        // Debounced autosave while typing, not just on blur — on a phone the
+        // tab can be killed by the OS (incoming call, app switch, screen
+        // lock) before a blur event ever fires, which used to lose whatever
+        // was typed since the last time the field lost focus.
+        var notesDirty = false;
+        var notesSaveTimer = null;
+        var flushNotes = function () {
+          if (!notesDirty) return;
+          notesDirty = false;
+          clearTimeout(notesSaveTimer);
           saveField('notes', notesInput.value);
+        };
+        notesInput.addEventListener('input', function () {
+          notesDirty = true;
+          clearTimeout(notesSaveTimer);
+          notesSaveTimer = setTimeout(flushNotes, 800);
         });
+        notesInput.addEventListener('blur', flushNotes);
+        document.addEventListener('visibilitychange', function () {
+          if (document.visibilityState === 'hidden') flushNotes();
+        });
+        window.addEventListener('pagehide', flushNotes);
       }
 
       if (markSoldBtn) {

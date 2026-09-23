@@ -30,6 +30,11 @@ function squareSyncEnsureSchema(PDO $pdo): void
         'sync_enabled' => 'INTEGER NOT NULL DEFAULT 1',
         'last_origin' => 'TEXT',
         'last_correlation_id' => 'TEXT',
+        'last_local_change_at' => 'TEXT',
+        'last_square_change_at' => 'TEXT',
+        'previous_status' => 'TEXT',
+        'last_synced_quantity' => 'INTEGER',
+        'last_synced_price' => 'REAL',
     ];
     foreach ($optionalColumns as $column => $definition) {
         if (!in_array($column, $cols, true)) {
@@ -184,6 +189,9 @@ function squareSyncItemBySku(PDO $pdo, string $skuNormalized): array
             'last_error' => null,
             'last_origin' => 'local',
             'last_correlation_id' => $correlationId,
+            'last_local_change_at' => (string)($item['updated_at'] ?? gmdate('Y-m-d H:i:s')),
+            'last_synced_quantity' => max(1, (int)($item['quantity'] ?? 1)),
+            'last_synced_price' => is_numeric($item['dispotech_price'] ?? null) ? (float)$item['dispotech_price'] : null,
         ]);
 
         squareSyncLogEvent([
@@ -625,17 +633,24 @@ function squareSyncRetrieveInventoryCount(array $config, string $variationId): ?
     return null;
 }
 
+function squareSyncMarkLocalChange(PDO $pdo, string $skuNormalized, ?string $previousStatus = null): void
+{
+    squareSyncEnsureSchema($pdo);
+    $stmt = $pdo->prepare("UPDATE square_catalog_sync SET last_local_change_at = datetime('now'), last_origin = 'local', previous_status = CASE WHEN :previous_status IS NOT NULL AND UPPER(TRIM(COALESCE(:previous_status, ''))) <> 'SOLD' THEN :previous_status ELSE previous_status END, updated_at = datetime('now') WHERE sku_normalized = :sku");
+    $stmt->execute(['sku' => $skuNormalized, 'previous_status' => $previousStatus]);
+}
+
 function squareSyncSaveRow(PDO $pdo, string $skuNormalized, array $data): void
 {
     $stmt = $pdo->prepare(<<<'SQL'
 INSERT INTO square_catalog_sync (
     sku_normalized, square_item_id, square_item_version, square_variation_id, square_variation_version,
     square_image_id, square_image_photo_id, payload_hash, last_synced_at, last_error, last_origin,
-    last_correlation_id, updated_at
+    last_correlation_id, last_local_change_at, last_square_change_at, previous_status, last_synced_quantity, last_synced_price, updated_at
 ) VALUES (
     :sku_normalized, :square_item_id, :square_item_version, :square_variation_id, :square_variation_version,
     :square_image_id, :square_image_photo_id, :payload_hash, datetime('now'), :last_error, :last_origin,
-    :last_correlation_id, datetime('now')
+    :last_correlation_id, :last_local_change_at, :last_square_change_at, :previous_status, :last_synced_quantity, :last_synced_price, datetime('now')
 )
 ON CONFLICT(sku_normalized) DO UPDATE SET
     square_item_id = excluded.square_item_id,
@@ -649,6 +664,11 @@ ON CONFLICT(sku_normalized) DO UPDATE SET
     last_error = excluded.last_error,
     last_origin = excluded.last_origin,
     last_correlation_id = excluded.last_correlation_id,
+    last_local_change_at = COALESCE(excluded.last_local_change_at, square_catalog_sync.last_local_change_at),
+    last_square_change_at = COALESCE(excluded.last_square_change_at, square_catalog_sync.last_square_change_at),
+    previous_status = COALESCE(excluded.previous_status, square_catalog_sync.previous_status),
+    last_synced_quantity = COALESCE(excluded.last_synced_quantity, square_catalog_sync.last_synced_quantity),
+    last_synced_price = COALESCE(excluded.last_synced_price, square_catalog_sync.last_synced_price),
     updated_at = excluded.updated_at
 SQL);
     $stmt->execute([
@@ -663,6 +683,11 @@ SQL);
         'last_error' => $data['last_error'] ?? null,
         'last_origin' => $data['last_origin'] ?? 'local',
         'last_correlation_id' => $data['last_correlation_id'] ?? null,
+        'last_local_change_at' => $data['last_local_change_at'] ?? null,
+        'last_square_change_at' => $data['last_square_change_at'] ?? null,
+        'previous_status' => $data['previous_status'] ?? null,
+        'last_synced_quantity' => $data['last_synced_quantity'] ?? null,
+        'last_synced_price' => $data['last_synced_price'] ?? null,
     ]);
 }
 

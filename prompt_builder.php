@@ -332,6 +332,19 @@ if (!$isPartial):
         ].join('\n');
       };
 
+      // Programmatic .value assignments (auto-generated prompt, restored
+      // draft, etc.) never fire an 'input' event, so app.js's generic
+      // event-delegation autosave never learns about them — window.appState
+      // stays empty and "Save all" silently saves nothing. Push the visible
+      // field values into appState explicitly whenever we set them here.
+      var pushCurrentFields = function () {
+        if (!window.updateState) return;
+        window.updateState('prompt_sku', currentSkuNormalized);
+        window.updateState('prompt_output', promptOutput.value);
+        if (chatgptOutput) window.updateState('chatgpt_output', chatgptOutput.value);
+        if (finalOutput) window.updateState('final_output', finalOutput.value);
+      };
+
       var loadAppState = function (sku) {
         return fetch('autosave.php?sku=' + encodeURIComponent(sku))
           .then(function (resp) {
@@ -452,6 +465,7 @@ if (!$isPartial):
               } else if (chatgptOutput && chatgptOutput.value.trim()) {
                 finalOutput.value = buildFinalScript(chatgptOutput.value);
               }
+              pushCurrentFields();
               setStatus('Saved state loaded', 'subtle');
               setSaveStatus('Loaded', 'success');
               return;
@@ -462,12 +476,14 @@ if (!$isPartial):
               if (chatgptOutput && chatgptOutput.value.trim()) {
                 finalOutput.value = buildFinalScript(chatgptOutput.value);
               }
+              pushCurrentFields();
               setStatus('Prompt ready', 'subtle');
               setSaveStatus('Ready', 'subtle');
               return;
             }
 
             promptOutput.value = '';
+            pushCurrentFields();
             setStatus('No record found for that SKU.', 'warning');
             setSaveStatus('No cache', 'subtle');
           })
@@ -563,8 +579,16 @@ if (!$isPartial):
             setStatus('Load a SKU first', 'warning');
             return;
           }
+          currentSkuNormalized = skuVal;
+          pushCurrentFields();
           if (window.forceSync) window.forceSync();
-          setStatus('All scripts saved', 'subtle');
+          // Don't claim success here — forceSync() doesn't return a promise
+          // tied to the actual network response, so this used to say "All
+          // scripts saved" unconditionally even when the save failed (or,
+          // before the appState-seeding fix above, even when nothing was
+          // sent at all). The #autosave-status banner already reports the
+          // real outcome ("Saving…" / "All changes saved" / "Save failed").
+          setStatus('Saving…', 'warning');
         });
       }
 
@@ -607,6 +631,7 @@ if (!$isPartial):
         currentSkuNormalized = skuInput ? skuInput.value.trim().toUpperCase() : '';
         renderSource(currentSkuNormalized, initialItem);
         promptOutput.value = buildPrompt(currentSkuNormalized, initialItem);
+        pushCurrentFields();
         setStatus('Prompt ready', 'subtle');
         setSaveStatus('Ready', 'subtle');
       } else {

@@ -63,6 +63,10 @@ try {
         $columnNames[] = 'ready';
     }
 
+    $beforeStmt = $pdo->prepare('SELECT status FROM intake_items WHERE ' . $skuWhere . ' LIMIT 1');
+    $beforeStmt->execute([':sku' => $sku]);
+    $beforeStatus = (string)($beforeStmt->fetchColumn() ?? '');
+
     if ($field === 'status') {
         $stmt = $pdo->prepare('UPDATE intake_items SET status = :val, updated_at = datetime("now") WHERE ' . $skuWhere);
         $stmt->execute([':val' => (string)$value, ':sku' => $sku]);
@@ -91,6 +95,18 @@ try {
         $stmt = $pdo->prepare("UPDATE intake_items SET dispotech_price = :val, ebay_price = :val, updated_at = datetime('now') WHERE " . $skuWhere);
         $stmt->execute([':val' => $price, ':sku' => $sku]);
     }
+    $syncSku = $sku;
+    if ($hasSkuNormalized) {
+        $syncRowStmt = $pdo->prepare('SELECT sku_normalized FROM intake_items WHERE ' . $skuWhere . ' LIMIT 1');
+        $syncRowStmt->execute([':sku' => $sku]);
+        $syncSku = (string)($syncRowStmt->fetchColumn() ?: $sku);
+    }
+    if ($syncSku !== '') {
+        // squareSyncMarkLocalChange() ensures the sync columns exist first, so
+        // edits don't fail on a DB that hasn't been migrated yet.
+        squareSyncMarkLocalChange($pdo, $syncSku, $beforeStatus !== '' ? $beforeStatus : null);
+    }
+
     // SQLite PDO often reports rowCount() === 0 when UPDATE matched rows but no column
     // values actually changed (e.g. status already that lane). Only 404 when SKU missing.
     if ($stmt->rowCount() === 0) {

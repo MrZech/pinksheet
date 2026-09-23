@@ -9,6 +9,29 @@ ensureStorageWritable();
 $pdo = pdoConnect(__DIR__ . '/data/intake.sqlite');
 squareSyncEnsureSchema($pdo);
 
+/* ── Handle POST actions ────────────────────────────── */
+// This must run — and exit — before any HTML is rendered below. It used to
+// sit at the bottom of the file, after the full page markup, so a POST
+// response body was the entire HTML page followed by the JSON: the page's
+// own fetch(...).then(r => r.json()) threw a SyntaxError on that and always
+// reported "Request failed.", even though the action had actually succeeded
+// server-side.
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_GET['partial'] ?? '') !== '1') {
+    header('Content-Type: application/json; charset=utf-8');
+    require_csrf();
+
+    $action = trim($_POST['action'] ?? '');
+    switch ($action) {
+        case 'reset_dead_letters':
+            squareQueueResetDeadLetter($pdo);
+            echo json_encode(['ok' => true]);
+            break;
+        default:
+            echo json_encode(['ok' => false, 'error' => 'Unknown action']);
+    }
+    exit;
+}
+
 $filter = trim($_GET['filter'] ?? '');
 $allowedFilters = ['queued', 'processing', 'completed', 'failed', 'retrying', 'dead_letter'];
 if ($filter !== '' && !in_array($filter, $allowedFilters, true)) {
@@ -212,20 +235,3 @@ if (!$isPartial):
 </body>
 </html>
 <?php endif; ?>
-<?php
-/* ── Handle POST actions ────────────────────────────── */
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_GET['partial'] ?? '') !== '1') {
-    header('Content-Type: application/json; charset=utf-8');
-    require_csrf();
-
-    $action = trim($_POST['action'] ?? '');
-    switch ($action) {
-        case 'reset_dead_letters':
-            squareQueueResetDeadLetter($pdo);
-            echo json_encode(['ok' => true]);
-            break;
-        default:
-            echo json_encode(['ok' => false, 'error' => 'Unknown action']);
-    }
-    exit;
-}

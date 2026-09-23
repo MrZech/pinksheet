@@ -58,7 +58,13 @@ foreach ($databases as $name => $path) {
         continue;
     }
 
-    $dest = $backupDir . '/inventory_backup_' . $timestamp . '.sqlite';
+    // Must include $name in the filename — both databases used to collide on
+    // the same destination path, so whichever one ran second (archive.sqlite)
+    // failed its VACUUM INTO every single day because the file already
+    // existed. Since cron redirects output to /dev/null, that failure was
+    // completely invisible and archive.sqlite was never actually backed up.
+    $dbLabel = preg_replace('/\.sqlite$/', '', $name);
+    $dest = $backupDir . '/inventory_backup_' . $dbLabel . '_' . $timestamp . '.sqlite';
     echo ($dryRun ? 'would back up ' : 'backing up ') . "$name -> $dest\n";
 
     if ($dryRun) {

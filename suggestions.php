@@ -76,6 +76,11 @@ try {
     echo json_encode($suggestions);
     exit;
 } catch (Throwable $error) {
+    // A real DB error used to come back as HTTP 200 with `[]`, identical to
+    // "no matches" — indistinguishable to callers that check response.ok,
+    // and inconsistent with the sibling endpoints (lookup_preview.php,
+    // command_palette.php), which both signal failure with a 500.
+    http_response_code(500);
     header('Content-Type: application/json; charset=utf-8');
     echo json_encode([]);
     exit;

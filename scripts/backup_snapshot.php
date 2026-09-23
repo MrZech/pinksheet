@@ -22,13 +22,31 @@ foreach ($argv ?? [] as $a) {
     }
 }
 
-$result = snapshotDatabase(dirname(__DIR__) . '/data/intake.sqlite', $backupDir);
+// snapshotDatabase() already accepts a $prefix so multiple databases can be
+// backed up side by side without colliding on filename — but this script
+// only ever called it for intake.sqlite. data/archive.sqlite (sold/historical
+// items) has real data and its own prefix was never actually used, so it has
+// never been backed up by this path (the one scripts/backup.ps1, backup_now.php,
+// and the scheduled task all call). Only back it up when the file exists, so
+// installs without an archive DB yet don't fail.
+$databases = [
+    'intake' => dirname(__DIR__) . '/data/intake.sqlite',
+    'archive' => dirname(__DIR__) . '/data/archive.sqlite',
+];
 
-if ($result['ok']) {
-    echo 'SQLite backup created: ' . $result['dest'] . PHP_EOL;
-    echo 'SHA256 written: ' . $result['dest'] . '.sha256' . PHP_EOL;
-    exit(0);
+$exitCode = 0;
+foreach ($databases as $prefix => $srcPath) {
+    if (!is_file($srcPath)) {
+        continue;
+    }
+    $result = snapshotDatabase($srcPath, $backupDir, $prefix);
+    if ($result['ok']) {
+        echo 'SQLite backup created: ' . $result['dest'] . PHP_EOL;
+        echo 'SHA256 written: ' . $result['dest'] . '.sha256' . PHP_EOL;
+    } else {
+        fwrite(STDERR, 'Backup failed (' . $prefix . '): ' . ($result['error'] ?? 'unknown error') . PHP_EOL);
+        $exitCode = 1;
+    }
 }
 
-fwrite(STDERR, 'Backup failed: ' . ($result['error'] ?? 'unknown error') . PHP_EOL);
-exit(1);
+exit($exitCode);

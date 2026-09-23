@@ -1044,6 +1044,11 @@ if (!$isPartial):
           fetch('update_item.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            // keepalive: without it, this save is cancelled if the user
+            // clicks "Duplicate" or another nav action right after editing
+            // the status/price dropdown — same failure mode fixed in
+            // assets/app.js and kanban.php.
+            keepalive: true,
             body: 'sku=' + encodeURIComponent(sku) + '&field=' + encodeURIComponent(field) + '&value=' + encodeURIComponent(value) + '&csrf_token=' + encodeURIComponent(window.CSRF_TOKEN)
           })
             .then(function (r) { return r.json(); })

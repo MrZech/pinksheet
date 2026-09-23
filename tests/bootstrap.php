@@ -128,6 +128,11 @@ function createSandboxDatabase(): PDO
         sync_enabled INTEGER NOT NULL DEFAULT 1,
         last_origin TEXT,
         last_correlation_id TEXT,
+        last_local_change_at TEXT,
+        last_square_change_at TEXT,
+        previous_status TEXT,
+        last_synced_quantity INTEGER,
+        last_synced_price REAL,
         updated_at TEXT NOT NULL DEFAULT (datetime('now'))
     )");
 

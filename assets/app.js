@@ -86,6 +86,13 @@
     fetch('autosave.php', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': window.CSRF_TOKEN || '' },
+      // Without keepalive, the browser cancels this request mid-flight the
+      // moment the page starts navigating away \u2014 which is exactly what
+      // happens when a field's focusout fires from clicking a nav link.
+      // keepalive tells it to let the request finish regardless. The
+      // payload is well under the 64KB keepalive cap (autosave.php itself
+      // rejects anything over 64KB).
+      keepalive: true,
       body: JSON.stringify({
         sku: sku,
         data: window.appState
@@ -169,15 +176,21 @@
     return false;
   };
 
-  /* ── Flush pending changes before navigation ── */
+  /* ── Flush pending changes before navigation ──
+     Calls syncToServer() directly, in the same tick as the triggering
+     event (focusout / beforeunload / pagehide / tab-hide). Deferring this
+     through setTimeout used to mean the save request was scheduled to fire
+     *after* the browser had already started tearing down the page for a
+     nav-link click, so it never actually reached the server. */
   var flushBeforeUnload = function () {
     if (!dirty) return;
     saveDraftToLocal();
     clearTimeout(syncTimer);
-    syncTimer = setTimeout(syncToServer, 0);
+    syncToServer();
   };
 
   window.addEventListener('beforeunload', flushBeforeUnload);
+  window.addEventListener('pagehide', flushBeforeUnload);
   document.addEventListener('visibilitychange', function () {
     if (document.visibilityState === 'hidden') {
       flushBeforeUnload();

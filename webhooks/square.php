@@ -38,6 +38,23 @@ if (empty($_SERVER['HTTPS']) || $_SERVER['HTTPS'] === 'off') {
     squareSyncLog('Webhook received over HTTP (not HTTPS) — Square will not deliver to non-TLS endpoints');
 }
 
+$webhookConfig = squareWebhookConfig();
+if (!$webhookConfig['enabled']) {
+    http_response_code(503);
+    header('Content-Type: application/json; charset=utf-8');
+    echo json_encode(['ok' => false, 'error' => 'Webhook support is disabled']);
+    exit;
+}
+
+$maxBodyBytes = $webhookConfig['max_body_bytes'];
+$contentLength = (int)($_SERVER['CONTENT_LENGTH'] ?? 0);
+if ($contentLength > $maxBodyBytes) {
+    http_response_code(413);
+    header('Content-Type: application/json; charset=utf-8');
+    echo json_encode(['ok' => false, 'error' => 'Request body too large']);
+    exit;
+}
+
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     http_response_code(405);
     header('Content-Type: application/json; charset=utf-8');
@@ -64,7 +81,21 @@ if ($rawBody === false || $rawBody === '') {
     exit;
 }
 
-$body = json_decode($rawBody, true);
+if (strlen($rawBody) > $maxBodyBytes) {
+    http_response_code(413);
+    header('Content-Type: application/json; charset=utf-8');
+    echo json_encode(['ok' => false, 'error' => 'Request body too large']);
+    exit;
+}
+
+try {
+    $body = json_decode($rawBody, true, 512, JSON_THROW_ON_ERROR);
+} catch (JsonException) {
+    http_response_code(400);
+    header('Content-Type: application/json; charset=utf-8');
+    echo json_encode(['ok' => false, 'error' => 'Invalid JSON']);
+    exit;
+}
 if (!is_array($body)) {
     http_response_code(400);
     header('Content-Type: application/json; charset=utf-8');
