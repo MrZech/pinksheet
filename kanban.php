@@ -127,7 +127,24 @@ body[data-theme=dark] .kanban-skeleton-card{background:linear-gradient(90deg,rgb
     <div class="kanban-undo-progress" id="kanban-undo-progress"></div>
   </div>
 
+  <!-- Error toast — replaces blocking alert() popups that used to stop a
+       drag/drop mid-motion until manually dismissed. -->
+  <div class="toast" id="kanban-toast" role="status" aria-live="assertive"></div>
+
   <script>
+    /* ── Non-blocking error toast (see #kanban-toast above) ────────── */
+    var kanbanToastEl = document.getElementById('kanban-toast');
+    var kanbanToastTimer = null;
+    function showToast(msg) {
+      if (!kanbanToastEl || !msg) return;
+      kanbanToastEl.textContent = msg;
+      kanbanToastEl.classList.add('toast-visible');
+      clearTimeout(kanbanToastTimer);
+      kanbanToastTimer = setTimeout(function () {
+        kanbanToastEl.classList.remove('toast-visible');
+      }, 4200);
+    }
+
     /* ── Build a card DOM element from JSON data ─────────────────── */
     function buildCard(c, lane) {
       var isSold = lane === 'sold';
@@ -341,6 +358,7 @@ body[data-theme=dark] .kanban-skeleton-card{background:linear-gradient(90deg,rgb
           fetch('update_item.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            keepalive: true,
             body: 'sku=' + encodeURIComponent(sku) + '&field=status&value=' + encodeURIComponent(status) + '&csrf_token=' + encodeURIComponent(window.CSRF_TOKEN)
           }).then(function (r) { return r.json(); })
         ];
@@ -350,6 +368,7 @@ body[data-theme=dark] .kanban-skeleton-card{background:linear-gradient(90deg,rgb
             fetch('update_item.php', {
               method: 'POST',
               headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+              keepalive: true,
               body: 'sku=' + encodeURIComponent(sku) + '&field=reviewed&value=2&csrf_token=' + encodeURIComponent(window.CSRF_TOKEN)
             }).then(function (r) { return r.json(); })
           );
@@ -359,7 +378,7 @@ body[data-theme=dark] .kanban-skeleton-card{background:linear-gradient(90deg,rgb
           .then(function (results) {
             if (!results[0].ok) {
               revertCard();
-              alert('Update failed: ' + (results[0].error || 'error'));
+              showToast('Update failed: ' + (results[0].error || 'error'));
               return;
             }
             if (status === 'sold' && results[1] && results[1].ok) {
@@ -369,7 +388,7 @@ body[data-theme=dark] .kanban-skeleton-card{background:linear-gradient(90deg,rgb
           })
           .catch(function () {
             revertCard();
-            alert('Update failed');
+            showToast('Update failed');
           });
       });
 
@@ -418,6 +437,7 @@ body[data-theme=dark] .kanban-skeleton-card{background:linear-gradient(90deg,rgb
         fetch('update_item.php', {
           method: 'POST',
           headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          keepalive: true,
           body: 'sku=' + encodeURIComponent(sku) + '&field=reviewed&value=' + reviewed + '&csrf_token=' + encodeURIComponent(window.CSRF_TOKEN)
         })
           .then(function (r) { return r.json(); })
@@ -425,11 +445,11 @@ body[data-theme=dark] .kanban-skeleton-card{background:linear-gradient(90deg,rgb
             if (data.ok) {
               updateStatusBadge(container, reviewed === '1' ? 'active' : 'inactive');
             } else {
-              alert('Failed to update status: ' + (data.error || 'error'));
+              showToast('Failed to update status: ' + (data.error || 'error'));
             }
           })
           .catch(function () {
-            alert('Failed to update status');
+            showToast('Failed to update status');
           });
       });
 
@@ -446,6 +466,7 @@ body[data-theme=dark] .kanban-skeleton-card{background:linear-gradient(90deg,rgb
         fetch('update_item.php', {
           method: 'POST',
           headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          keepalive: true,
           body: 'sku=' + encodeURIComponent(sku) + '&field=ready&value=' + readyVal + '&csrf_token=' + encodeURIComponent(window.CSRF_TOKEN)
         })
           .then(function (r) { return r.json(); })
@@ -540,6 +561,7 @@ body[data-theme=dark] .kanban-skeleton-card{background:linear-gradient(90deg,rgb
         fetch('undo_delete.php', {
           method: 'POST',
           headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          keepalive: true,
           body: 'csrf_token=' + encodeURIComponent(window.CSRF_TOKEN)
         })
           .then(function (r) { return r.json(); })
@@ -550,14 +572,14 @@ body[data-theme=dark] .kanban-skeleton-card{background:linear-gradient(90deg,rgb
             if (data.status === 'ok') {
               restoreDeletedCard(data.new_id);
             } else {
-              alert(data && data.message ? data.message : 'Nothing to undo.');
+              showToast(data && data.message ? data.message : 'Nothing to undo.');
             }
           })
           .catch(function () {
             undoing = false;
             if (undoBtn) undoBtn.disabled = false;
             if (undoHeaderBtn) undoHeaderBtn.disabled = false;
-            alert('Undo failed — please reload the page.');
+            showToast('Undo failed — please reload the page.');
           });
       };
 
@@ -581,7 +603,7 @@ body[data-theme=dark] .kanban-skeleton-card{background:linear-gradient(90deg,rgb
         var displaySku = card.getAttribute('data-sku') || sku;
 
         if (!id || id === '0') {
-          alert('Could not find item ID — please reload and try again.');
+          showToast('Could not find item ID — please reload and try again.');
           return;
         }
 
@@ -609,6 +631,7 @@ body[data-theme=dark] .kanban-skeleton-card{background:linear-gradient(90deg,rgb
             'Content-Type': 'application/x-www-form-urlencoded',
             'X-Requested-With': 'XMLHttpRequest'
           },
+          keepalive: true,
           body: 'id=' + encodeURIComponent(id) + '&sku=' + encodeURIComponent(sku) + '&confirm=DELETE&csrf_token=' + encodeURIComponent(window.CSRF_TOKEN)
         })
           .then(function (r) { return r.json(); })
@@ -618,12 +641,12 @@ body[data-theme=dark] .kanban-skeleton-card{background:linear-gradient(90deg,rgb
               showUndoToast(displaySku);
             if (undoHeaderBtn) undoHeaderBtn.hidden = false;
             } else {
-              alert('Delete failed: ' + (data.message || 'unknown error'));
+              showToast('Delete failed: ' + (data.message || 'unknown error'));
               restoreDeletedCard();
             }
           })
           .catch(function () {
-            alert('Delete failed — please reload.');
+            showToast('Delete failed — please reload.');
             restoreDeletedCard();
           });
       });

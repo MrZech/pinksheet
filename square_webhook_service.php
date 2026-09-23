@@ -60,6 +60,28 @@ function squareWebhookEnsureSchema(PDO $pdo): void
     }
 }
 
+function squareWebhookConfig(): array
+{
+    $enabled = strtolower(trim((string)(getenv('SQUARE_WEBHOOK_ENABLED') ?: '1')));
+    $maxBody = (int)(getenv('SQUARE_WEBHOOK_MAX_BODY_BYTES') ?: 1048576);
+    return [
+        'enabled' => !in_array($enabled, ['0', 'false', 'no', 'off', ''], true),
+        'signature_key' => trim((string)(getenv('SQUARE_WEBHOOK_SIGNATURE_KEY') ?: '')),
+        'notification_url' => trim((string)(getenv('SQUARE_WEBHOOK_NOTIFICATION_URL') ?: '')),
+        'max_body_bytes' => max(1, $maxBody),
+        'refund_status' => trim((string)(getenv('SQUARE_WEBHOOK_REFUND_STATUS') ?: 'RETURNED - NEEDS INSPECTION')),
+    ];
+}
+
+function squareWebhookVerifySignature(string $rawBody, string $provided, string $key, string $notificationUrl): bool
+{
+    if ($provided === '' || $key === '' || $notificationUrl === '') {
+        return false;
+    }
+    $expected = base64_encode(hash_hmac('sha256', $notificationUrl . $rawBody, $key, true));
+    return hash_equals($expected, trim($provided));
+}
+
 function squareWebhookVerify(string $rawBody, string $signatureHeader, string $notificationUrl): bool
 {
     $secret = getenv('SQUARE_WEBHOOK_SIGNATURE_KEY');
@@ -96,6 +118,40 @@ function squareWebhookNotificationUrl(): string
     return $host === '' ? '' : $scheme . '://' . $host . $uri;
 }
 
+function squareWebhookEnsureLegacySchema(PDO $pdo): void
+{
+    $pdo->exec(<<<'SQL'
+CREATE TABLE IF NOT EXISTS square_webhook_events (
+    event_id TEXT PRIMARY KEY, event_type TEXT NOT NULL, square_created_at TEXT,
+    received_at TEXT NOT NULL DEFAULT (datetime('now')), processed_at TEXT,
+    processing_status TEXT NOT NULL DEFAULT 'received', retry_count INTEGER NOT NULL DEFAULT 0,
+    error_message TEXT, payload_json TEXT NOT NULL
+);
+SQL);
+    $pdo->exec('CREATE INDEX IF NOT EXISTS idx_square_webhook_events_status ON square_webhook_events(processing_status, received_at)');
+    $pdo->exec(<<<'SQL'
+CREATE TABLE IF NOT EXISTS square_inventory_events (
+    id INTEGER PRIMARY KEY AUTOINCREMENT, event_id TEXT NOT NULL, square_variation_id TEXT,
+    sku_normalized TEXT, location_id TEXT, inventory_state TEXT, quantity TEXT, occurred_at TEXT,
+    received_at TEXT NOT NULL DEFAULT (datetime('now')), reconciliation_status TEXT NOT NULL DEFAULT 'observed', notes TEXT,
+    UNIQUE(event_id, square_variation_id, location_id, inventory_state)
+);
+SQL);
+}
+
+function squareWebhookLog(string $message): void
+{
+    $dir = __DIR__ . '/logs';
+    if (!is_dir($dir)) { @mkdir($dir, 0777, true); }
+    @file_put_contents($dir . '/square_webhook.log', '[' . date('c') . '] ' . $message . PHP_EOL, FILE_APPEND | LOCK_EX);
+}
+
+function squareWebhookIsPrivateRequest(): bool
+{
+    $remote = (string)($_SERVER['REMOTE_ADDR'] ?? '');
+    return $remote === '127.0.0.1' || $remote === '::1' || ($remote !== '' && filter_var($remote, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE) === false);
+}
+
 function squareWebhookIsFresh(array $body): bool
 {
     $createdAt = (string)($body['created_at'] ?? '');
@@ -109,6 +165,55 @@ function squareWebhookIsFresh(array $body): bool
     $maxAgeRaw = trim((string)(getenv('SQUARE_WEBHOOK_MAX_AGE_SECONDS') ?: '259200'));
     $maxAge = is_numeric($maxAgeRaw) ? max(300, (int)$maxAgeRaw) : 259200;
     return abs(time() - $createdTs) <= $maxAge;
+}
+
+function squareWebhookProcessPayment(PDO $pdo, array $body, ?callable $api = null): array
+{
+    $payment = $body['data']['object']['payment'] ?? null;
+    if (!is_array($payment) || strtoupper((string)($payment['status'] ?? '')) !== 'COMPLETED') {
+        return ['status' => 'skipped', 'message' => 'Payment is not completed'];
+    }
+    $paymentId = trim((string)($payment['id'] ?? ''));
+    $orderId = trim((string)($payment['order_id'] ?? ''));
+    if ($paymentId === '' || $orderId === '') {
+        return ['status' => 'error', 'message' => 'Completed payment is missing id or order_id'];
+    }
+    if ($api === null) {
+        $config = squareSyncConfig();
+        $api = static fn(string $path): array => squareSyncApiJson($config, 'GET', $path);
+    }
+    $orderResponse = $api('/v2/orders/' . rawurlencode($orderId));
+    $order = $orderResponse['order'] ?? null;
+    if (!is_array($order)) {
+        return ['status' => 'error', 'message' => 'Square order missing'];
+    }
+    $body['data']['object']['order'] = $order;
+    $body['data']['object']['payment'] = $payment;
+    return squareWebhookProcessSale($pdo, $body, 'wh-' . (string)($body['event_id'] ?? $paymentId));
+}
+
+function squareWebhookProcessRefund(PDO $pdo, array $body): array
+{
+    $refund = $body['data']['object']['refund'] ?? null;
+    if (!is_array($refund) || strtoupper((string)($refund['status'] ?? '')) !== 'COMPLETED') {
+        return ['status' => 'skipped', 'message' => 'Refund is not completed'];
+    }
+    $paymentId = trim((string)($refund['payment_id'] ?? ''));
+    $orderId = trim((string)($refund['order_id'] ?? ''));
+    if ($paymentId === '' && $orderId === '') {
+        return ['status' => 'error', 'message' => 'Completed refund is missing payment_id or order_id'];
+    }
+    $where = $paymentId !== '' ? 'square_payment_id = :id' : 'square_order_id = :id';
+    $rows = $pdo->prepare("SELECT DISTINCT sku_normalized FROM sales_history WHERE $where AND sku_normalized <> ''");
+    $rows->execute(['id' => $paymentId !== '' ? $paymentId : $orderId]);
+    $status = squareWebhookConfig()['refund_status'];
+    $update = $pdo->prepare("UPDATE intake_items SET status = :status, updated_at = datetime('now') WHERE sku_normalized = :sku AND UPPER(TRIM(COALESCE(status, ''))) = 'SOLD'");
+    $count = 0;
+    foreach ($rows->fetchAll(PDO::FETCH_COLUMN) as $sku) {
+        $update->execute(['status' => $status, 'sku' => $sku]);
+        $count += $update->rowCount();
+    }
+    return ['status' => 'ok', 'message' => $count . ' refunded item(s) updated'];
 }
 
 function squareWebhookProcess(PDO $pdo, string $eventType, array $body): array
@@ -158,7 +263,9 @@ function squareWebhookProcess(PDO $pdo, string $eventType, array $body): array
     try {
         $pdo->beginTransaction();
         $result = match (true) {
-            str_starts_with($eventType, 'order.') || str_starts_with($eventType, 'payment.') => squareWebhookProcessSale($pdo, $body, $correlationId),
+            str_starts_with($eventType, 'payment.') => squareWebhookProcessPayment($pdo, $body),
+            str_starts_with($eventType, 'refund.') => squareWebhookProcessRefund($pdo, $body),
+            str_starts_with($eventType, 'order.') => squareWebhookProcessSale($pdo, $body, $correlationId),
             str_starts_with($eventType, 'inventory.') => squareWebhookProcessInventory($pdo, $body, $correlationId),
             str_starts_with($eventType, 'catalog.') => squareWebhookProcessCatalog($pdo, $body, $correlationId),
             default => ['status' => 'ignored', 'message' => 'Unhandled event type: ' . $eventType],
@@ -326,6 +433,7 @@ function squareWebhookProcessInventory(PDO $pdo, array $body, string $correlatio
     $locationId = (string)($inventoryCount['location_id'] ?? '');
     $state = (string)($inventoryCount['state'] ?? '');
     $quantity = (string)($inventoryCount['quantity'] ?? '0');
+    $occurredAt = (string)($inventoryCount['occurred_at'] ?? ($body['created_at'] ?? gmdate('Y-m-d\\TH:i:s\\Z')));
 
     if ($catalogObjectId === '') {
         return ['status' => 'skipped', 'message' => 'No catalog_object_id in inventory event'];
@@ -344,12 +452,31 @@ function squareWebhookProcessInventory(PDO $pdo, array $body, string $correlatio
 
     $localItem = squareSyncLoadItem($pdo, $skuNormalized);
     $localStatus = (string)($localItem['status'] ?? '');
+    $syncRow = squareSyncLoadRow($pdo, $skuNormalized) ?: [];
+    $squareTs = strtotime($occurredAt) ?: time();
+    $localTs = strtotime((string)($syncRow['last_local_change_at'] ?? ($localItem['updated_at'] ?? ''))) ?: 0;
+    if ($squareTs < $localTs) {
+        return ['status' => 'skipped', 'message' => 'Square inventory event is older than the local Pinksheet update'];
+    }
     $isSoldLocal = strtoupper(trim($localStatus)) === 'SOLD';
     $inventoryZero = ((int)$quantity) <= 0;
 
-    if ($inventoryZero && !$isSoldLocal) {
-        $pdo->prepare("UPDATE intake_items SET status = 'sold', updated_at = datetime('now') WHERE sku_normalized = :sku AND status != 'sold'")
-            ->execute(['sku' => $skuNormalized]);
+    $newStatus = $localStatus;
+    if ($inventoryZero) {
+        if (!$isSoldLocal) {
+            $pdo->prepare("UPDATE square_catalog_sync SET previous_status = :previous_status WHERE sku_normalized = :sku")
+                ->execute(['previous_status' => $localStatus !== '' ? $localStatus : null, 'sku' => $skuNormalized]);
+        }
+        $newStatus = 'sold';
+    } elseif ($isSoldLocal) {
+        $newStatus = trim((string)($syncRow['previous_status'] ?? ''));
+        if ($newStatus === '') {
+            return ['status' => 'skipped', 'message' => 'Positive Square inventory found but no previous Pinksheet status is available'];
+        }
+    }
+    if ($newStatus !== $localStatus || (int)($localItem['quantity'] ?? 0) !== (int)$quantity) {
+        $pdo->prepare("UPDATE intake_items SET quantity = :quantity, status = :status, updated_at = datetime('now') WHERE sku_normalized = :sku")
+            ->execute(['quantity' => max(0, (int)$quantity), 'status' => $newStatus, 'sku' => $skuNormalized]);
         squareSyncLogEvent([
             'operation' => 'inventory.webhook',
             'direction' => 'pull',
@@ -362,8 +489,8 @@ function squareWebhookProcessInventory(PDO $pdo, array $body, string $correlatio
         ]);
     }
 
-    $pdo->prepare("UPDATE square_catalog_sync SET last_inventory_sync = datetime('now'), last_origin = 'square', last_correlation_id = :cid WHERE sku_normalized = :sku")
-        ->execute(['sku' => $skuNormalized, 'cid' => $correlationId]);
+    $pdo->prepare("UPDATE square_catalog_sync SET last_inventory_sync = datetime('now'), last_square_change_at = :changed_at, last_origin = 'square', last_correlation_id = :cid, last_synced_quantity = :quantity WHERE sku_normalized = :sku")
+        ->execute(['sku' => $skuNormalized, 'cid' => $correlationId, 'changed_at' => gmdate('Y-m-d H:i:s', $squareTs), 'quantity' => max(0, (int)$quantity)]);
 
     return [
         'status' => 'ok',

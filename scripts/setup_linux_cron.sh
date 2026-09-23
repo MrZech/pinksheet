@@ -9,6 +9,8 @@
 #   * Inventory reconciliation daily 03:00       scripts/reconcile_square.php
 #   * Nightly DB backup        daily 02:00       scripts/backup_db.php
 #   * DB integrity check       daily 08:00       scripts/check_db.php data/intake.sqlite
+#   * Live Google Sheet mirror every 15 minutes  scripts/sync_google_sheet.php (no-op until configured)
+#   * Stale chunk-upload cleanup hourly          scripts/cleanup_chunks.php
 #
 # The script is idempotent: it rewrites only the block it owns (between the
 # "<<< pinksheet tasks" markers), so it is safe to re-run after deploys.
@@ -50,7 +52,7 @@ if ! command -v crontab >/dev/null 2>&1; then
 fi
 
 # ── Sanity-check the PHP scripts exist ──────────────────────────
-for s in process_sync_queue.php reconcile_square.php backup_db.php check_db.php; do
+for s in process_sync_queue.php reconcile_square.php backup_db.php check_db.php sync_google_sheet.php cleanup_chunks.php; do
     if [ ! -f "$SCRIPT_DIR/$s" ]; then
         echo "ERROR: $SCRIPT_DIR/$s not found. Deploy the repo first." >&2
         exit 1
@@ -70,6 +72,10 @@ BLOCK="$MARKER_OPEN
 0 2 * * * $PHP_BIN $SCRIPT_DIR/backup_db.php >> $PROJECT_ROOT/logs/cron_backup.log 2>&1
 # DB integrity check (daily at 8:00 AM)
 0 8 * * * $PHP_BIN $SCRIPT_DIR/check_db.php $PROJECT_ROOT/data/intake.sqlite >> $PROJECT_ROOT/logs/cron_check_db.log 2>&1
+# Live Google Sheet mirror (every 15 minutes; no-op until GOOGLE_* vars are set in .env)
+*/15 * * * * $PHP_BIN $SCRIPT_DIR/sync_google_sheet.php >> $PROJECT_ROOT/logs/cron_sheet_sync.log 2>&1
+# Remove stale chunked-upload directories left by interrupted photo uploads (hourly)
+0 * * * * $PHP_BIN $SCRIPT_DIR/cleanup_chunks.php >> $PROJECT_ROOT/logs/cron_cleanup_chunks.log 2>&1
 $MARKER_CLOSE"
 
 mkdir -p "$PROJECT_ROOT/logs"

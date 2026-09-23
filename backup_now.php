@@ -67,6 +67,21 @@ function runPhpBackup(): array
         $ok = false;
     }
 
+    // archive.sqlite (sold/historical items) was never backed up by this
+    // path — only back it up when present so installs without one yet
+    // don't fail.
+    $archivePath = $repoRoot . '/data/archive.sqlite';
+    if (is_file($archivePath)) {
+        $archiveSnapshot = snapshotDatabase($archivePath, $backupDir, 'archive');
+        if ($archiveSnapshot['ok']) {
+            $messages[] = 'SQLite backup created: ' . $archiveSnapshot['dest'];
+            $messages[] = 'SHA256 written: ' . $archiveSnapshot['dest'] . '.sha256';
+        } else {
+            $messages[] = 'Archive backup failed: ' . ($archiveSnapshot['error'] ?? 'Snapshot failed');
+            $ok = false;
+        }
+    }
+
     // Mirror to OneDrive if available.
     if ($oneDrive) {
         if (!is_dir($oneDrive) && !mkdir($oneDrive, 0777, true) && !is_dir($oneDrive)) {

@@ -39,10 +39,15 @@ try {
     $clear->execute([':sku' => $sku]);
     $set = $pdo->prepare('UPDATE sku_photos SET is_thumb = 1 WHERE id = :id AND sku_normalized = :sku');
     $set->execute([':id' => $photoId, ':sku' => $sku]);
-    $pdo->commit();
+    // Check the match BEFORE committing — otherwise a bad/stale photo_id
+    // still commits the "clear every thumbnail flag for this SKU" half of
+    // the transaction, silently leaving the SKU with no thumbnail at all
+    // while reporting 404.
     if ($set->rowCount() === 0) {
+        $pdo->rollBack();
         errorResponse('Photo not found for that SKU', 404);
     }
+    $pdo->commit();
     $squareSync = squareSyncItemBySku($pdo, $sku);
     successResponse(['square_sync' => $squareSync['status'] ?? 'skipped']);
 } catch (Throwable $e) {

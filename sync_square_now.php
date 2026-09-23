@@ -36,7 +36,7 @@ require_csrf();
 
 $config = squareSyncConfig();
 if (!$config['enabled']) {
-    errorResponse('Square sync is not configured', 400);
+    errorResponse('Square sync is not configured. Set SQUARE_ACCESS_TOKEN and SQUARE_LOCATION_ID in the server .env.', 400);
 }
 
 try {

@@ -33,6 +33,11 @@ desktop-v2.db
 
 # Test sandbox databases
 tmp/test_sandbox_data/
+tmp/test_data/
+
+# Freebuff session logs and scratch exports (large, not app code)
+even-terminal-*.log
+tmp/*.xlsx
 
 # Runtime state files (auto-generated)
 data/.asset_version

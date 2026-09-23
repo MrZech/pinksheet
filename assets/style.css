@@ -2985,12 +2985,22 @@ body.dark-mode .warning {
   transition: border-color 160ms ease, background 160ms ease;
 }
 
-.sku-photo-dropzone.is-hover {
+.sku-photo-dropzone.is-hover,
+.sku-photo-dropzone:focus-visible {
   border-color: var(--accent-strong);
   background: var(--accent-primary-soft);
+  outline: 2px solid var(--accent-strong);
+  outline-offset: 2px;
 }
 .sku-photo-preview {
   margin-top: 10px;
+}
+
+.photo-selection-hint {
+  margin: 8px 0 0;
+  color: var(--accent-strong);
+  font-size: 0.82rem;
+  font-weight: 600;
 }
 
 .sku-photo-item {
@@ -3312,6 +3322,30 @@ body.dark-mode .sku-photo-item span {
 .required-missing {
   border-color: var(--accent-primary) !important;
   box-shadow: var(--focus-ring) !important;
+}
+
+.intake-progress {
+  display: grid;
+  gap: 6px;
+  margin: 8px 0 14px;
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.intake-progress-track {
+  height: 7px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--surface-secondary);
+}
+
+.intake-progress-track > span {
+  display: block;
+  width: 0;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--palette-teal);
+  transition: width 160ms ease;
 }
 
 .table-wrap {

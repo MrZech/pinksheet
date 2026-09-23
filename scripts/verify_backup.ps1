@@ -88,10 +88,23 @@ try {
 
     # Latest backup, if any
     if (Test-Path $backupDir) {
-        $latest = Get-ChildItem -Path $backupDir -File | Sort-Object LastWriteTime -Descending | Select-Object -First 1
-        if ($latest) {
-            Check-DbIntegrity -path $latest.FullName -label "Latest backup ($($latest.Name))"
-            $lastBackupName = $latest.Name
+        # Only *.sqlite files are databases — each snapshot also writes a
+        # same-named *.sqlite.sha256 sidecar a moment later, so without this
+        # filter "most recently written file" was always the checksum text
+        # file, not the database, and Check-DbIntegrity below ran a SQLite
+        # integrity check against a 64-byte hex string on every single run.
+        # Group by prefix (intake-/archive-) so both databases actually get
+        # verified instead of only ever the one written last in a run.
+        $backupFiles = Get-ChildItem -Path $backupDir -File -Filter '*.sqlite'
+        $groups = $backupFiles | Group-Object { ($_.BaseName -split '-')[0] }
+        if ($groups) {
+            $lastBackupNames = @()
+            foreach ($group in $groups) {
+                $latest = $group.Group | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+                Check-DbIntegrity -path $latest.FullName -label "Latest $($group.Name) backup ($($latest.Name))"
+                $lastBackupNames += $latest.Name
+            }
+            $lastBackupName = $lastBackupNames -join ', '
         } elseif (-not $Quiet) {
             Write-Warning "No backup files found in $backupDir"
         }

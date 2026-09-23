@@ -248,13 +248,19 @@ try {
     $serverInfo['timezone'] = $tz;
     $serverInfo['uptime'] = null;
     if (PHP_OS_FAMILY === 'Windows') {
-        $out = @shell_exec('systeminfo 2>NUL | findstr /C:"System Boot Time" /C:"Up Time"');
-        if ($out !== null && $out !== '') {
-            $serverInfo['uptime'] = trim($out);
-        } else {
-            $out2 = @shell_exec('powershell -NoProfile -Command "(Get-Date) - (Get-CimInstance Win32_OperatingSystem).LastBootUpTime | Format-Table -AutoSize" 2>NUL');
-            if ($out2 !== null && $out2 !== '') {
-                $serverInfo['uptime'] = trim($out2);
+        // `systeminfo` and `Get-CimInstance` both take several seconds to
+        // return (systeminfo alone runs ~5s), which made every load of this
+        // page pay that cost. `net stats workstation` reports the same boot
+        // time in a couple hundred ms.
+        $out = @shell_exec('net stats workstation 2>NUL');
+        if ($out !== null && $out !== '' && preg_match('/Statistics since\s+(.+)/i', $out, $m)) {
+            $bootTs = strtotime(trim($m[1]));
+            if ($bootTs !== false) {
+                $secs = max(0, time() - $bootTs);
+                $days = intdiv($secs, 86400);
+                $hours = intdiv($secs % 86400, 3600);
+                $mins = intdiv($secs % 3600, 60);
+                $serverInfo['uptime'] = "{$days}d {$hours}h {$mins}m";
             }
         }
     } else {
